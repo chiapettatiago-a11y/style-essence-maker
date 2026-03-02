@@ -3,6 +3,8 @@ import { GeneratedImage } from "@/types/fashion";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, Download, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import demoVideoModel from "@/assets/demo-video-360-model.mp4";
+import demoVideoProduct from "@/assets/demo-video-360-product.mp4";
 
 interface ResultsStepProps {
   images: GeneratedImage[];
@@ -100,34 +102,45 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ images, onRegenerate }) => {
         <div className="space-y-3">
           <h3 className="text-lg font-semibold">Prompts de Vídeo</h3>
           <p className="text-xs text-muted-foreground">
-            Copie e use em ferramentas de geração de vídeo externas.
+            Copie e use em ferramentas externas. Veja os vídeos de exemplo como referência.
           </p>
-          {videoPrompts.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-lg border border-border bg-card p-4 space-y-2"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{item.label}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyPrompt(item.id, item.prompt)}
-                  className="h-7 text-xs"
-                >
-                  {copied === item.id ? (
-                    <Check className="h-3 w-3 mr-1" />
-                  ) : (
-                    <Copy className="h-3 w-3 mr-1" />
-                  )}
-                  {copied === item.id ? "Copiado" : "Copiar"}
-                </Button>
+          {videoPrompts.map((item) => {
+            const demoVideo = item.type === "video-model" ? demoVideoModel : demoVideoProduct;
+            return (
+              <div
+                key={item.id}
+                className="rounded-lg border border-border bg-card p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyPrompt(item.id, item.prompt)}
+                    className="h-7 text-xs"
+                  >
+                    {copied === item.id ? (
+                      <Check className="h-3 w-3 mr-1" />
+                    ) : (
+                      <Copy className="h-3 w-3 mr-1" />
+                    )}
+                    {copied === item.id ? "Copiado" : "Copiar"}
+                  </Button>
+                </div>
+                <video
+                  src={demoVideo}
+                  className="w-full max-h-[360px] aspect-[9/16] object-cover rounded-lg bg-muted"
+                  muted
+                  loop
+                  controls
+                  playsInline
+                />
+                <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                  {item.prompt}
+                </pre>
               </div>
-              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-                {item.prompt}
-              </pre>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
