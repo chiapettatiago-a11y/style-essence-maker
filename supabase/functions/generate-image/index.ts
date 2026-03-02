@@ -48,6 +48,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-3-pro-image-preview",
+        modalities: ["image", "text"],
         messages: [
           {
             role: "user",
@@ -65,33 +66,37 @@ serve(async (req) => {
 
     const data = await response.json();
 
-    // Extract image from response
+    // Extract image from response — check message.images first (gateway format)
     const message = data.choices?.[0]?.message;
     let imageUrl = "";
 
-    if (message?.content) {
-      // Check if content is an array with image parts
-      if (Array.isArray(message.content)) {
-        const imagePart = message.content.find(
-          (part: any) => part.type === "image_url" || part.type === "image"
-        );
-        if (imagePart?.image_url?.url) {
-          imageUrl = imagePart.image_url.url;
-        } else if (imagePart?.data) {
-          imageUrl = `data:image/png;base64,${imagePart.data}`;
-        }
-      } else if (typeof message.content === "string") {
-        // Check for base64 image in text response
-        const base64Match = message.content.match(
-          /data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/
-        );
-        if (base64Match) {
-          imageUrl = base64Match[0];
-        }
+    if (message?.images && Array.isArray(message.images) && message.images.length > 0) {
+      imageUrl = message.images[0]?.image_url?.url || "";
+    }
+
+    // Fallback: check content array
+    if (!imageUrl && message?.content && Array.isArray(message.content)) {
+      const imagePart = message.content.find(
+        (part: any) => part.type === "image_url" || part.type === "image"
+      );
+      if (imagePart?.image_url?.url) {
+        imageUrl = imagePart.image_url.url;
+      } else if (imagePart?.data) {
+        imageUrl = `data:image/png;base64,${imagePart.data}`;
       }
     }
 
-    // Also check for inline_data in parts
+    // Fallback: check for base64 in string content
+    if (!imageUrl && typeof message?.content === "string") {
+      const base64Match = message.content.match(
+        /data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/
+      );
+      if (base64Match) {
+        imageUrl = base64Match[0];
+      }
+    }
+
+    // Fallback: inline_data in parts
     if (!imageUrl && message?.parts) {
       const imgPart = message.parts.find((p: any) => p.inline_data);
       if (imgPart?.inline_data) {
