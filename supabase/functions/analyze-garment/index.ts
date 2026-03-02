@@ -20,7 +20,8 @@ serve(async (req) => {
       });
     }
 
-    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     // Build parts with images
     const imageParts = images.slice(0, 4).map((img: string) => {
@@ -50,11 +51,11 @@ serve(async (req) => {
 
 Be very detailed and specific about construction, trims, and design elements. Output ONLY valid JSON.`;
 
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/ai`, {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
