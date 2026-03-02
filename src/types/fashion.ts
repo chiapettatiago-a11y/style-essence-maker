@@ -1,0 +1,69 @@
+export interface GarmentAnalysis {
+  type: string;
+  fabric: string;
+  color: string;
+  pattern: string;
+  construction: string;
+  details: string;
+  style: string;
+  fullDescription: string;
+}
+
+export interface ModelProfile {
+  id: string;
+  name: string;
+  height: string;
+  bust: string;
+  waist: string;
+  hip: string;
+  skinTone: string;
+  hairType: string;
+  hairColor: string;
+  generalStyle: string;
+}
+
+export interface StylePreset {
+  id: string;
+  name: string;
+  description: string;
+  promptBlock: string;
+}
+
+export interface StyleCategory {
+  id: string;
+  label: string;
+  icon: string;
+  presets: StylePreset[];
+}
+
+export interface PromptLayers {
+  layer1: string; // Base técnica (locked)
+  layer2: string; // Assembled from selected presets
+  layer3: string; // Manual adjustments
+}
+
+export interface GenerationRequest {
+  type: 'lookbook-front' | 'lookbook-back' | 'lookbook-left' | 'lookbook-three-quarter' | 'close-up' | 'video-product' | 'video-model';
+  label: string;
+  prompt: string;
+}
+
+export interface GeneratedImage {
+  id: string;
+  type: GenerationRequest['type'];
+  label: string;
+  prompt: string;
+  imageUrl?: string;
+  status: 'pending' | 'generating' | 'done' | 'error';
+  error?: string;
+}
+
+export interface WizardState {
+  step: number;
+  uploadedImages: string[];
+  garmentAnalysis: GarmentAnalysis | null;
+  selectedProfile: ModelProfile | null;
+  selectedPresets: Record<string, string>; // categoryId -> presetId
+  manualPrompt: string;
+  generatedImages: GeneratedImage[];
+}
