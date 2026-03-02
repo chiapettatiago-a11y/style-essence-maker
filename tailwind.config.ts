@@ -47,6 +47,11 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        layer: {
+          locked: "hsl(var(--layer-locked))",
+          style: "hsl(var(--layer-style))",
+          manual: "hsl(var(--layer-manual))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
