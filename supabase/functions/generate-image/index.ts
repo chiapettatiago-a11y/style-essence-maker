@@ -66,46 +66,80 @@ serve(async (req) => {
 
     const data = await response.json();
 
-    // Extract image from response — check message.images first (gateway format)
-    const message = data.choices?.[0]?.message;
-    let imageUrl = "";
+    const extractImageUrl = (payload: any): string => {
+      const message = payload?.choices?.[0]?.message;
 
-    if (message?.images && Array.isArray(message.images) && message.images.length > 0) {
-      imageUrl = message.images[0]?.image_url?.url || "";
-    }
-
-    // Fallback: check content array
-    if (!imageUrl && message?.content && Array.isArray(message.content)) {
-      const imagePart = message.content.find(
-        (part: any) => part.type === "image_url" || part.type === "image"
-      );
-      if (imagePart?.image_url?.url) {
-        imageUrl = imagePart.image_url.url;
-      } else if (imagePart?.data) {
-        imageUrl = `data:image/png;base64,${imagePart.data}`;
+      // Primary gateway image format
+      if (Array.isArray(message?.images) && message.images.length > 0) {
+        const img = message.images[0]?.image_url?.url;
+        if (img) return img;
       }
-    }
 
-    // Fallback: check for base64 in string content
-    if (!imageUrl && typeof message?.content === "string") {
-      const base64Match = message.content.match(
-        /data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/
-      );
-      if (base64Match) {
-        imageUrl = base64Match[0];
+      // Alternative content-array format
+      if (Array.isArray(message?.content)) {
+        const imagePart = message.content.find(
+          (part: any) => part?.type === "image_url" || part?.type === "image"
+        );
+        if (imagePart?.image_url?.url) return imagePart.image_url.url;
+        if (imagePart?.data) return `data:image/png;base64,${imagePart.data}`;
       }
-    }
 
-    // Fallback: inline_data in parts
-    if (!imageUrl && message?.parts) {
-      const imgPart = message.parts.find((p: any) => p.inline_data);
-      if (imgPart?.inline_data) {
-        imageUrl = `data:${imgPart.inline_data.mime_type};base64,${imgPart.inline_data.data}`;
+      // String content containing data URL
+      if (typeof message?.content === "string") {
+        const base64Match = message.content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
+        if (base64Match) return base64Match[0];
+      }
+
+      // Inline data format
+      if (Array.isArray(message?.parts)) {
+        const imgPart = message.parts.find((p: any) => p?.inline_data);
+        if (imgPart?.inline_data?.data && imgPart?.inline_data?.mime_type) {
+          return `data:${imgPart.inline_data.mime_type};base64,${imgPart.inline_data.data}`;
+        }
+      }
+
+      return "";
+    };
+
+    let imageUrl = extractImageUrl(data);
+
+    // Fallback retry with Nano banana if provider returned text-only output
+    if (!imageUrl) {
+      const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          modalities: ["image", "text"],
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `${prompt}\n\nGenerate one final image output now.`,
+                },
+                ...content.filter((item) => item.type === "image_url"),
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!fallbackResponse.ok) {
+        const fallbackErrText = await fallbackResponse.text();
+        console.error("AI fallback image gen error:", fallbackErrText);
+      } else {
+        const fallbackData = await fallbackResponse.json();
+        imageUrl = extractImageUrl(fallbackData);
       }
     }
 
     if (!imageUrl) {
-      console.error("Full AI response:", JSON.stringify(data));
+      console.error("Full AI response (primary):", JSON.stringify(data));
       throw new Error("No image found in AI response");
     }
 
