@@ -1,17 +1,17 @@
 import { StyleCategory } from "@/types/fashion";
 
 // 🔒 CAMADA 1 — Base Técnica Travada
-export const LAYER1_BASE = `Professional fashion lookbook photo in 1920x1080 resolution (16:9 aspect ratio), ultra high definition.
+export const LAYER1_BASE = `Professional fashion lookbook photo in 1080x1920 resolution (9:16 portrait aspect ratio), ultra high definition.
 
 Do not alter garment design. Preserve all pattern details, transparency, pleat structure, proportions and trim alignment precisely.
 
-Full body centered in frame, no cropping, garment fully visible within 16:9 composition.
+Full body centered in frame, no cropping, garment fully visible within 9:16 portrait composition.
 
 Soft diffused lighting with subtle shadow depth to enhance texture and textile realism.
 
 Luxury commercial lookbook aesthetic, sharp textile detail, no distortion, no compression artifacts, maximum texture fidelity, photorealistic fabric detail.`;
 
-export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video in 1920x1080 resolution (16:9), 4K clarity, 24fps.
+export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video in 1080x1920 resolution (9:16 portrait), 4K clarity, 24fps.
 
 Absolute garment fidelity — do not redesign or modify proportions. Preserve all original design elements exactly.
 
