@@ -1,16 +1,18 @@
 
 
-## Ajuste de Resolução: Portrait 1080×1920
+## Integrar Vídeos de Demonstração na Seção de Resultados
 
-O usuário quer formato **portrait** (vertical) em vez de landscape: **1080px de largura × 1920px de altura** (9:16).
+### O que será feito
 
-### Alterações necessárias
+Na seção de **Video Prompts** do `ResultsStep`, ao lado do prompt copiável, exibir o vídeo de demonstração correspondente (`demo-video-360-model.mp4` ou `demo-video-360-product.mp4`) como preview visual de referência.
 
-**Arquivo: `src/data/prompt-layers.ts`**
-- `LAYER1_BASE` (linha 4): Trocar `1920x1080 resolution (16:9 aspect ratio)` por `1080x1920 resolution (9:16 portrait aspect ratio)` e ajustar a referência `within 16:9 composition` para `within 9:16 portrait composition`
-- `LAYER1_VIDEO_BASE` (linha 14): Trocar `1920x1080 resolution (16:9)` por `1080x1920 resolution (9:16 portrait)`
+### Alterações
 
-**Arquivo: `src/data/prompt-builder.ts`**
-- Nenhuma mudança estrutural necessária — as strings de resolução vêm da Camada 1
+**`src/components/fashion/ResultsStep.tsx`**
+- Importar os dois vídeos de demo (`demo-video-360-model.mp4` e `demo-video-360-product.mp4`)
+- Na seção de video prompts, adicionar um `<video>` player (muted, loop, controls) acima do prompt de texto
+- Mapear o tipo `video-model` → vídeo de modelo, `video-product` → vídeo de produto
+- Atualizar o subtítulo para mencionar que há vídeos de exemplo disponíveis
 
-Apenas duas strings de texto precisam ser atualizadas para refletir a orientação vertical correta.
+Layout: vídeo em aspect-ratio 9:16 (portrait) com max-height contido, seguido do prompt copiável abaixo.
+
