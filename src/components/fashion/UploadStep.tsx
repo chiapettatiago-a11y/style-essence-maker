@@ -22,8 +22,7 @@ const UploadStep: React.FC<UploadStepProps> = ({
 
   const handleFiles = useCallback(
     (files: FileList) => {
-      const remaining = 4 - images.length;
-      const toProcess = Array.from(files).slice(0, remaining);
+      const toProcess = Array.from(files);
       toProcess.forEach((file) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -54,7 +53,7 @@ const UploadStep: React.FC<UploadStepProps> = ({
       <div>
         <h2 className="text-2xl font-semibold tracking-tight">Upload da Peça</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Envie até 4 imagens do produto para análise técnica automática.
+          Envie as imagens do produto para análise técnica automática.
         </p>
       </div>
 
@@ -70,21 +69,18 @@ const UploadStep: React.FC<UploadStepProps> = ({
           "relative border-2 border-dashed rounded-xl p-10 text-center transition-all cursor-pointer",
           dragOver
             ? "border-accent bg-accent/10"
-            : "border-border hover:border-accent/50",
-          images.length >= 4 && "opacity-50 pointer-events-none"
+            : "border-border hover:border-accent/50"
         )}
         onClick={() => {
-          if (images.length < 4) {
-            const input = document.createElement("input");
-            input.type = "file";
-            input.accept = "image/*";
-            input.multiple = true;
-            input.onchange = (e) => {
-              const files = (e.target as HTMLInputElement).files;
-              if (files) handleFiles(files);
-            };
-            input.click();
-          }
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = "image/*";
+          input.multiple = true;
+          input.onchange = (e) => {
+            const files = (e.target as HTMLInputElement).files;
+            if (files) handleFiles(files);
+          };
+          input.click();
         }}
       >
         <Upload className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
@@ -92,7 +88,7 @@ const UploadStep: React.FC<UploadStepProps> = ({
           Arraste imagens aqui ou clique para selecionar
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          {images.length}/4 imagens • PNG, JPG até 10MB
+          {images.length} {images.length === 1 ? "imagem" : "imagens"} • PNG, JPG até 10MB
         </p>
       </div>
 

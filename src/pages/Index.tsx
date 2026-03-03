@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { GarmentAnalysis, GeneratedImage, GenerationRequest, ModelProfile, WizardState } from "@/types/fashion";
+import { GarmentAnalysis, GeneratedImage, GenerationRequest, ModelProfile, WeeklyLaunch, WizardState } from "@/types/fashion";
 import { LAYER1_BASE } from "@/data/prompt-layers";
 import { assembleLayer2 } from "@/data/prompt-builder";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ const STEPS = [
 ];
 
 const Index = () => {
+  const defaultWeekId = crypto.randomUUID();
   const [state, setState] = useState<WizardState>({
     step: 0,
     uploadedImages: [],
@@ -31,6 +32,8 @@ const Index = () => {
     selectedPresets: {},
     manualPrompt: "",
     generatedImages: [],
+    weeklyLaunches: [{ id: defaultWeekId, label: "Semana 1", images: [] }],
+    activeWeek: defaultWeekId,
   });
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -77,19 +80,34 @@ const Index = () => {
         prompt: r.prompt,
         status: r.type === "video-product" || r.type === "video-model" ? "done" : "pending",
       }));
-      update("generatedImages", initial);
-      update("step", 4);
+      // Store in active week
+      setState((s) => ({
+        ...s,
+        step: 4,
+        generatedImages: initial,
+        weeklyLaunches: s.weeklyLaunches.map((w) =>
+          w.id === s.activeWeek ? { ...w, images: [...w.images, ...initial] } : w
+        ),
+      }));
 
       // Generate images sequentially (skip video prompts)
       for (const img of initial) {
         if (img.type === "video-product" || img.type === "video-model") continue;
 
-        setState((s) => ({
-          ...s,
-          generatedImages: s.generatedImages.map((i) =>
-            i.id === img.id ? { ...i, status: "generating" as const } : i
-          ),
-        }));
+        const updateImageStatus = (id: string, updates: Partial<GeneratedImage>) => {
+          setState((s) => ({
+            ...s,
+            generatedImages: s.generatedImages.map((i) =>
+              i.id === id ? { ...i, ...updates } : i
+            ),
+            weeklyLaunches: s.weeklyLaunches.map((w) => ({
+              ...w,
+              images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+            })),
+          }));
+        };
+
+        updateImageStatus(img.id, { status: "generating" });
 
         try {
           const { data, error } = await supabase.functions.invoke("generate-image", {
@@ -99,25 +117,10 @@ const Index = () => {
             },
           });
           if (error) throw error;
-
-          setState((s) => ({
-            ...s,
-            generatedImages: s.generatedImages.map((i) =>
-              i.id === img.id
-                ? { ...i, status: "done" as const, imageUrl: data.imageUrl }
-                : i
-            ),
-          }));
+          updateImageStatus(img.id, { status: "done", imageUrl: data.imageUrl });
         } catch (err) {
           console.error("Generation error:", err);
-          setState((s) => ({
-            ...s,
-            generatedImages: s.generatedImages.map((i) =>
-              i.id === img.id
-                ? { ...i, status: "error" as const, error: "Falha na geração" }
-                : i
-            ),
-          }));
+          updateImageStatus(img.id, { status: "error", error: "Falha na geração" });
         }
       }
 
@@ -128,15 +131,25 @@ const Index = () => {
 
   const handleRegenerate = useCallback(
     async (id: string) => {
-      const img = state.generatedImages.find((i) => i.id === id);
+      // Find image across all weeks
+      let img: GeneratedImage | undefined;
+      for (const w of state.weeklyLaunches) {
+        img = w.images.find((i) => i.id === id);
+        if (img) break;
+      }
       if (!img) return;
 
-      setState((s) => ({
-        ...s,
-        generatedImages: s.generatedImages.map((i) =>
-          i.id === id ? { ...i, status: "generating" as const } : i
-        ),
-      }));
+      const updateImg = (updates: Partial<GeneratedImage>) => {
+        setState((s) => ({
+          ...s,
+          weeklyLaunches: s.weeklyLaunches.map((w) => ({
+            ...w,
+            images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+          })),
+        }));
+      };
+
+      updateImg({ status: "generating" });
 
       try {
         const { data, error } = await supabase.functions.invoke("generate-image", {
@@ -146,28 +159,23 @@ const Index = () => {
           },
         });
         if (error) throw error;
-
-        setState((s) => ({
-          ...s,
-          generatedImages: s.generatedImages.map((i) =>
-            i.id === id
-              ? { ...i, status: "done" as const, imageUrl: data.imageUrl }
-              : i
-          ),
-        }));
+        updateImg({ status: "done", imageUrl: data.imageUrl });
       } catch (err) {
-        setState((s) => ({
-          ...s,
-          generatedImages: s.generatedImages.map((i) =>
-            i.id === id
-              ? { ...i, status: "error" as const, error: "Falha na regeneração" }
-              : i
-          ),
-        }));
+        updateImg({ status: "error", error: "Falha na regeneração" });
       }
     },
-    [state.generatedImages, state.uploadedImages]
+    [state.weeklyLaunches, state.uploadedImages]
   );
+
+  const handleAddWeek = useCallback(() => {
+    const newId = crypto.randomUUID();
+    const newLabel = `Semana ${state.weeklyLaunches.length + 1}`;
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: [...s.weeklyLaunches, { id: newId, label: newLabel, images: [] }],
+      activeWeek: newId,
+    }));
+  }, [state.weeklyLaunches.length]);
 
   const canProceed =
     state.step === 0
@@ -262,7 +270,10 @@ const Index = () => {
 
         {state.step === 4 && (
           <ResultsStep
-            images={state.generatedImages}
+            weeklyLaunches={state.weeklyLaunches}
+            activeWeek={state.activeWeek}
+            onActiveWeekChange={(id) => update("activeWeek", id)}
+            onAddWeek={handleAddWeek}
             onRegenerate={handleRegenerate}
           />
         )}

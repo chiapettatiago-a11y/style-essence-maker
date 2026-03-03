@@ -58,6 +58,12 @@ export interface GeneratedImage {
   error?: string;
 }
 
+export interface WeeklyLaunch {
+  id: string;
+  label: string;
+  images: GeneratedImage[];
+}
+
 export interface WizardState {
   step: number;
   uploadedImages: string[];
@@ -66,4 +72,6 @@ export interface WizardState {
   selectedPresets: Record<string, string>; // categoryId -> presetId
   manualPrompt: string;
   generatedImages: GeneratedImage[];
+  weeklyLaunches: WeeklyLaunch[];
+  activeWeek: string;
 }
