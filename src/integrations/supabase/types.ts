@@ -14,7 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      generated_images: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          image_url: string | null
+          label: string
+          launch_id: string
+          prompt: string
+          status: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          image_url?: string | null
+          label: string
+          launch_id: string
+          prompt?: string
+          status?: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          image_url?: string | null
+          label?: string
+          launch_id?: string
+          prompt?: string
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_images_launch_id_fkey"
+            columns: ["launch_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_launches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          created_at: string
+          garment_analysis: Json | null
+          id: string
+          manual_prompt: string | null
+          model_profile: Json | null
+          name: string
+          selected_presets: Json | null
+          updated_at: string
+          uploaded_images: string[] | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          garment_analysis?: Json | null
+          id?: string
+          manual_prompt?: string | null
+          model_profile?: Json | null
+          name: string
+          selected_presets?: Json | null
+          updated_at?: string
+          uploaded_images?: string[] | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          garment_analysis?: Json | null
+          id?: string
+          manual_prompt?: string | null
+          model_profile?: Json | null
+          name?: string
+          selected_presets?: Json | null
+          updated_at?: string
+          uploaded_images?: string[] | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weekly_launches: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          product_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          product_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_launches_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
