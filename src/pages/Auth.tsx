@@ -4,7 +4,8 @@ import { Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import monograma from "@/assets/monograma.png";
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
@@ -41,11 +42,11 @@ const Auth = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
-        <div className="text-center space-y-2">
-          <div className="flex items-center justify-center gap-2">
-            <Sparkles className="h-6 w-6 text-accent" />
-            <h1 className="text-2xl tracking-tight">Fashion AI Studio</h1>
-          </div>
+        <div className="text-center space-y-4">
+          <img src={monograma} alt="Monograma" className="h-8 mx-auto" />
+          <p className="text-sm text-muted-foreground">
+            Fashion AI Studio
+          </p>
           <p className="text-sm text-muted-foreground">
             {isSignUp ? "Crie sua conta" : "Entre na sua conta"}
           </p>
