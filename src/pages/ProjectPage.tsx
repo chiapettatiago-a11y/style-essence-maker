@@ -6,7 +6,8 @@ import { GarmentAnalysis, GeneratedImage, GenerationRequest, ModelProfile, Weekl
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, Sparkles, Loader2, Home } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Home } from "lucide-react";
+import monograma from "@/assets/monograma.png";
 import UploadStep from "@/components/fashion/UploadStep";
 import AnalysisCard from "@/components/fashion/AnalysisCard";
 import ModelProfileStep from "@/components/fashion/ModelProfileStep";
@@ -321,8 +322,9 @@ const ProjectPage = () => {
               <Home className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-accent" />
-              <h1 className="text-xl tracking-tight">{product?.name || "Projeto"}</h1>
+              <img src={monograma} alt="Monograma" className="h-5" />
+              <span className="text-muted-foreground">|</span>
+              <span className="text-sm font-medium">{product?.name || "Projeto"}</span>
             </div>
           </div>
           <span className="text-xs text-muted-foreground">Fashion AI Studio</span>

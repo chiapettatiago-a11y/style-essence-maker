@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Plus, FolderOpen, LogOut, Loader2, Trash2 } from "lucide-react";
+import { Plus, FolderOpen, LogOut, Loader2, Trash2 } from "lucide-react";
+import monograma from "@/assets/monograma.png";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -83,9 +84,8 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-accent" />
-            <h1 className="text-xl tracking-tight">Fashion AI Studio</h1>
+          <div className="flex items-center gap-3">
+            <img src={monograma} alt="Monograma" className="h-6" />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">{user.email}</span>
