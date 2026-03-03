@@ -12,7 +12,7 @@ import ModelProfileStep from "@/components/fashion/ModelProfileStep";
 import StyleLibraryStep from "@/components/fashion/StyleLibraryStep";
 import PromptReviewStep from "@/components/fashion/PromptReviewStep";
 import ResultsStep from "@/components/fashion/ResultsStep";
-import DemoGallery from "@/components/fashion/DemoGallery";
+
 
 const STEPS = [
   { id: 0, label: "Upload" },
@@ -218,8 +218,7 @@ const Index = () => {
       {/* Content */}
       <main className="max-w-5xl mx-auto px-6 py-8">
         {state.step === 0 && (
-          <div className="space-y-8">
-            <DemoGallery />
+          <div className="space-y-6">
             <UploadStep
               images={state.uploadedImages}
               onImagesChange={(imgs) => update("uploadedImages", imgs)}
