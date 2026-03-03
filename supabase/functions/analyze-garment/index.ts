@@ -44,12 +44,12 @@ serve(async (req) => {
   "color": "primary color(s)",
   "pattern": "pattern or print description",
   "construction": "construction details (seams, structure)",
-  "details": "technical details (trims, closures, embellishments) - be very detailed",
+  "details": "technical details (trims, closures, embellishments) - be very detailed. IMPORTANT: Look specifically for a small golden metallic tag/plate engraved with 'TR' — this is a signature brand element. Note its exact placement on the garment (e.g., center waistband, collar, left cuff, pocket flap). If found, describe it precisely.",
   "style": "overall style category (casual, formal, streetwear, editorial, etc.)",
-  "fullDescription": "complete description of the garment suitable for image generation prompt"
+  "fullDescription": "complete description of the garment suitable for image generation prompt, including the position of the golden TR tag if present"
 }
 
-Be very detailed and specific about construction, trims, and design elements. Output ONLY valid JSON.`;
+Be very detailed and specific about construction, trims, and design elements. Pay special attention to brand tags, metallic hardware, and signature elements. Output ONLY valid JSON.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

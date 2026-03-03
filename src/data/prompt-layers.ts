@@ -5,6 +5,8 @@ export const LAYER1_BASE = `Professional fashion lookbook photo in 1080x1920 res
 
 Do not alter garment design. Preserve all pattern details, transparency, pleat structure, proportions and trim alignment precisely.
 
+CRITICAL BRAND ELEMENT — Golden "TR" tag/plate: This small golden metallic tag engraved with "TR" is a signature brand identity element. During garment analysis, identify its exact placement (e.g. waistband, collar, cuff, pocket). In every generated image, the golden TR tag MUST appear in its original position, with correct size, metallic gold finish, and legible "TR" engraving. Never omit, resize, reposition, or obscure this element.
+
 Full body centered in frame, no cropping, garment fully visible within 9:16 portrait composition.
 
 Soft diffused lighting with subtle shadow depth to enhance texture and textile realism.
@@ -14,6 +16,8 @@ Luxury commercial lookbook aesthetic, sharp textile detail, no distortion, no co
 export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video in 1080x1920 resolution (9:16 portrait), 4K clarity, 24fps.
 
 Absolute garment fidelity — do not redesign or modify proportions. Preserve all original design elements exactly.
+
+CRITICAL BRAND ELEMENT — Golden "TR" tag/plate: The signature golden metallic tag engraved with "TR" must remain visible and intact throughout the video. Maintain its original placement, correct metallic gold finish, and legible engraving in every frame where it would naturally be visible.
 
 Soft diffused studio lighting enhancing texture depth.
 
