@@ -43,13 +43,13 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ images, onRegenerate }) => {
       </div>
 
       {/* Image grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {imageResults.map((item) => (
           <div
             key={item.id}
             className="rounded-xl border border-border bg-card overflow-hidden"
           >
-            <div className="aspect-video bg-muted relative flex items-center justify-center">
+            <div className="aspect-[9/16] bg-muted relative flex items-center justify-center">
               {item.status === "generating" && (
                 <Loader2 className="h-8 w-8 text-accent animate-spin" />
               )}
@@ -57,7 +57,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ images, onRegenerate }) => {
                 <img
                   src={item.imageUrl}
                   alt={item.label}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               )}
               {item.status === "error" && (
@@ -69,27 +69,27 @@ const ResultsStep: React.FC<ResultsStepProps> = ({ images, onRegenerate }) => {
                 <p className="text-xs text-muted-foreground">Aguardando...</p>
               )}
             </div>
-            <div className="p-3 flex items-center justify-between">
-              <span className="text-xs font-medium truncate">{item.label}</span>
+            <div className="p-4 flex items-center justify-between">
+              <span className="text-sm font-medium truncate">{item.label}</span>
               <div className="flex gap-1">
                 {item.status === "done" && item.imageUrl && (
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-8 w-8"
                     onClick={() => downloadImage(item.imageUrl!, item.label)}
                   >
-                    <Download className="h-3.5 w-3.5" />
+                    <Download className="h-4 w-4" />
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7"
+                  className="h-8 w-8"
                   onClick={() => onRegenerate(item.id)}
                   disabled={item.status === "generating"}
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  <RefreshCw className="h-4 w-4" />
                 </Button>
               </div>
             </div>
