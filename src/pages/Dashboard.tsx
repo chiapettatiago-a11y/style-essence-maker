@@ -5,13 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, FolderOpen, LogOut, Loader2, Trash2 } from "lucide-react";
+import { Plus, FolderOpen, LogOut, Loader2, Trash2, ChevronDown } from "lucide-react";
 import monograma from "@/assets/monograma.png";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 const Dashboard = () => {
   const { user, loading, signOut } = useAuth();
@@ -86,6 +89,26 @@ const Dashboard = () => {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={monograma} alt="Monograma" className="h-6" />
+            {products && products.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-sm text-muted-foreground gap-1">
+                    Produtos <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {products.map((p) => (
+                    <DropdownMenuItem key={p.id} onClick={() => navigate(`/project/${p.id}`)}>
+                      <span className="truncate">{p.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setDialogOpen(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-2" /> Novo Produto
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">{user.email}</span>
