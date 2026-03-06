@@ -26,6 +26,43 @@ const STEPS = [
   { id: 4, label: "Resultados" },
 ];
 
+const ProductSwitcher = ({ currentName, currentId, navigate: nav, userId }: { currentName: string; currentId: string; navigate: (path: string) => void; userId?: string }) => {
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("products").select("id, name").order("updated_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!userId,
+  });
+
+  if (!products || products.length <= 1) {
+    return <span className="text-sm font-medium">{currentName}</span>;
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="text-sm font-medium gap-1 px-1 h-auto py-0.5">
+          {currentName} <ChevronDown className="h-3 w-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        {products.map((p) => (
+          <DropdownMenuItem
+            key={p.id}
+            className={cn(p.id === currentId && "bg-accent")}
+            onClick={() => { if (p.id !== currentId) nav(`/project/${p.id}`); }}
+          >
+            <span className="truncate">{p.name}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
+
 const ProjectPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
