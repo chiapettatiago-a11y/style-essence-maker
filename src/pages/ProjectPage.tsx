@@ -279,7 +279,7 @@ const ProjectPage = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("generate-image", {
-        body: { prompt: img.prompt, referenceImages: state.uploadedImages.slice(0, 1) },
+        body: { prompt: img.prompt, referenceImages: state.uploadedImages.slice(0, 3) },
       });
       if (error) throw error;
       updateImg({ status: "done", imageUrl: data.imageUrl });
