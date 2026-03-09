@@ -1,4 +1,4 @@
-import { GarmentAnalysis, GenerationRequest, PromptLayers } from "@/types/fashion";
+import { GarmentAnalysis, GenerationRequest, ModelProfile, PromptLayers } from "@/types/fashion";
 import { LAYER1_BASE, LAYER1_VIDEO_BASE, STYLE_CATEGORIES } from "./prompt-layers";
 
 const ANGLE_INSTRUCTIONS: Record<string, string> = {
