@@ -119,7 +119,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({
   const layer2Text = assembleLayer2(selectedPresets);
   const requests = generateAllRequests(
     { layer1: LAYER1_BASE, layer2: layer2Text, layer3: manualPrompt },
-    garmentAnalysis
+    garmentAnalysis,
+    selectedProfile
   );
 
   const togglePreset = (categoryId: string, presetId: string) => {
@@ -148,6 +149,11 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({
     { key: "type", label: "Tipo" },
     { key: "fabric", label: "Tecido" },
     { key: "color", label: "Cor" },
+    { key: "length", label: "Comprimento" },
+    { key: "silhouette", label: "Silhueta" },
+    { key: "neckline", label: "Decote/Gola" },
+    { key: "sleeves", label: "Mangas" },
+    { key: "hemline", label: "Barra" },
     { key: "pattern", label: "Padrão" },
     { key: "construction", label: "Construção" },
     { key: "style", label: "Estilo" },

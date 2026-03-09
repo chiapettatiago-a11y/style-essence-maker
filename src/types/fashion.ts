@@ -7,6 +7,11 @@ export interface GarmentAnalysis {
   details: string;
   style: string;
   fullDescription: string;
+  length: string;       // e.g. "midi", "longo até o tornozelo", "curto acima do joelho"
+  silhouette: string;   // e.g. "evasê", "reto", "ajustado"
+  hemline: string;      // e.g. "barra reta", "barra assimétrica"
+  neckline: string;     // e.g. "gola alta", "decote V"
+  sleeves: string;      // e.g. "manga longa", "sem manga"
 }
 
 export interface ModelProfile {

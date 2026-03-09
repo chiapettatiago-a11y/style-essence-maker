@@ -60,9 +60,14 @@ const Index = () => {
         color: "Champagne",
         pattern: "Renda floral intricada",
         construction: "Corpete em renda transparente, saia plissada estruturada",
-        details: "Gola alta em renda com babado, corpete em renda transparente, padrão de renda intricado preservado, pregas verticais estruturadas, detalhe central de babado, cinto coberto em renda com fivela, painel de saia em renda em camadas, saia plissada estruturada inferior",
+        details: "Gola alta em renda com babado",
         style: "Luxury editorial",
         fullDescription: "",
+        length: "Longo até o tornozelo",
+        silhouette: "Evasê",
+        hemline: "Barra reta",
+        neckline: "Gola alta",
+        sleeves: "Manga longa",
       });
     } finally {
       setIsAnalyzing(false);

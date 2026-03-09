@@ -37,19 +37,28 @@ serve(async (req) => {
       return { text: "[image]" };
     });
 
-    const analysisPrompt = `You are a fashion product analyst. Analyze this garment image(s) and extract the following details in JSON format:
+    const analysisPrompt = `You are a fashion product analyst specializing in garment technical specifications. Analyze this garment image(s) with EXTREME PRECISION and extract the following details in JSON format:
 {
-  "type": "garment type (e.g., dress, blouse, pants)",
-  "fabric": "fabric type and composition",
-  "color": "primary color(s)",
-  "pattern": "pattern or print description",
-  "construction": "construction details (seams, structure)",
-  "details": "technical details (trims, closures, embellishments) - be very detailed. IMPORTANT: Look specifically for a small golden metallic tag/plate engraved with 'TR' — this is a signature brand element. Note its exact placement on the garment (e.g., center waistband, collar, left cuff, pocket flap). If found, describe it precisely.",
-  "style": "overall style category (casual, formal, streetwear, editorial, etc.)",
-  "fullDescription": "complete description of the garment suitable for image generation prompt, including the position of the golden TR tag if present"
+  "type": "garment type (e.g., dress, blouse, pants, jumpsuit, skirt)",
+  "fabric": "fabric type, texture, weight and composition (e.g., medium-weight denim, lightweight chiffon)",
+  "color": "EXACT primary color with shade detail (e.g., 'medium indigo blue denim wash', 'deep navy', 'champagne beige') — be very specific about the exact tone/shade/wash",
+  "pattern": "pattern or print description (e.g., solid, floral, striped, embroidered details)",
+  "construction": "construction details (seams, structure, darts, closures)",
+  "details": "ALL technical details — trims, closures, embellishments, buttons, zippers, pockets, embroidery, hardware. IMPORTANT: Look specifically for a small golden metallic tag/plate engraved with 'TR' — note its exact placement.",
+  "style": "overall style category",
+  "fullDescription": "complete detailed description suitable for AI image generation — must be specific enough to reproduce this EXACT garment faithfully",
+  "length": "PRECISE garment length description (e.g., 'floor-length maxi reaching ankles', 'midi below knee', 'mini above mid-thigh', 'cropped above waist'). Measure relative to body landmarks.",
+  "silhouette": "exact silhouette shape (e.g., 'A-line flared from waist', 'straight/column', 'fitted bodycon', 'oversized boxy')",
+  "hemline": "hemline shape and finish (e.g., 'straight even hem', 'asymmetric hem', 'high-low hem', 'raw edge')",
+  "neckline": "exact neckline type (e.g., 'pointed collar shirt-style', 'crew neck', 'V-neck', 'turtleneck', 'off-shoulder')",
+  "sleeves": "exact sleeve type and length (e.g., 'long sleeves to wrist with button cuffs', 'sleeveless', '3/4 sleeves', 'cap sleeves')"
 }
 
-Be very detailed and specific about construction, trims, and design elements. Pay special attention to brand tags, metallic hardware, and signature elements. Output ONLY valid JSON.`;
+CRITICAL: The "length" field is EXTREMELY important. Look carefully at where the garment ends relative to the model's body. A long dress that reaches the ankles must be described as such. Do NOT guess — be precise.
+
+The "color" field must capture the EXACT shade — not just "blue" but the specific type of blue wash/tone.
+
+Output ONLY valid JSON.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

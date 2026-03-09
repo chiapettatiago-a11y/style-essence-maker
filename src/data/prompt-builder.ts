@@ -1,4 +1,4 @@
-import { GarmentAnalysis, GenerationRequest, PromptLayers } from "@/types/fashion";
+import { GarmentAnalysis, GenerationRequest, ModelProfile, PromptLayers } from "@/types/fashion";
 import { LAYER1_BASE, LAYER1_VIDEO_BASE, STYLE_CATEGORIES } from "./prompt-layers";
 
 const ANGLE_INSTRUCTIONS: Record<string, string> = {
@@ -23,22 +23,51 @@ export function assembleLayer2(selectedPresets: Record<string, string>): string 
 export function buildFullPrompt(
   layers: PromptLayers,
   garment: GarmentAnalysis | null,
-  angleType: GenerationRequest['type']
+  angleType: GenerationRequest['type'],
+  modelProfile?: ModelProfile | null
 ): string {
   const isVideo = angleType === 'video-product' || angleType === 'video-model';
   const base = isVideo ? LAYER1_VIDEO_BASE : LAYER1_BASE;
 
   const parts: string[] = [base];
 
-  // Add garment description
+  // Add detailed garment description with consistency anchors
   if (garment) {
-    parts.push(`Wearing a ${garment.color} ${garment.fabric} ${garment.type} with: ${garment.details}. ${garment.construction}.`);
+    const garmentBlock = [
+      `GARMENT SPECIFICATION (do NOT deviate from this description):`,
+      `Type: ${garment.type}`,
+      garment.length ? `Length: ${garment.length} — THIS LENGTH IS MANDATORY, do not shorten or lengthen` : '',
+      garment.silhouette ? `Silhouette: ${garment.silhouette}` : '',
+      garment.neckline ? `Neckline: ${garment.neckline}` : '',
+      garment.sleeves ? `Sleeves: ${garment.sleeves}` : '',
+      garment.hemline ? `Hemline: ${garment.hemline}` : '',
+      `Fabric: ${garment.fabric}`,
+      `Color: ${garment.color} — EXACT color match required, no shifts in tone or saturation`,
+      garment.pattern ? `Pattern: ${garment.pattern}` : '',
+      `Construction: ${garment.construction}`,
+      `Details: ${garment.details}`,
+      garment.fullDescription ? `\nFull reference: ${garment.fullDescription}` : '',
+    ].filter(Boolean).join('\n');
+    parts.push(garmentBlock);
   }
 
   // Add angle/shot instruction
   const angleInstruction = ANGLE_INSTRUCTIONS[angleType];
   if (angleInstruction) {
     parts.push(angleInstruction);
+  }
+
+  // Add model consistency block from profile
+  if (modelProfile && angleType !== 'video-product') {
+    const modelBlock = [
+      `MODEL IDENTITY LOCK (same person in ALL images):`,
+      modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone}` : '',
+      modelProfile.hairType ? `Hair style/texture: ${modelProfile.hairType} — DO NOT CHANGE between shots` : '',
+      modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same color in every image` : '',
+      modelProfile.height ? `Height: ${modelProfile.height}m` : '',
+      `This model must appear IDENTICAL across all angles — same face, same hair, same skin, same body.`,
+    ].filter(Boolean).join('\n');
+    parts.push(modelBlock);
   }
 
   // Layer 2 — style presets
@@ -56,7 +85,8 @@ export function buildFullPrompt(
 
 export function generateAllRequests(
   layers: PromptLayers,
-  garment: GarmentAnalysis | null
+  garment: GarmentAnalysis | null,
+  modelProfile?: ModelProfile | null
 ): GenerationRequest[] {
   const types: { type: GenerationRequest['type']; label: string }[] = [
     { type: 'lookbook-front', label: 'Lookbook — Frente' },
@@ -71,6 +101,6 @@ export function generateAllRequests(
   return types.map(t => ({
     type: t.type,
     label: t.label,
-    prompt: buildFullPrompt(layers, garment, t.type),
+    prompt: buildFullPrompt(layers, garment, t.type, modelProfile),
   }));
 }

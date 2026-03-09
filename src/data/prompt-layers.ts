@@ -3,9 +3,20 @@ import { StyleCategory } from "@/types/fashion";
 // 🔒 CAMADA 1 — Base Técnica Travada
 export const LAYER1_BASE = `Professional fashion lookbook photo in 1080x1920 resolution (9:16 portrait aspect ratio), ultra high definition.
 
-Do not alter garment design. Preserve all pattern details, transparency, pleat structure, proportions and trim alignment precisely.
+ABSOLUTE GARMENT FIDELITY — This is the most critical rule:
+- Do NOT alter, redesign, shorten, lengthen, or modify the garment in ANY way.
+- The garment LENGTH, SILHOUETTE, HEMLINE, NECKLINE, and SLEEVE LENGTH must match the reference images EXACTLY.
+- Preserve all pattern details, transparency, pleat structure, proportions and trim alignment precisely.
+- The COLOR of the garment must be reproduced with absolute accuracy — same shade, same wash, same tone. No color shifting.
+- If the original garment is long, it MUST remain long. If short, it MUST remain short. Never change proportions.
 
-CRITICAL BRAND ELEMENT — Golden "TR" tag/plate: This small golden metallic tag engraved with "TR" is a signature brand identity element. During garment analysis, identify its exact placement (e.g. waistband, collar, cuff, pocket). In every generated image, the golden TR tag MUST appear in its original position, with correct size, metallic gold finish, and legible "TR" engraving. Never omit, resize, reposition, or obscure this element.
+CRITICAL BRAND ELEMENT — Golden "TR" tag/plate: This small golden metallic tag engraved with "TR" is a signature brand identity element. In every generated image, the golden TR tag MUST appear in its original position, with correct size, metallic gold finish, and legible "TR" engraving. Never omit, resize, reposition, or obscure this element.
+
+MODEL CONSISTENCY — Within a project, ALL generated images must show the SAME model:
+- Same face, same facial features, same bone structure across all angles and shots.
+- Same skin tone and complexion in every image.
+- Same hairstyle, hair color, hair length, and hair texture in every image — no variation allowed.
+- The model must look like the SAME PERSON in every single output.
 
 Full body centered in frame, no cropping, garment fully visible within 9:16 portrait composition.
 
