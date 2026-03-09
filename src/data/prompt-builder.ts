@@ -23,7 +23,8 @@ export function assembleLayer2(selectedPresets: Record<string, string>): string 
 export function buildFullPrompt(
   layers: PromptLayers,
   garment: GarmentAnalysis | null,
-  angleType: GenerationRequest['type']
+  angleType: GenerationRequest['type'],
+  modelProfile?: ModelProfile | null
 ): string {
   const isVideo = angleType === 'video-product' || angleType === 'video-model';
   const base = isVideo ? LAYER1_VIDEO_BASE : LAYER1_BASE;
