@@ -30,9 +30,24 @@ export function buildFullPrompt(
 
   const parts: string[] = [base];
 
-  // Add garment description
+  // Add detailed garment description with consistency anchors
   if (garment) {
-    parts.push(`Wearing a ${garment.color} ${garment.fabric} ${garment.type} with: ${garment.details}. ${garment.construction}.`);
+    const garmentBlock = [
+      `GARMENT SPECIFICATION (do NOT deviate from this description):`,
+      `Type: ${garment.type}`,
+      garment.length ? `Length: ${garment.length} — THIS LENGTH IS MANDATORY, do not shorten or lengthen` : '',
+      garment.silhouette ? `Silhouette: ${garment.silhouette}` : '',
+      garment.neckline ? `Neckline: ${garment.neckline}` : '',
+      garment.sleeves ? `Sleeves: ${garment.sleeves}` : '',
+      garment.hemline ? `Hemline: ${garment.hemline}` : '',
+      `Fabric: ${garment.fabric}`,
+      `Color: ${garment.color} — EXACT color match required, no shifts in tone or saturation`,
+      garment.pattern ? `Pattern: ${garment.pattern}` : '',
+      `Construction: ${garment.construction}`,
+      `Details: ${garment.details}`,
+      garment.fullDescription ? `\nFull reference: ${garment.fullDescription}` : '',
+    ].filter(Boolean).join('\n');
+    parts.push(garmentBlock);
   }
 
   // Add angle/shot instruction
