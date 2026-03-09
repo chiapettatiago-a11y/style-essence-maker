@@ -66,17 +66,31 @@ export interface GeneratedImage {
 export interface WeeklyLaunch {
   id: string;
   label: string;
+  variantId?: string;
   images: GeneratedImage[];
+}
+
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  colorName: string;
+  uploadedImages: string[];
+  garmentAnalysis: GarmentAnalysis | null;
+  sortOrder: number;
 }
 
 export interface WizardState {
   step: number;
-  uploadedImages: string[];
-  garmentAnalysis: GarmentAnalysis | null;
+  variants: ProductVariant[];
+  activeVariantId: string;
+  // Shared configs
   selectedProfile: ModelProfile | null;
-  selectedPresets: Record<string, string>; // categoryId -> presetId
+  selectedPresets: Record<string, string>;
   manualPrompt: string;
   generatedImages: GeneratedImage[];
   weeklyLaunches: WeeklyLaunch[];
   activeWeek: string;
+  // Convenience getters (derived from active variant)
+  uploadedImages: string[];
+  garmentAnalysis: GarmentAnalysis | null;
 }
