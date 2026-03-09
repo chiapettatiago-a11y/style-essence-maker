@@ -33,7 +33,8 @@ const PromptReviewStep: React.FC<PromptReviewStepProps> = ({
     () =>
       generateAllRequests(
         { layer1: LAYER1_BASE, layer2: layer2Text, layer3: manualPrompt },
-        garmentAnalysis
+        garmentAnalysis,
+        null
       ),
     [layer2Text, manualPrompt, garmentAnalysis]
   );
