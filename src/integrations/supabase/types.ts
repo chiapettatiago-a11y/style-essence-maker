@@ -58,6 +58,44 @@ export type Database = {
           },
         ]
       }
+      product_variants: {
+        Row: {
+          color_name: string
+          created_at: string
+          garment_analysis: Json | null
+          id: string
+          product_id: string
+          sort_order: number
+          uploaded_images: string[] | null
+        }
+        Insert: {
+          color_name?: string
+          created_at?: string
+          garment_analysis?: Json | null
+          id?: string
+          product_id: string
+          sort_order?: number
+          uploaded_images?: string[] | null
+        }
+        Update: {
+          color_name?: string
+          created_at?: string
+          garment_analysis?: Json | null
+          id?: string
+          product_id?: string
+          sort_order?: number
+          uploaded_images?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           created_at: string
@@ -103,18 +141,21 @@ export type Database = {
           id: string
           label: string
           product_id: string
+          variant_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           label: string
           product_id: string
+          variant_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           label?: string
           product_id?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -122,6 +163,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_launches_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
