@@ -23,22 +23,31 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Build message content with reference image if available
-    const content: any[] = [{ type: "text", text: prompt }];
+    // Build message content with ALL reference images (up to 3)
+    const content: any[] = [];
+    const imageUrlParts: any[] = [];
 
     if (referenceImages && referenceImages.length > 0) {
-      const img = referenceImages[0];
-      const base64Match = img.match(/^data:image\/(.*?);base64,(.*)$/);
-      if (base64Match) {
-        content.push({
-          type: "image_url",
-          image_url: {
-            url: `data:image/${base64Match[1]};base64,${base64Match[2]}`,
-          },
-        });
-        content[0].text = `Reference garment image is provided. Use it to accurately reproduce the garment design in the generated image.\n\n${prompt}`;
+      const validImages = referenceImages.slice(0, 3);
+      for (const img of validImages) {
+        const base64Match = img.match(/^data:image\/(.*?);base64,(.*)$/);
+        if (base64Match) {
+          imageUrlParts.push({
+            type: "image_url",
+            image_url: {
+              url: `data:image/${base64Match[1]};base64,${base64Match[2]}`,
+            },
+          });
+        }
       }
     }
+
+    const referencePrefix = imageUrlParts.length > 0
+      ? `${imageUrlParts.length} reference garment image(s) are provided. You MUST reproduce this EXACT garment — same length, same color, same construction, same silhouette. Do NOT redesign, shorten, lengthen, or change the color of the garment. The generated image must look like a photo of THIS SPECIFIC garment.\n\n`
+      : '';
+
+    content.push({ type: "text", text: `${referencePrefix}${prompt}` });
+    content.push(...imageUrlParts);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -69,13 +78,11 @@ serve(async (req) => {
     const extractImageUrl = (payload: any): string => {
       const message = payload?.choices?.[0]?.message;
 
-      // Primary gateway image format
       if (Array.isArray(message?.images) && message.images.length > 0) {
         const img = message.images[0]?.image_url?.url;
         if (img) return img;
       }
 
-      // Alternative content-array format
       if (Array.isArray(message?.content)) {
         const imagePart = message.content.find(
           (part: any) => part?.type === "image_url" || part?.type === "image"
@@ -84,13 +91,11 @@ serve(async (req) => {
         if (imagePart?.data) return `data:image/png;base64,${imagePart.data}`;
       }
 
-      // String content containing data URL
       if (typeof message?.content === "string") {
         const base64Match = message.content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
         if (base64Match) return base64Match[0];
       }
 
-      // Inline data format
       if (Array.isArray(message?.parts)) {
         const imgPart = message.parts.find((p: any) => p?.inline_data);
         if (imgPart?.inline_data?.data && imgPart?.inline_data?.mime_type) {
@@ -103,7 +108,7 @@ serve(async (req) => {
 
     let imageUrl = extractImageUrl(data);
 
-    // Fallback retry with Nano banana if provider returned text-only output
+    // Fallback retry
     if (!imageUrl) {
       const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -120,9 +125,9 @@ serve(async (req) => {
               content: [
                 {
                   type: "text",
-                  text: `${prompt}\n\nGenerate one final image output now.`,
+                  text: `${referencePrefix}${prompt}\n\nGenerate one final image output now.`,
                 },
-                ...content.filter((item) => item.type === "image_url"),
+                ...imageUrlParts,
               ],
             },
           ],
