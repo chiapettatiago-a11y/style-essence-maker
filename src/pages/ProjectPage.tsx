@@ -177,9 +177,11 @@ const ProjectPage = () => {
     } catch (err) {
       console.error("Analysis error:", err);
       update("garmentAnalysis", {
-        type: "Vestido", fabric: "Renda e plissado", color: "Champagne",
-        pattern: "Renda floral intricada", construction: "Corpete em renda transparente, saia plissada estruturada",
-        details: "Gola alta em renda com babado", style: "Luxury editorial", fullDescription: "",
+        type: "Vestido", fabric: "Jeans denim", color: "Azul médio",
+        pattern: "Liso", construction: "Costura reforçada, botões frontais",
+        details: "Botões metálicos, bordado dourado", style: "Casual chic",
+        fullDescription: "", length: "Longo até o tornozelo", silhouette: "Evasê",
+        hemline: "Barra reta", neckline: "Gola de camisa", sleeves: "Manga longa",
       });
     } finally {
       setIsAnalyzing(false);
