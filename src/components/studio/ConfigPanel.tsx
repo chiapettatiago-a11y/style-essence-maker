@@ -119,7 +119,8 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({
   const layer2Text = assembleLayer2(selectedPresets);
   const requests = generateAllRequests(
     { layer1: LAYER1_BASE, layer2: layer2Text, layer3: manualPrompt },
-    garmentAnalysis
+    garmentAnalysis,
+    selectedProfile
   );
 
   const togglePreset = (categoryId: string, presetId: string) => {
