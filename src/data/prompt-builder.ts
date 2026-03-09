@@ -57,6 +57,19 @@ export function buildFullPrompt(
     parts.push(angleInstruction);
   }
 
+  // Add model consistency block from profile
+  if (modelProfile && angleType !== 'video-product') {
+    const modelBlock = [
+      `MODEL IDENTITY LOCK (same person in ALL images):`,
+      modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone}` : '',
+      modelProfile.hairType ? `Hair style/texture: ${modelProfile.hairType} — DO NOT CHANGE between shots` : '',
+      modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same color in every image` : '',
+      modelProfile.height ? `Height: ${modelProfile.height}m` : '',
+      `This model must appear IDENTICAL across all angles — same face, same hair, same skin, same body.`,
+    ].filter(Boolean).join('\n');
+    parts.push(modelBlock);
+  }
+
   // Layer 2 — style presets
   if (layers.layer2.trim()) {
     parts.push(layers.layer2);
