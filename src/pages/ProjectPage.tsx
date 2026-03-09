@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Loader2, Home, ChevronDown } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -16,6 +17,8 @@ import PreviewPanel from "@/components/studio/PreviewPanel";
 import ConfigPanel from "@/components/studio/ConfigPanel";
 
 const ProductSwitcher = ({ currentName, currentId, navigate: nav, userId }: { currentName: string; currentId: string; navigate: (path: string) => void; userId?: string }) => {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
@@ -30,23 +33,45 @@ const ProductSwitcher = ({ currentName, currentId, navigate: nav, userId }: { cu
     return <span className="text-sm font-medium">{currentName}</span>;
   }
 
+  const filtered = products.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="text-sm font-medium gap-1 px-1 h-auto py-0.5">
           {currentName} <ChevronDown className="h-3 w-3" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-56">
-        {products.map((p) => (
-          <DropdownMenuItem
-            key={p.id}
-            className={cn(p.id === currentId && "bg-accent")}
-            onClick={() => { if (p.id !== currentId) nav(`/project/${p.id}`); }}
-          >
-            <span className="truncate">{p.name}</span>
-          </DropdownMenuItem>
-        ))}
+      <DropdownMenuContent align="start" className="w-64">
+        {products.length > 4 && (
+          <div className="px-2 py-1.5">
+            <Input
+              placeholder="Buscar projeto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-7 text-xs"
+              autoFocus
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+        <div className="max-h-64 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-2 py-3 text-xs text-muted-foreground text-center">Nenhum projeto encontrado</div>
+          ) : (
+            filtered.map((p) => (
+              <DropdownMenuItem
+                key={p.id}
+                className={cn(p.id === currentId && "bg-accent/15 text-accent")}
+                onClick={() => { if (p.id !== currentId) nav(`/project/${p.id}`); }}
+              >
+                <span className="truncate">{p.name}</span>
+              </DropdownMenuItem>
+            ))
+          )}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
