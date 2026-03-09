@@ -6,25 +6,14 @@ import { GarmentAnalysis, GeneratedImage, GenerationRequest, ModelProfile, Weekl
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ArrowRight, Loader2, Home, ChevronDown } from "lucide-react";
+import { Loader2, Home, ChevronDown } from "lucide-react";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import monograma from "@/assets/monograma.png";
-import UploadStep from "@/components/fashion/UploadStep";
-import AnalysisCard from "@/components/fashion/AnalysisCard";
-import ModelProfileStep from "@/components/fashion/ModelProfileStep";
-import StyleLibraryStep from "@/components/fashion/StyleLibraryStep";
-import PromptReviewStep from "@/components/fashion/PromptReviewStep";
-import ResultsStep from "@/components/fashion/ResultsStep";
-
-const STEPS = [
-  { id: 0, label: "Upload" },
-  { id: 1, label: "Modelo" },
-  { id: 2, label: "Estilos" },
-  { id: 3, label: "Prompts" },
-  { id: 4, label: "Resultados" },
-];
+import AssetPanel from "@/components/studio/AssetPanel";
+import PreviewPanel from "@/components/studio/PreviewPanel";
+import ConfigPanel from "@/components/studio/ConfigPanel";
 
 const ProductSwitcher = ({ currentName, currentId, navigate: nav, userId }: { currentName: string; currentId: string; navigate: (path: string) => void; userId?: string }) => {
   const { data: products } = useQuery({
@@ -70,61 +59,42 @@ const ProjectPage = () => {
   const queryClient = useQueryClient();
 
   const [state, setState] = useState<WizardState>({
-    step: 0,
-    uploadedImages: [],
-    garmentAnalysis: null,
-    selectedProfile: null,
-    selectedPresets: {},
-    manualPrompt: "",
-    generatedImages: [],
-    weeklyLaunches: [],
-    activeWeek: "",
+    step: 0, uploadedImages: [], garmentAnalysis: null, selectedProfile: null,
+    selectedPresets: {}, manualPrompt: "", generatedImages: [], weeklyLaunches: [], activeWeek: "",
   });
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [selectedAssetId, setSelectedAssetId] = useState<string | null>(null);
+  const [activeSection, setActiveSection] = useState<"upload" | "model" | "style" | "generate">("upload");
 
   // Load product data
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", projectId!)
-        .single();
+      const { data, error } = await supabase.from("products").select("*").eq("id", projectId!).single();
       if (error) throw error;
       return data;
     },
     enabled: !!user && !!projectId,
   });
 
-  // Load weeks
   const { data: weeks } = useQuery({
     queryKey: ["weeks", projectId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("weekly_launches")
-        .select("id, label, created_at")
-        .eq("product_id", projectId!)
-        .order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("weekly_launches").select("id, label, created_at").eq("product_id", projectId!).order("created_at", { ascending: true });
       if (error) throw error;
       return data;
     },
     enabled: !!user && !!projectId,
   });
 
-  // Load images for all weeks
   const { data: dbImages } = useQuery({
     queryKey: ["images", projectId],
     queryFn: async () => {
       if (!weeks || weeks.length === 0) return [];
       const weekIds = weeks.map((w) => w.id);
-      const { data, error } = await supabase
-        .from("generated_images")
-        .select("*")
-        .in("launch_id", weekIds)
-        .order("created_at", { ascending: true });
+      const { data, error } = await supabase.from("generated_images").select("*").in("launch_id", weekIds).order("created_at", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -134,53 +104,38 @@ const ProjectPage = () => {
   // Initialize state from DB
   useEffect(() => {
     if (!product || loaded) return;
-
     const weeklyLaunches: WeeklyLaunch[] = (weeks || []).map((w) => ({
-      id: w.id,
-      label: w.label,
-      images: (dbImages || [])
-        .filter((img) => img.launch_id === w.id)
-        .map((img) => ({
-          id: img.id,
-          type: img.type as GeneratedImage["type"],
-          label: img.label,
-          prompt: img.prompt,
-          imageUrl: img.image_url || undefined,
-          status: img.status as GeneratedImage["status"],
-          error: img.error || undefined,
-        })),
+      id: w.id, label: w.label,
+      images: (dbImages || []).filter((img) => img.launch_id === w.id).map((img) => ({
+        id: img.id, type: img.type as GeneratedImage["type"], label: img.label,
+        prompt: img.prompt, imageUrl: img.image_url || undefined,
+        status: img.status as GeneratedImage["status"], error: img.error || undefined,
+      })),
     }));
 
     setState({
-      step: 0,
-      uploadedImages: (product.uploaded_images as string[]) || [],
+      step: 0, uploadedImages: (product.uploaded_images as string[]) || [],
       garmentAnalysis: product.garment_analysis as unknown as GarmentAnalysis | null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as unknown as Record<string, string>) || {},
-      manualPrompt: product.manual_prompt || "",
-      generatedImages: [],
-      weeklyLaunches,
-      activeWeek: weeklyLaunches[0]?.id || "",
+      manualPrompt: product.manual_prompt || "", generatedImages: [],
+      weeklyLaunches, activeWeek: weeklyLaunches[0]?.id || "",
     });
     setLoaded(true);
   }, [product, weeks, dbImages, loaded]);
 
-  // Save product data to DB on changes (debounced)
-  const saveProduct = useCallback(
-    async (updates: Partial<WizardState>) => {
-      if (!projectId) return;
-      const payload: Record<string, any> = {};
-      if (updates.uploadedImages !== undefined) payload.uploaded_images = updates.uploadedImages;
-      if (updates.garmentAnalysis !== undefined) payload.garment_analysis = updates.garmentAnalysis;
-      if (updates.selectedProfile !== undefined) payload.model_profile = updates.selectedProfile;
-      if (updates.selectedPresets !== undefined) payload.selected_presets = updates.selectedPresets;
-      if (updates.manualPrompt !== undefined) payload.manual_prompt = updates.manualPrompt;
-      if (Object.keys(payload).length > 0) {
-        await supabase.from("products").update(payload).eq("id", projectId);
-      }
-    },
-    [projectId]
-  );
+  const saveProduct = useCallback(async (updates: Partial<WizardState>) => {
+    if (!projectId) return;
+    const payload: Record<string, any> = {};
+    if (updates.uploadedImages !== undefined) payload.uploaded_images = updates.uploadedImages;
+    if (updates.garmentAnalysis !== undefined) payload.garment_analysis = updates.garmentAnalysis;
+    if (updates.selectedProfile !== undefined) payload.model_profile = updates.selectedProfile;
+    if (updates.selectedPresets !== undefined) payload.selected_presets = updates.selectedPresets;
+    if (updates.manualPrompt !== undefined) payload.manual_prompt = updates.manualPrompt;
+    if (Object.keys(payload).length > 0) {
+      await supabase.from("products").update(payload).eq("id", projectId);
+    }
+  }, [projectId]);
 
   const update = <K extends keyof WizardState>(key: K, value: WizardState[K]) => {
     setState((s) => ({ ...s, [key]: value }));
@@ -191,113 +146,63 @@ const ProjectPage = () => {
     if (state.uploadedImages.length === 0) return;
     setIsAnalyzing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("analyze-garment", {
-        body: { images: state.uploadedImages },
-      });
+      const { data, error } = await supabase.functions.invoke("analyze-garment", { body: { images: state.uploadedImages } });
       if (error) throw error;
-      const analysis = data.analysis as GarmentAnalysis;
-      update("garmentAnalysis", analysis);
+      update("garmentAnalysis", data.analysis as GarmentAnalysis);
     } catch (err) {
       console.error("Analysis error:", err);
-      const fallback: GarmentAnalysis = {
+      update("garmentAnalysis", {
         type: "Vestido", fabric: "Renda e plissado", color: "Champagne",
         pattern: "Renda floral intricada", construction: "Corpete em renda transparente, saia plissada estruturada",
         details: "Gola alta em renda com babado", style: "Luxury editorial", fullDescription: "",
-      };
-      update("garmentAnalysis", fallback);
+      });
     } finally {
       setIsAnalyzing(false);
     }
   }, [state.uploadedImages]);
 
-  const handleGenerate = useCallback(
-    async (requests: GenerationRequest[]) => {
-      setIsGenerating(true);
-      const activeWeekId = state.activeWeek;
+  const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
+    setIsGenerating(true);
+    let activeWeekId = state.activeWeek;
 
-      const initial: GeneratedImage[] = requests.map((r) => ({
-        id: crypto.randomUUID(),
-        type: r.type,
-        label: r.label,
-        prompt: r.prompt,
-        status: r.type === "video-product" || r.type === "video-model" ? "done" : "pending",
-      }));
-
-      // Save to DB
-      for (const img of initial) {
-        await supabase.from("generated_images").insert({
-          id: img.id,
-          launch_id: activeWeekId,
-          type: img.type,
-          label: img.label,
-          prompt: img.prompt,
-          status: img.status,
-        });
-      }
-
+    // Create a week if none exists
+    if (!activeWeekId) {
+      const { data, error } = await supabase.from("weekly_launches").insert({ product_id: projectId!, label: "Semana 1" }).select("id").single();
+      if (error) { setIsGenerating(false); return; }
+      activeWeekId = data.id;
       setState((s) => ({
-        ...s,
-        step: 4,
-        generatedImages: initial,
-        weeklyLaunches: s.weeklyLaunches.map((w) =>
-          w.id === activeWeekId ? { ...w, images: [...w.images, ...initial] } : w
-        ),
+        ...s, weeklyLaunches: [{ id: activeWeekId, label: "Semana 1", images: [] }], activeWeek: activeWeekId,
       }));
+    }
 
-      for (const img of initial) {
-        if (img.type === "video-product" || img.type === "video-model") continue;
+    const initial: GeneratedImage[] = requests.map((r) => ({
+      id: crypto.randomUUID(), type: r.type, label: r.label, prompt: r.prompt,
+      status: r.type === "video-product" || r.type === "video-model" ? "done" : "pending",
+    }));
 
-        const updateImageStatus = (id: string, updates: Partial<GeneratedImage>) => {
-          setState((s) => ({
-            ...s,
-            weeklyLaunches: s.weeklyLaunches.map((w) => ({
-              ...w,
-              images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
-            })),
-          }));
-          // Update DB
-          const dbUpdate: Record<string, any> = {};
-          if (updates.status) dbUpdate.status = updates.status;
-          if (updates.imageUrl) dbUpdate.image_url = updates.imageUrl;
-          if (updates.error) dbUpdate.error = updates.error;
-          supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
-        };
+    for (const img of initial) {
+      await supabase.from("generated_images").insert({
+        id: img.id, launch_id: activeWeekId, type: img.type, label: img.label, prompt: img.prompt, status: img.status,
+      });
+    }
 
-        updateImageStatus(img.id, { status: "generating" });
+    setState((s) => ({
+      ...s, generatedImages: initial,
+      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === activeWeekId ? { ...w, images: [...w.images, ...initial] } : w),
+    }));
 
-        try {
-          const { data, error } = await supabase.functions.invoke("generate-image", {
-            body: { prompt: img.prompt, referenceImages: state.uploadedImages.slice(0, 1) },
-          });
-          if (error) throw error;
-          updateImageStatus(img.id, { status: "done", imageUrl: data.imageUrl });
-        } catch (err) {
-          console.error("Generation error:", err);
-          updateImageStatus(img.id, { status: "error", error: "Falha na geração" });
-        }
-      }
+    // Select the first image being generated
+    const firstImage = initial.find((i) => i.type !== "video-product" && i.type !== "video-model");
+    if (firstImage) setSelectedAssetId(firstImage.id);
 
-      setIsGenerating(false);
-      queryClient.invalidateQueries({ queryKey: ["images", projectId] });
-    },
-    [state.uploadedImages, state.activeWeek, projectId]
-  );
+    for (const img of initial) {
+      if (img.type === "video-product" || img.type === "video-model") continue;
 
-  const handleRegenerate = useCallback(
-    async (id: string) => {
-      let img: GeneratedImage | undefined;
-      for (const w of state.weeklyLaunches) {
-        img = w.images.find((i) => i.id === id);
-        if (img) break;
-      }
-      if (!img) return;
-
-      const updateImg = (updates: Partial<GeneratedImage>) => {
+      const updateImageStatus = (id: string, updates: Partial<GeneratedImage>) => {
         setState((s) => ({
           ...s,
           weeklyLaunches: s.weeklyLaunches.map((w) => ({
-            ...w,
-            images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+            ...w, images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
           })),
         }));
         const dbUpdate: Record<string, any> = {};
@@ -307,36 +212,77 @@ const ProjectPage = () => {
         supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
       };
 
-      updateImg({ status: "generating" });
+      updateImageStatus(img.id, { status: "generating" });
 
       try {
         const { data, error } = await supabase.functions.invoke("generate-image", {
           body: { prompt: img.prompt, referenceImages: state.uploadedImages.slice(0, 1) },
         });
         if (error) throw error;
-        updateImg({ status: "done", imageUrl: data.imageUrl });
+        updateImageStatus(img.id, { status: "done", imageUrl: data.imageUrl });
       } catch (err) {
-        updateImg({ status: "error", error: "Falha na regeneração" });
+        console.error("Generation error:", err);
+        updateImageStatus(img.id, { status: "error", error: "Falha na geração" });
       }
-    },
-    [state.weeklyLaunches, state.uploadedImages]
-  );
+    }
 
-  const handleAddWeek = useCallback(async () => {
-    const newLabel = `Semana ${state.weeklyLaunches.length + 1}`;
-    const { data, error } = await supabase
-      .from("weekly_launches")
-      .insert({ product_id: projectId!, label: newLabel })
-      .select("id")
-      .single();
-    if (error) return;
-    const newId = data.id;
-    setState((s) => ({
-      ...s,
-      weeklyLaunches: [...s.weeklyLaunches, { id: newId, label: newLabel, images: [] }],
-      activeWeek: newId,
-    }));
-  }, [state.weeklyLaunches.length, projectId]);
+    setIsGenerating(false);
+    queryClient.invalidateQueries({ queryKey: ["images", projectId] });
+  }, [state.uploadedImages, state.activeWeek, projectId]);
+
+  const handleRegenerate = useCallback(async (id: string) => {
+    let img: GeneratedImage | undefined;
+    for (const w of state.weeklyLaunches) { img = w.images.find((i) => i.id === id); if (img) break; }
+    if (!img) return;
+
+    const updateImg = (updates: Partial<GeneratedImage>) => {
+      setState((s) => ({
+        ...s, weeklyLaunches: s.weeklyLaunches.map((w) => ({
+          ...w, images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+        })),
+      }));
+      const dbUpdate: Record<string, any> = {};
+      if (updates.status) dbUpdate.status = updates.status;
+      if (updates.imageUrl) dbUpdate.image_url = updates.imageUrl;
+      if (updates.error) dbUpdate.error = updates.error;
+      supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
+    };
+
+    updateImg({ status: "generating" });
+
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-image", {
+        body: { prompt: img.prompt, referenceImages: state.uploadedImages.slice(0, 1) },
+      });
+      if (error) throw error;
+      updateImg({ status: "done", imageUrl: data.imageUrl });
+    } catch (err) {
+      updateImg({ status: "error", error: "Falha na regeneração" });
+    }
+  }, [state.weeklyLaunches, state.uploadedImages]);
+
+  const handleUploadClick = useCallback(() => {
+    setActiveSection("upload");
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = "image/*"; input.multiple = true;
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files) {
+        Array.from(files).forEach((file) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            setState((s) => {
+              const newImages = [...s.uploadedImages, ev.target?.result as string];
+              saveProduct({ uploadedImages: newImages });
+              return { ...s, uploadedImages: newImages };
+            });
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+    };
+    input.click();
+  }, [saveProduct]);
 
   if (authLoading || productLoading) {
     return (
@@ -348,102 +294,63 @@ const ProjectPage = () => {
 
   if (!user) return <Navigate to="/auth" replace />;
 
-  const canProceed =
-    state.step === 0 ? !!state.garmentAnalysis
-    : state.step === 1 ? !!state.selectedProfile
-    : true;
-
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate("/")}>
-              <Home className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <img src={monograma} alt="Monograma" className="h-5" />
-              <span className="text-muted-foreground">|</span>
-              <ProductSwitcher currentName={product?.name || "Projeto"} currentId={projectId!} navigate={navigate} userId={user?.id} />
-            </div>
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Header */}
+      <header className="border-b border-border px-4 py-2.5 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/")}>
+            <Home className="h-3.5 w-3.5" />
+          </Button>
+          <div className="flex items-center gap-2">
+            <img src={monograma} alt="Logo" className="h-5" />
+            <span className="text-muted-foreground text-xs">|</span>
+            <ProductSwitcher currentName={product?.name || "Projeto"} currentId={projectId!} navigate={navigate} userId={user?.id} />
           </div>
-          <span className="text-xs text-muted-foreground">Fashion AI Studio</span>
         </div>
+        <span className="text-[10px] text-muted-foreground">Fashion AI Studio</span>
       </header>
 
-      <nav className="border-b border-border">
-        <div className="max-w-5xl mx-auto flex">
-          {STEPS.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => { if (s.id < state.step) update("step", s.id); }}
-              className={cn(
-                "flex-1 py-3 text-xs font-medium text-center border-b-2 transition-colors",
-                s.id === state.step ? "border-accent text-accent"
-                : s.id < state.step ? "border-transparent text-foreground cursor-pointer hover:text-accent"
-                : "border-transparent text-muted-foreground cursor-default"
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* 3-panel layout */}
+      <div className="flex flex-1 min-h-0">
+        <AssetPanel
+          uploadedImages={state.uploadedImages}
+          weeklyLaunches={state.weeklyLaunches}
+          selectedAssetId={selectedAssetId}
+          onSelectAsset={(id) => setSelectedAssetId(id)}
+          onRemoveUploaded={(i) => {
+            const newImages = state.uploadedImages.filter((_, idx) => idx !== i);
+            update("uploadedImages", newImages);
+          }}
+          onUploadClick={handleUploadClick}
+        />
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        {state.step === 0 && (
-          <div className="space-y-6">
-            <UploadStep
-              images={state.uploadedImages}
-              onImagesChange={(imgs) => update("uploadedImages", imgs)}
-              isAnalyzing={isAnalyzing}
-              onAnalyze={handleAnalyze}
-              analysisComplete={!!state.garmentAnalysis}
-            />
-            {state.garmentAnalysis && (
-              <AnalysisCard analysis={state.garmentAnalysis} onUpdate={(a) => update("garmentAnalysis", a)} />
-            )}
-          </div>
-        )}
-        {state.step === 1 && (
-          <ModelProfileStep selectedProfile={state.selectedProfile} onProfileChange={(p) => update("selectedProfile", p)} />
-        )}
-        {state.step === 2 && (
-          <StyleLibraryStep selectedPresets={state.selectedPresets} onPresetsChange={(p) => update("selectedPresets", p)} />
-        )}
-        {state.step === 3 && (
-          <PromptReviewStep
-            selectedPresets={state.selectedPresets}
-            manualPrompt={state.manualPrompt}
-            onManualPromptChange={(v) => update("manualPrompt", v)}
-            garmentAnalysis={state.garmentAnalysis}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-          />
-        )}
-        {state.step === 4 && (
-          <ResultsStep
-            weeklyLaunches={state.weeklyLaunches}
-            activeWeek={state.activeWeek}
-            onActiveWeekChange={(id) => update("activeWeek", id)}
-            onAddWeek={handleAddWeek}
-            onRegenerate={handleRegenerate}
-          />
-        )}
+        <PreviewPanel
+          selectedAssetId={selectedAssetId}
+          uploadedImages={state.uploadedImages}
+          weeklyLaunches={state.weeklyLaunches}
+          onRegenerate={handleRegenerate}
+        />
 
-        {state.step < 4 && (
-          <div className="flex justify-between mt-8 pt-6 border-t border-border">
-            <Button variant="ghost" onClick={() => update("step", state.step - 1)} disabled={state.step === 0}>
-              <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-            </Button>
-            {state.step < 3 && (
-              <Button onClick={() => update("step", state.step + 1)} disabled={!canProceed}>
-                Próximo <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
-          </div>
-        )}
-      </main>
+        <ConfigPanel
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+          uploadedImages={state.uploadedImages}
+          onImagesChange={(imgs) => update("uploadedImages", imgs)}
+          isAnalyzing={isAnalyzing}
+          onAnalyze={handleAnalyze}
+          garmentAnalysis={state.garmentAnalysis}
+          onAnalysisUpdate={(a) => update("garmentAnalysis", a)}
+          selectedProfile={state.selectedProfile}
+          onProfileChange={(p) => update("selectedProfile", p)}
+          selectedPresets={state.selectedPresets}
+          onPresetsChange={(p) => update("selectedPresets", p)}
+          manualPrompt={state.manualPrompt}
+          onManualPromptChange={(v) => update("manualPrompt", v)}
+          onGenerate={handleGenerate}
+          isGenerating={isGenerating}
+        />
+      </div>
     </div>
   );
 };
