@@ -220,23 +220,46 @@ const ConfigPanel: React.FC<ConfigPanelProps> = ({
                 </p>
               </div>
 
-              <Button
-                onClick={onAnalyze}
-                disabled={uploadedImages.length === 0 || isAnalyzing || !!garmentAnalysis}
-                className="w-full"
-                size="sm"
-              >
-                {isAnalyzing ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-3 w-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                    Analisando...
-                  </span>
-                ) : garmentAnalysis ? (
-                  <span className="flex items-center gap-1.5"><ImageIcon className="h-3 w-3" /> Análise concluída ✓</span>
-                ) : (
-                  "Analisar Peça"
+              <div className="flex gap-2">
+                <Button
+                  onClick={onAnalyze}
+                  disabled={uploadedImages.length === 0 || isAnalyzing || !!garmentAnalysis}
+                  className="flex-1"
+                  size="sm"
+                >
+                  {isAnalyzing ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-3 w-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                      Analisando...
+                    </span>
+                  ) : garmentAnalysis ? (
+                    <span className="flex items-center gap-1.5"><ImageIcon className="h-3 w-3" /> Análise concluída ✓</span>
+                  ) : (
+                    "Analisar Peça"
+                  )}
+                </Button>
+                {garmentAnalysis && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={isAnalyzing}
+                    onClick={() => {
+                      onAnalysisUpdate(null as any);
+                      setTimeout(() => onAnalyze(), 100);
+                    }}
+                    className="text-xs px-2"
+                    title="Re-analisar peça"
+                  >
+                    {isAnalyzing ? (
+                      <span className="h-3 w-3 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                    ) : (
+                      <span className="flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Re-analisar
+                      </span>
+                    )}
+                  </Button>
                 )}
-              </Button>
+              </div>
 
               {garmentAnalysis && (
                 <div className="space-y-3 border-t border-border pt-3">
