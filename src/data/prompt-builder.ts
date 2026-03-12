@@ -1,5 +1,6 @@
 import { GarmentAnalysis, GenerationRequest, ModelProfile, PromptLayers } from "@/types/fashion";
 import { LAYER1_BASE, LAYER1_VIDEO_BASE, STYLE_CATEGORIES } from "./prompt-layers";
+import { GalleryModel, MODEL_GALLERY } from "./model-gallery";
 
 const ANGLE_INSTRUCTIONS: Record<string, string> = {
   'lookbook-front': 'Front view — model facing directly toward camera, garment fully visible from the front.',
@@ -7,6 +8,15 @@ const ANGLE_INSTRUCTIONS: Record<string, string> = {
   'lookbook-left': 'Left side profile view — model turned 90° showing garment silhouette and side construction.',
   'lookbook-three-quarter': 'Three-quarter view (¾ angle) — model positioned at 45° to camera showing depth and drape of the garment.',
   'close-up': 'Tight close-up detail shot — focusing on the most distinctive design element: lace pattern, stitching, texture, belt, collar or trim. Extreme textile detail, macro-level fabric clarity.',
+};
+
+/** PT-BR labels for angle types (user-facing) */
+const ANGLE_LABELS_PT: Record<string, string> = {
+  'lookbook-front': 'Vista frontal — modelo de frente para a câmera, peça totalmente visível.',
+  'lookbook-back': 'Vista traseira — modelo de costas, mostrando construção traseira e fechamentos.',
+  'lookbook-left': 'Perfil lateral esquerdo — modelo girada 90° mostrando silhueta e construção lateral.',
+  'lookbook-three-quarter': 'Vista ¾ — modelo posicionada a 45° da câmera mostrando profundidade e caimento.',
+  'close-up': 'Close-up de detalhe — foco no elemento de design mais marcante: renda, costura, textura, cinto ou acabamento.',
 };
 
 export function assembleLayer2(selectedPresets: Record<string, string>): string {
@@ -20,6 +30,18 @@ export function assembleLayer2(selectedPresets: Record<string, string>): string 
   return blocks.join('\n\n');
 }
 
+/** Assemble PT-BR preview of layer2 for user display */
+export function assembleLayer2PT(selectedPresets: Record<string, string>): string {
+  const blocks: string[] = [];
+  for (const [categoryId, presetId] of Object.entries(selectedPresets)) {
+    const category = STYLE_CATEGORIES.find(c => c.id === categoryId);
+    if (!category) continue;
+    const preset = category.presets.find(p => p.id === presetId);
+    if (preset) blocks.push(`[${category.label}] ${preset.name}: ${preset.description}`);
+  }
+  return blocks.join('\n');
+}
+
 export function buildFullPrompt(
   layers: PromptLayers,
   garment: GarmentAnalysis | null,
@@ -31,7 +53,7 @@ export function buildFullPrompt(
 
   const parts: string[] = [base];
 
-  // Add detailed garment description with consistency anchors
+  // Add detailed garment description
   if (garment) {
     const garmentBlock = [
       `GARMENT SPECIFICATION (do NOT deviate from this description):`,
@@ -51,33 +73,83 @@ export function buildFullPrompt(
     parts.push(garmentBlock);
   }
 
-  // Add angle/shot instruction
+  // Add angle/shot instruction (always in English for AI)
   const angleInstruction = ANGLE_INSTRUCTIONS[angleType];
   if (angleInstruction) {
     parts.push(angleInstruction);
   }
 
-  // Add model consistency block from profile
+  // Add model from gallery if available
   if (modelProfile && angleType !== 'video-product') {
-    const modelBlock = [
-      `MODEL IDENTITY LOCK (same person in ALL images):`,
-      modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone}` : '',
-      modelProfile.hairType ? `Hair style/texture: ${modelProfile.hairType} — DO NOT CHANGE between shots` : '',
-      modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same color in every image` : '',
-      modelProfile.height ? `Height: ${modelProfile.height}m` : '',
-      `This model must appear IDENTICAL across all angles — same face, same hair, same skin, same body.`,
-    ].filter(Boolean).join('\n');
-    parts.push(modelBlock);
+    const galleryModel = MODEL_GALLERY.find(m => m.id === modelProfile.id);
+    if (galleryModel) {
+      // Use the rich English prompt block from the gallery
+      parts.push(galleryModel.promptBlockEN);
+      parts.push(
+        `MODEL IDENTITY LOCK (same person in ALL images):\n` +
+        `This model must appear IDENTICAL across all angles — same face, same hair, same skin, same body.\n` +
+        `Skin tone: ${galleryModel.skinTone}\n` +
+        `Hair: ${galleryModel.hairType}, ${galleryModel.hairColor} — DO NOT CHANGE between shots`
+      );
+    } else {
+      // Fallback for custom profiles
+      const modelBlock = [
+        `MODEL IDENTITY LOCK (same person in ALL images):`,
+        modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone}` : '',
+        modelProfile.hairType ? `Hair style/texture: ${modelProfile.hairType} — DO NOT CHANGE between shots` : '',
+        modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same color in every image` : '',
+        modelProfile.height ? `Height: ${modelProfile.height}m` : '',
+        `This model must appear IDENTICAL across all angles — same face, same hair, same skin, same body.`,
+      ].filter(Boolean).join('\n');
+      parts.push(modelBlock);
+    }
   }
 
-  // Layer 2 — style presets
+  // Layer 2 — style presets (already in English)
   if (layers.layer2.trim()) {
     parts.push(layers.layer2);
   }
 
-  // Layer 3 — manual adjustments
+  // Layer 3 — manual adjustments (will be in PT-BR, auto-translate not needed as AI understands)
   if (layers.layer3.trim()) {
     parts.push(layers.layer3);
+  }
+
+  return parts.join('\n\n');
+}
+
+/** Build a PT-BR preview of the prompt for user display */
+export function buildPromptPreviewPT(
+  garment: GarmentAnalysis | null,
+  angleType: GenerationRequest['type'],
+  modelProfile?: ModelProfile | null,
+  selectedPresets?: Record<string, string>,
+  manualPrompt?: string,
+): string {
+  const parts: string[] = [];
+
+  parts.push("🔒 Base técnica (resolução 1080x1920, fidelidade absoluta da peça)");
+
+  if (garment) {
+    parts.push(`👗 Peça: ${garment.type} | ${garment.color} | ${garment.fabric} | ${garment.silhouette || ''}`);
+  }
+
+  const anglePT = ANGLE_LABELS_PT[angleType];
+  if (anglePT) {
+    parts.push(`📐 ${anglePT}`);
+  }
+
+  if (modelProfile) {
+    const galleryModel = MODEL_GALLERY.find(m => m.id === modelProfile.id);
+    parts.push(`👤 Modelo: ${galleryModel?.name || modelProfile.name} | ${modelProfile.skinTone} | ${modelProfile.hairType} ${modelProfile.hairColor}`);
+  }
+
+  if (selectedPresets && Object.keys(selectedPresets).length > 0) {
+    parts.push(`🎨 Estilos: ${assembleLayer2PT(selectedPresets)}`);
+  }
+
+  if (manualPrompt?.trim()) {
+    parts.push(`✏️ Ajuste manual: ${manualPrompt}`);
   }
 
   return parts.join('\n\n');
