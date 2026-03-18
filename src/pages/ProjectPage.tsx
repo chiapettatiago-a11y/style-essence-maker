@@ -152,7 +152,7 @@ const ProjectPage = () => {
       productId: v.product_id,
       colorName: v.color_name,
       uploadedImages: (v.uploaded_images as string[]) || [],
-      garmentAnalysis: v.garment_analysis as GarmentAnalysis | null,
+      garmentAnalysis: v.garment_analysis as unknown as GarmentAnalysis | null,
       sortOrder: v.sort_order,
       garmentType: v.garment_type,
       garmentLength: v.garment_length,
