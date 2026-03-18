@@ -1,32 +1,182 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-up" | "video-product" | "video-model";
+
+type GarmentAnalysis = {
+  type?: string;
+  fabric?: string;
+  color?: string;
+  pattern?: string;
+  construction?: string;
+  details?: string;
+  style?: string;
+  fullDescription?: string;
+  length?: string;
+  silhouette?: string;
+  hemline?: string;
+  neckline?: string;
+  sleeves?: string;
+};
+
+type ModelProfile = {
+  id?: string;
+  name?: string;
+  height?: string;
+  bust?: string;
+  waist?: string;
+  hip?: string;
+  skinTone?: string;
+  hairType?: string;
+  hairColor?: string;
+  generalStyle?: string;
+  promptSeed?: string;
+};
+
+const ANGLE_BLOCKS: Record<AngleType, string> = {
+  "lookbook-front": "FRONT VIEW — standing tall, weight evenly distributed, arms relaxed at sides, slight natural curve.",
+  "lookbook-back": "BACK VIEW — back to camera, slight head turn over left shoulder, natural posture.",
+  "lookbook-left": "LEFT SIDE — left profile, mid-stride feel, natural arm swing, candid energy.",
+  "lookbook-three-quarter": "RIGHT SIDE / 3-4 VIEW — right profile with slight hip shift and soft arm bend.",
+  "close-up": "EXTREME CLOSE-UP detail shot: right cuff only. TR button must be SHARP and CENTERED. DO NOT show face or full body.",
+  "video-product": "Generate still image frame with strong product fidelity suitable for product-video storyboard.",
+  "video-model": "Generate still image frame with model fidelity suitable for model-video storyboard.",
+};
+
+function toCm(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "N/A";
+  return `${value}cm`;
+}
+
+function buildPrompt(params: {
+  basePrompt?: string;
+  manualPrompt?: string;
+  angleType: AngleType;
+  garmentAnalysis?: GarmentAnalysis | null;
+  proportionJson?: Record<string, unknown> | null;
+  modelProfile?: ModelProfile | null;
+  mannequin?: Record<string, unknown> | null;
+}) {
+  const {
+    basePrompt,
+    manualPrompt,
+    angleType,
+    garmentAnalysis,
+    proportionJson,
+    modelProfile,
+    mannequin,
+  } = params;
+
+  const blockA = `Professional fashion photography, editorial quality.
+Camera: Sony A7R V equivalent, 85mm f/1.8.
+Lighting: natural key light + soft fill, no harsh shadows.
+Resolution: 1080x1920px portrait, 4K clarity.
+Format: 9:16 portrait.`;
+
+  const blockB = `ABSOLUTE GARMENT FIDELITY — this is the most critical instruction.
+Do NOT redesign, alter proportions, remove or add any detail.
+
+Preserve exactly:
+- Color: ${garmentAnalysis?.color || "N/A"} with ${garmentAnalysis?.pattern || "N/A"}
+- Silhouette: ${garmentAnalysis?.silhouette || "N/A"}
+- Neckline: ${garmentAnalysis?.neckline || "N/A"}
+- Sleeves: ${garmentAnalysis?.sleeves || "N/A"}, length ${toCm(proportionJson?.sleeve_length_cm)}
+- Hem: ${garmentAnalysis?.hemline || "N/A"}, falls ${toCm(proportionJson?.hem_below_knee_cm)} from knee reference
+- Construction: ${garmentAnalysis?.construction || "N/A"}
+- Details: ${garmentAnalysis?.details || "N/A"}
+
+SIGNATURE DETAIL — mandatory in every photo:
+One golden metallic button engraved with "TR" in interlocking monogram style on the RIGHT cuff, serving as closure.
+Internal black label "THAIS RODRIGUES" stitched below the neckline.
+
+PROPORTIONS (from ${toCm(mannequin?.height_cm)} reference mannequin):
+- Total garment length: ${toCm(proportionJson?.garment_length_cm)}
+- Waist position: ${toCm(proportionJson?.waist_position_cm)} from shoulder`;
+
+  const blockC = angleType === "close-up" || angleType === "video-product"
+    ? ""
+    : `Model: ${modelProfile?.promptSeed || modelProfile?.name || "Brazilian model"}
+Height: ${modelProfile?.height || "N/A"}m.
+Measurements: bust ${toCm(modelProfile?.bust)}, waist ${toCm(modelProfile?.waist)}, hips ${toCm(modelProfile?.hip)}.
+Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.`;
+
+  const blockD = ANGLE_BLOCKS[angleType] || "";
+
+  const blockE = manualPrompt?.trim()
+    ? `Additional direction from the designer: ${manualPrompt.trim()}
+Apply this while maintaining all garment fidelity rules.`
+    : "";
+
+  return [blockA, blockB, blockC, blockD, basePrompt || "", blockE].filter(Boolean).join("\n\n");
+}
+
+const extractImageUrl = (payload: any): string => {
+  const message = payload?.choices?.[0]?.message;
+
+  if (Array.isArray(message?.images) && message.images.length > 0) {
+    const img = message.images[0]?.image_url?.url;
+    if (img) return img;
+  }
+
+  if (Array.isArray(message?.content)) {
+    const imagePart = message.content.find((part: any) => part?.type === "image_url" || part?.type === "image");
+    if (imagePart?.image_url?.url) return imagePart.image_url.url;
+    if (imagePart?.data) return `data:image/png;base64,${imagePart.data}`;
+  }
+
+  if (typeof message?.content === "string") {
+    const base64Match = message.content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
+    if (base64Match) return base64Match[0];
+  }
+
+  if (Array.isArray(message?.parts)) {
+    const imgPart = message.parts.find((p: any) => p?.inline_data);
+    if (imgPart?.inline_data?.data && imgPart?.inline_data?.mime_type) {
+      return `data:${imgPart.inline_data.mime_type};base64,${imgPart.inline_data.data}`;
+    }
+  }
+
+  return "";
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { prompt, referenceImages } = await req.json();
+    const {
+      angleType,
+      basePrompt,
+      manualPrompt,
+      garmentAnalysis,
+      proportionJson,
+      modelProfile,
+      mannequin,
+      referenceImages,
+      attemptNumber,
+    } = await req.json();
 
-    if (!prompt) {
-      return new Response(JSON.stringify({ error: "No prompt provided" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const parsedAngle = (angleType || "lookbook-front") as AngleType;
+
+    const promptUsed = buildPrompt({
+      basePrompt,
+      manualPrompt,
+      angleType: parsedAngle,
+      garmentAnalysis,
+      proportionJson,
+      modelProfile,
+      mannequin,
+    });
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Build message content with ALL reference images (up to 3)
-    const content: any[] = [];
     const imageUrlParts: any[] = [];
-
     if (referenceImages && referenceImages.length > 0) {
       const validImages = referenceImages.slice(0, 3);
       for (const img of validImages) {
@@ -42,12 +192,8 @@ serve(async (req) => {
       }
     }
 
-    const referencePrefix = imageUrlParts.length > 0
-      ? `${imageUrlParts.length} reference garment image(s) are provided. You MUST reproduce this EXACT garment — same length, same color, same construction, same silhouette. Do NOT redesign, shorten, lengthen, or change the color of the garment. The generated image must look like a photo of THIS SPECIFIC garment.\n\n`
-      : '';
-
-    content.push({ type: "text", text: `${referencePrefix}${prompt}` });
-    content.push(...imageUrlParts);
+    const requestAttempt = Number(attemptNumber || 1);
+    const modelUsed = requestAttempt > 1 ? "google/gemini-2.5-flash-image" : "google/gemini-3-pro-image-preview";
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -56,12 +202,15 @@ serve(async (req) => {
         "Authorization": `Bearer ${LOVABLE_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-image-preview",
+        model: modelUsed,
         modalities: ["image", "text"],
         messages: [
           {
             role: "user",
-            content,
+            content: [
+              { type: "text", text: promptUsed },
+              ...imageUrlParts,
+            ],
           },
         ],
       }),
@@ -69,90 +218,42 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("AI image gen error:", errText);
+
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limits exceeded, tente novamente em instantes." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Créditos de IA insuficientes no workspace." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       throw new Error(`AI image generation failed [${response.status}]: ${errText}`);
     }
 
     const data = await response.json();
-
-    const extractImageUrl = (payload: any): string => {
-      const message = payload?.choices?.[0]?.message;
-
-      if (Array.isArray(message?.images) && message.images.length > 0) {
-        const img = message.images[0]?.image_url?.url;
-        if (img) return img;
-      }
-
-      if (Array.isArray(message?.content)) {
-        const imagePart = message.content.find(
-          (part: any) => part?.type === "image_url" || part?.type === "image"
-        );
-        if (imagePart?.image_url?.url) return imagePart.image_url.url;
-        if (imagePart?.data) return `data:image/png;base64,${imagePart.data}`;
-      }
-
-      if (typeof message?.content === "string") {
-        const base64Match = message.content.match(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/);
-        if (base64Match) return base64Match[0];
-      }
-
-      if (Array.isArray(message?.parts)) {
-        const imgPart = message.parts.find((p: any) => p?.inline_data);
-        if (imgPart?.inline_data?.data && imgPart?.inline_data?.mime_type) {
-          return `data:${imgPart.inline_data.mime_type};base64,${imgPart.inline_data.data}`;
-        }
-      }
-
-      return "";
-    };
-
-    let imageUrl = extractImageUrl(data);
-
-    // Fallback retry
-    if (!imageUrl) {
-      const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          modalities: ["image", "text"],
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `${referencePrefix}${prompt}\n\nGenerate one final image output now.`,
-                },
-                ...imageUrlParts,
-              ],
-            },
-          ],
-        }),
-      });
-
-      if (!fallbackResponse.ok) {
-        const fallbackErrText = await fallbackResponse.text();
-        console.error("AI fallback image gen error:", fallbackErrText);
-      } else {
-        const fallbackData = await fallbackResponse.json();
-        imageUrl = extractImageUrl(fallbackData);
-      }
-    }
+    const imageUrl = extractImageUrl(data);
 
     if (!imageUrl) {
-      console.error("Full AI response (primary):", JSON.stringify(data));
       throw new Error("No image found in AI response");
     }
 
-    return new Response(JSON.stringify({ imageUrl }), {
+    return new Response(JSON.stringify({
+      imageUrl,
+      originalUrl: imageUrl,
+      previewUrl: imageUrl,
+      promptUsed,
+      modelUsed,
+      attemptNumber: requestAttempt,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: unknown) {
-    console.error("Error in generate-image:", error);
     const msg = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
