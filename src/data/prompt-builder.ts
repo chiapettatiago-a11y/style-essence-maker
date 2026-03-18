@@ -7,7 +7,8 @@ const ANGLE_INSTRUCTIONS: Record<string, string> = {
   'lookbook-back': 'Back view — model turned fully away from camera, showing garment back construction, closures, and rear design details.',
   'lookbook-left': 'Left side profile view — model turned 90° showing garment silhouette and side construction.',
   'lookbook-three-quarter': 'Three-quarter view (¾ angle) — model positioned at 45° to camera showing depth and drape of the garment.',
-  'close-up': 'Tight close-up detail shot — focusing on the most distinctive design element: lace pattern, stitching, texture, belt, collar or trim. Extreme textile detail, macro-level fabric clarity.',
+  'close-tr-cuff': 'This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved "TR" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.',
+  'close-tr-label': 'This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label "THAIS RODRIGUES" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.',
 };
 
 /** PT-BR labels for angle types (user-facing) */
@@ -16,7 +17,8 @@ const ANGLE_LABELS_PT: Record<string, string> = {
   'lookbook-back': 'Vista traseira — modelo de costas, mostrando construção traseira e fechamentos.',
   'lookbook-left': 'Perfil lateral esquerdo — modelo girada 90° mostrando silhueta e construção lateral.',
   'lookbook-three-quarter': 'Vista ¾ — modelo posicionada a 45° da câmera mostrando profundidade e caimento.',
-  'close-up': 'Close-up de detalhe — foco no elemento de design mais marcante: renda, costura, textura, cinto ou acabamento.',
+  'close-tr-cuff': 'Close punho direito — foco fechado no punho direito com botão dourado TR centralizado.',
+  'close-tr-label': 'Close gola/etiqueta — foco fechado na gola com etiqueta interna THAIS RODRIGUES visível.',
 };
 
 export function assembleLayer2(selectedPresets: Record<string, string>): string {
