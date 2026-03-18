@@ -10,7 +10,8 @@ import UploadSection from "@/components/studio/UploadSection";
 import ModelGallery from "@/components/studio/ModelGallery";
 import StyleSection from "@/components/studio/StyleSection";
 import GenerateSection from "@/components/studio/GenerateSection";
-import { GarmentAnalysis, GenerationRequest, ModelProfile } from "@/types/fashion";
+import EngineSelector from "@/components/studio/EngineSelector";
+import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const STEPS = [
@@ -47,6 +48,8 @@ interface LaunchFlowModalProps {
   onPresetsChange: (p: Record<string, string>) => void;
   manualPrompt: string;
   onManualPromptChange: (v: string) => void;
+  selectedEngine: GenerationEngine;
+  onSelectedEngineChange: (engine: GenerationEngine) => void;
   onGenerate: (requests: GenerationRequest[]) => void;
   isGenerating: boolean;
   proportionSummary: {
@@ -77,6 +80,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onPresetsChange,
   manualPrompt,
   onManualPromptChange,
+  selectedEngine,
+  onSelectedEngineChange,
   onGenerate,
   isGenerating,
   proportionSummary,
@@ -271,6 +276,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                 <h3 className="text-sm font-semibold">Escolher modelo e configurações</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">5 imagens + 2 prompts de vídeo serão gerados.</p>
               </div>
+              <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
               <ModelGallery selectedModelId={selectedProfile?.id || null} onSelectModel={(m) => onSelectModel(m.id)} />
               <StyleSection selectedPresets={selectedPresets} onPresetsChange={onPresetsChange} />
               <GenerateSection
@@ -279,6 +285,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                 garmentAnalysis={garmentAnalysis}
                 selectedProfile={selectedProfile}
                 selectedPresets={selectedPresets}
+                selectedEngine={selectedEngine}
                 onGenerate={(requests) => {
                   onGenerate(requests);
                   onOpenChange(false);

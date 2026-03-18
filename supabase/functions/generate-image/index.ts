@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { fal } from "npm:@fal-ai/client";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,6 +7,7 @@ const corsHeaders = {
 };
 
 type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-up" | "video-product" | "video-model";
+type GenerationEngine = "gemini" | "fal";
 
 type GarmentAnalysis = {
   type?: string;
@@ -114,7 +116,7 @@ Apply this while maintaining all garment fidelity rules.`
   return [blockA, blockB, blockC, blockD, basePrompt || "", blockE].filter(Boolean).join("\n\n");
 }
 
-const extractImageUrl = (payload: any): string => {
+const extractGeminiImageUrl = (payload: any): string => {
   const message = payload?.choices?.[0]?.message;
 
   if (Array.isArray(message?.images) && message.images.length > 0) {
@@ -143,6 +145,111 @@ const extractImageUrl = (payload: any): string => {
   return "";
 };
 
+const extractFalImageUrl = (payload: any): string => {
+  if (Array.isArray(payload?.images) && payload.images.length > 0) {
+    return payload.images[0]?.url || payload.images[0]?.image_url || "";
+  }
+
+  if (Array.isArray(payload?.data?.images) && payload.data.images.length > 0) {
+    return payload.data.images[0]?.url || payload.data.images[0]?.image_url || "";
+  }
+
+  return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
+};
+
+async function callGeminiGateway(params: {
+  promptUsed: string;
+  referenceImages: string[];
+  attemptNumber: number;
+}) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+  const imageUrlParts: any[] = [];
+  if (params.referenceImages.length > 0) {
+    const validImages = params.referenceImages.slice(0, 3);
+    for (const img of validImages) {
+      const base64Match = img.match(/^data:image\/(.*?);base64,(.*)$/);
+      if (base64Match) {
+        imageUrlParts.push({
+          type: "image_url",
+          image_url: {
+            url: `data:image/${base64Match[1]};base64,${base64Match[2]}`,
+          },
+        });
+      }
+    }
+  }
+
+  const modelUsed = params.attemptNumber > 1 ? "google/gemini-2.5-flash-image" : "google/gemini-3-pro-image-preview";
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: modelUsed,
+      modalities: ["image", "text"],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: params.promptUsed },
+            ...imageUrlParts,
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+
+    if (response.status === 429) {
+      throw new Error("Rate limits exceeded, tente novamente em instantes.");
+    }
+
+    if (response.status === 402) {
+      throw new Error("Créditos de IA insuficientes no workspace.");
+    }
+
+    throw new Error(`AI image generation failed [${response.status}]: ${errText}`);
+  }
+
+  const data = await response.json();
+  const imageUrl = extractGeminiImageUrl(data);
+  if (!imageUrl) throw new Error("No image found in AI response");
+
+  return { imageUrl, modelUsed };
+}
+
+async function callFalEngine(params: {
+  promptUsed: string;
+  imageUrl?: string;
+  angleType: AngleType;
+}) {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
+
+  fal.config({ credentials: FAL_API_KEY });
+
+  const useReference = !!params.imageUrl && params.angleType !== "close-up";
+  const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
+  const result = await fal.subscribe(endpoint, {
+    input: {
+      prompt: params.promptUsed,
+      ...(useReference ? { image_url: params.imageUrl } : {}),
+    },
+  });
+
+  const imageUrl = extractFalImageUrl(result);
+  if (!imageUrl) throw new Error("No image found in fal.ai response");
+
+  return { imageUrl, modelUsed: endpoint };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -151,6 +258,10 @@ serve(async (req) => {
   try {
     const {
       angleType,
+      angle,
+      engine,
+      prompt,
+      image_url,
       basePrompt,
       manualPrompt,
       garmentAnalysis,
@@ -161,95 +272,43 @@ serve(async (req) => {
       attemptNumber,
     } = await req.json();
 
-    const parsedAngle = (angleType || "lookbook-front") as AngleType;
-
-    const promptUsed = buildPrompt({
-      basePrompt,
-      manualPrompt,
-      angleType: parsedAngle,
-      garmentAnalysis,
-      proportionJson,
-      modelProfile,
-      mannequin,
-    });
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    const imageUrlParts: any[] = [];
-    if (referenceImages && referenceImages.length > 0) {
-      const validImages = referenceImages.slice(0, 3);
-      for (const img of validImages) {
-        const base64Match = img.match(/^data:image\/(.*?);base64,(.*)$/);
-        if (base64Match) {
-          imageUrlParts.push({
-            type: "image_url",
-            image_url: {
-              url: `data:image/${base64Match[1]};base64,${base64Match[2]}`,
-            },
-          });
-        }
-      }
-    }
-
+    const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
+    const parsedEngine = (engine || "gemini") as GenerationEngine;
     const requestAttempt = Number(attemptNumber || 1);
-    const modelUsed = requestAttempt > 1 ? "google/gemini-2.5-flash-image" : "google/gemini-3-pro-image-preview";
+    const promptUsed = basePrompt || manualPrompt || garmentAnalysis
+      ? buildPrompt({
+          basePrompt: basePrompt || prompt,
+          manualPrompt,
+          angleType: parsedAngle,
+          garmentAnalysis,
+          proportionJson,
+          modelProfile,
+          mannequin,
+        })
+      : (prompt || "");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: modelUsed,
-        modalities: ["image", "text"],
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: promptUsed },
-              ...imageUrlParts,
-            ],
-          },
-        ],
-      }),
-    });
+    const firstReferenceImage = image_url || referenceImages?.[0] || undefined;
 
-    if (!response.ok) {
-      const errText = await response.text();
-
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, tente novamente em instantes." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const result = parsedEngine === "fal"
+      ? await callFalEngine({
+          promptUsed,
+          imageUrl: firstReferenceImage,
+          angleType: parsedAngle,
+        })
+      : await callGeminiGateway({
+          promptUsed,
+          referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
+          attemptNumber: requestAttempt,
         });
-      }
-
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA insuficientes no workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      throw new Error(`AI image generation failed [${response.status}]: ${errText}`);
-    }
-
-    const data = await response.json();
-    const imageUrl = extractImageUrl(data);
-
-    if (!imageUrl) {
-      throw new Error("No image found in AI response");
-    }
 
     return new Response(JSON.stringify({
-      imageUrl,
-      originalUrl: imageUrl,
-      previewUrl: imageUrl,
+      imageUrl: result.imageUrl,
+      originalUrl: result.imageUrl,
+      previewUrl: result.imageUrl,
       promptUsed,
-      modelUsed,
+      modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
+      engineUsed: parsedEngine,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

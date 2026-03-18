@@ -36,6 +36,7 @@ const Index = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
+    selectedEngine: "gemini",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [{ id: defaultWeekId, label: "Semana 1", images: [] }],
@@ -111,7 +112,7 @@ const Index = () => {
         updateImageStatus(img.id, { status: "generating" });
         try {
           const { data, error } = await supabase.functions.invoke("generate-image", {
-            body: { prompt: img.prompt, referenceImages: activeVariant.uploadedImages.slice(0, 3) },
+            body: { prompt: img.prompt, referenceImages: activeVariant.uploadedImages.slice(0, 3), engine: "gemini" },
           });
           if (error) throw error;
           updateImageStatus(img.id, { status: "done", imageUrl: data.imageUrl });
@@ -140,7 +141,7 @@ const Index = () => {
       updateImg({ status: "generating" });
       try {
         const { data, error } = await supabase.functions.invoke("generate-image", {
-          body: { prompt: img.prompt, referenceImages: activeVariant.uploadedImages.slice(0, 3) },
+          body: { prompt: img.prompt, referenceImages: activeVariant.uploadedImages.slice(0, 3), engine: "gemini" },
         });
         if (error) throw error;
         updateImg({ status: "done", imageUrl: data.imageUrl });

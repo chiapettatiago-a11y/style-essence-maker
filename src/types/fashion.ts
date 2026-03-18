@@ -51,6 +51,8 @@ export interface PromptLayers {
   layer3: string;
 }
 
+export type GenerationEngine = 'gemini' | 'fal';
+
 export interface GenerationRequest {
   type: 'lookbook-front' | 'lookbook-back' | 'lookbook-left' | 'lookbook-three-quarter' | 'close-up' | 'video-product' | 'video-model';
   label: string;
@@ -78,6 +80,7 @@ export interface WeeklyLaunch {
   id: string;
   label: string;
   variantId?: string;
+  engineUsed?: GenerationEngine;
   images: GeneratedImage[];
   mannequinHeightCm?: number | null;
   mannequinBustCm?: number | null;
@@ -113,6 +116,7 @@ export interface WizardState {
   activeVariantId: string;
   selectedProfile: ModelProfile | null;
   selectedPresets: Record<string, string>;
+  selectedEngine: GenerationEngine;
   manualPrompt: string;
   generatedImages: GeneratedImage[];
   weeklyLaunches: WeeklyLaunch[];
