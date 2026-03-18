@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { GarmentAnalysis, GeneratedImage, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
+import { GarmentAnalysis, GeneratedImage, GenerationEngine, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,7 @@ const ProductPage = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
+    selectedEngine: "gemini",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [],
@@ -221,6 +222,7 @@ const ProductPage = () => {
       id: w.id,
       label: w.label,
       variantId: w.variant_id || undefined,
+      engineUsed: (w.engine_used as GenerationEngine | null) || "gemini",
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
       mannequinWaistCm: w.mannequin_waist_cm,
@@ -249,6 +251,7 @@ const ProductPage = () => {
     }));
 
     const hydratedActiveVariant = variants[0];
+    const hydratedActiveWeek = weeklyLaunches[0];
 
     setState({
       step: 0,
@@ -258,10 +261,11 @@ const ProductPage = () => {
       garmentAnalysis: hydratedActiveVariant?.garmentAnalysis || null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
+      selectedEngine: hydratedActiveWeek?.engineUsed || "gemini",
       manualPrompt: product.manual_prompt || "",
       generatedImages: [],
       weeklyLaunches,
-      activeWeek: weeklyLaunches[0]?.id || "",
+      activeWeek: hydratedActiveWeek?.id || "",
     });
 
     setProductName(product.name || "");
@@ -330,6 +334,7 @@ const ProductPage = () => {
 
   const activeVariant = state.variants.find((v) => v.id === state.activeVariantId) || state.variants[0];
   const variantWeeklyLaunches = state.weeklyLaunches.filter((w) => !w.variantId || w.variantId === state.activeVariantId);
+  const activeLaunch = state.weeklyLaunches.find((w) => w.id === state.activeWeek) || variantWeeklyLaunches[0];
 
   const donePhotoCount = useMemo(() => {
     return variantWeeklyLaunches
@@ -439,11 +444,17 @@ const ProductPage = () => {
   const switchVariant = (variantId: string) => {
     const variant = state.variants.find((v) => v.id === variantId);
     if (!variant) return;
+
+    const launchesForVariant = state.weeklyLaunches.filter((w) => !w.variantId || w.variantId === variantId);
+    const nextActiveLaunch = launchesForVariant[0];
+
     setState((s) => ({
       ...s,
       activeVariantId: variantId,
       uploadedImages: variant.uploadedImages,
       garmentAnalysis: variant.garmentAnalysis,
+      activeWeek: nextActiveLaunch?.id || "",
+      selectedEngine: nextActiveLaunch?.engineUsed || "gemini",
     }));
   };
 
@@ -457,6 +468,8 @@ const ProductPage = () => {
       activeVariantId: newVariant.id,
       uploadedImages: newVariant.uploadedImages,
       garmentAnalysis: newVariant.garmentAnalysis,
+      activeWeek: "",
+      selectedEngine: "gemini",
     }));
   };
 
@@ -467,6 +480,7 @@ const ProductPage = () => {
     setState((s) => {
       const newVariants = s.variants.filter((v) => v.id !== variantId);
       const newActive = s.activeVariantId === variantId ? newVariants[0] : s.variants.find((v) => v.id === s.activeVariantId);
+      const launchesForActive = s.weeklyLaunches.filter((w) => w.variantId !== variantId && (!w.variantId || w.variantId === newActive?.id));
       return {
         ...s,
         variants: newVariants,
@@ -474,6 +488,8 @@ const ProductPage = () => {
         uploadedImages: newActive?.uploadedImages || [],
         garmentAnalysis: newActive?.garmentAnalysis || null,
         weeklyLaunches: s.weeklyLaunches.filter((w) => w.variantId !== variantId),
+        activeWeek: launchesForActive[0]?.id || "",
+        selectedEngine: launchesForActive[0]?.engineUsed || "gemini",
       };
     });
   };
@@ -586,6 +602,10 @@ const ProductPage = () => {
     updateImageDb(id, updates);
   };
 
+  const handleEngineChange = useCallback((engine: GenerationEngine) => {
+    setState((s) => ({ ...s, selectedEngine: engine }));
+  }, []);
+
   const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
     if (!activeVariant || !projectId) return;
 
@@ -606,6 +626,7 @@ const ProductPage = () => {
           product_id: projectId,
           label: `Semana ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
+          engine_used: state.selectedEngine,
           mannequin_height_cm: mannequin.mannequin_height_cm,
           mannequin_bust_cm: mannequin.mannequin_bust_cm,
           mannequin_waist_cm: mannequin.mannequin_waist_cm,
@@ -614,7 +635,7 @@ const ProductPage = () => {
           mannequin_arm_cm: mannequin.mannequin_arm_cm,
           reference_photos: activeVariant.uploadedImages,
         })
-        .select("id,label,variant_id")
+        .select("id,label,variant_id,engine_used")
         .single();
 
       if (error || !data?.id) {
@@ -626,7 +647,14 @@ const ProductPage = () => {
       activeWeekId = data.id;
       setState((s) => ({
         ...s,
-        weeklyLaunches: [...s.weeklyLaunches, { id: activeWeekId!, label: data.label, variantId: data.variant_id || s.activeVariantId, images: [] }],
+        weeklyLaunches: [...s.weeklyLaunches, { id: activeWeekId!, label: data.label, variantId: data.variant_id || s.activeVariantId, engineUsed: (data.engine_used as GenerationEngine | null) || s.selectedEngine, images: [] }],
+        activeWeek: activeWeekId!,
+      }));
+    } else {
+      await supabase.from("weekly_launches").update({ engine_used: state.selectedEngine }).eq("id", activeWeekId);
+      setState((s) => ({
+        ...s,
+        weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, engineUsed: s.selectedEngine } : w)),
         activeWeek: activeWeekId!,
       }));
     }
@@ -659,7 +687,7 @@ const ProductPage = () => {
     setState((s) => ({
       ...s,
       generatedImages: initial,
-      weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, images: [...w.images, ...initial] } : w)),
+      weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, engineUsed: s.selectedEngine, images: [...w.images, ...initial] } : w)),
     }));
 
     const imageTasks = initial
@@ -672,8 +700,11 @@ const ProductPage = () => {
           const { data, error } = await supabase.functions.invoke("generate-image", {
             body: {
               angleType: img.type,
+              angle: img.type,
               basePrompt: img.prompt,
+              prompt: img.prompt,
               manualPrompt: state.manualPrompt,
+              engine: state.selectedEngine,
               selectedPresets: state.selectedPresets,
               garmentAnalysis: activeVariant.garmentAnalysis,
               proportionJson: activeVariant.proportionJson,
@@ -687,6 +718,7 @@ const ProductPage = () => {
                 arm_cm: mannequin.mannequin_arm_cm,
               },
               referenceImages: activeVariant.uploadedImages.slice(0, 3),
+              image_url: img.type === "close-up" ? undefined : activeVariant.uploadedImages[0],
             },
           });
 
@@ -712,6 +744,7 @@ const ProductPage = () => {
     setIsGenerating(false);
     setActiveTab("photos");
     queryClient.invalidateQueries({ queryKey: ["images", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["weeks", projectId] });
   }, [
     activeVariant,
     mannequin,
@@ -721,6 +754,7 @@ const ProductPage = () => {
     saveProductMeta,
     state.activeVariantId,
     state.manualPrompt,
+    state.selectedEngine,
     state.selectedPresets,
     state.selectedProfile,
     variantWeeklyLaunches,
@@ -728,13 +762,19 @@ const ProductPage = () => {
 
   const handleRegenerate = useCallback(async (id: string) => {
     let img: GeneratedImage | undefined;
+    let sourceLaunch: WeeklyLaunch | undefined;
     for (const w of state.weeklyLaunches) {
-      img = w.images.find((i) => i.id === id);
-      if (img) break;
+      const candidate = w.images.find((i) => i.id === id);
+      if (candidate) {
+        img = candidate;
+        sourceLaunch = w;
+        break;
+      }
     }
     if (!img || !activeVariant) return;
 
     const nextAttempt = (img.attemptNumber || 1) + 1;
+    const engine = sourceLaunch?.engineUsed || state.selectedEngine;
 
     updateImageInState(id, { status: "generating", error: undefined });
 
@@ -743,8 +783,11 @@ const ProductPage = () => {
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
           angleType: img.type,
+          angle: img.type,
           basePrompt: img.prompt,
+          prompt: img.prompt,
           manualPrompt: state.manualPrompt,
+          engine,
           selectedPresets: state.selectedPresets,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
@@ -758,6 +801,7 @@ const ProductPage = () => {
             arm_cm: mannequin.mannequin_arm_cm,
           },
           referenceImages: activeVariant.uploadedImages.slice(0, 3),
+          image_url: img.type === "close-up" ? undefined : activeVariant.uploadedImages[0],
           attemptNumber: nextAttempt,
         },
       });
@@ -777,7 +821,7 @@ const ProductPage = () => {
       const message = err instanceof Error ? err.message : "Falha na regeneração";
       updateImageInState(id, { status: "error", error: message, attemptNumber: nextAttempt });
     }
-  }, [activeVariant, mannequin, state.manualPrompt, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
+  }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
   const handleDownloadZip = async () => {
     const imagesToZip = variantWeeklyLaunches
@@ -905,6 +949,7 @@ const ProductPage = () => {
               <h1 className="text-lg font-medium truncate">{productName || product?.name || "Produto"}</h1>
               <p className="text-xs text-muted-foreground">
                 Atualizado em {product?.updated_at ? new Date(product.updated_at).toLocaleDateString("pt-BR") : "—"} · {donePhotoCount} fotos geradas
+                {activeLaunch?.engineUsed ? ` · motor ${activeLaunch.engineUsed}` : ""}
               </p>
             </div>
           </div>
@@ -1013,7 +1058,10 @@ const ProductPage = () => {
                   <div key={launch.id} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold">{launch.label}</h3>
-                      <Badge variant="secondary">{photos.length} ângulos</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline">{launch.engineUsed || "gemini"}</Badge>
+                        <Badge variant="secondary">{photos.length} ângulos</Badge>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                       {photos.map((img) => (
@@ -1220,6 +1268,8 @@ const ProductPage = () => {
         onPresetsChange={(p) => update("selectedPresets", p)}
         manualPrompt={state.manualPrompt}
         onManualPromptChange={(v) => update("manualPrompt", v)}
+        selectedEngine={state.selectedEngine}
+        onSelectedEngineChange={handleEngineChange}
         onGenerate={handleGenerate}
         isGenerating={isGenerating}
         proportionSummary={proportionSummary}

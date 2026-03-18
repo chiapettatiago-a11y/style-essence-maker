@@ -116,6 +116,7 @@ export interface WizardState {
   activeVariantId: string;
   selectedProfile: ModelProfile | null;
   selectedPresets: Record<string, string>;
+  selectedEngine: GenerationEngine;
   manualPrompt: string;
   generatedImages: GeneratedImage[];
   weeklyLaunches: WeeklyLaunch[];
