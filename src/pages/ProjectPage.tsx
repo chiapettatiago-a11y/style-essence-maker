@@ -626,9 +626,11 @@ const ProductPage = () => {
     if (!activeVariant || !projectId) return;
 
     setIsGenerating(true);
+    const normalizedMannequin = normalizeMannequinData(mannequin);
+    setMannequin(normalizedMannequin);
 
     try {
-      await saveProductMeta({ ...mannequin, name: productName.trim() || productName });
+      await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
     } catch {
       // keep flow running
     }
@@ -643,12 +645,12 @@ const ProductPage = () => {
           label: `Semana ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
-          mannequin_height_cm: mannequin.mannequin_height_cm,
-          mannequin_bust_cm: mannequin.mannequin_bust_cm,
-          mannequin_waist_cm: mannequin.mannequin_waist_cm,
-          mannequin_hip_cm: mannequin.mannequin_hip_cm,
-          mannequin_torso_cm: mannequin.mannequin_torso_cm,
-          mannequin_arm_cm: mannequin.mannequin_arm_cm,
+          mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
+          mannequin_bust_cm: normalizedMannequin.mannequin_bust_cm,
+          mannequin_waist_cm: normalizedMannequin.mannequin_waist_cm,
+          mannequin_hip_cm: normalizedMannequin.mannequin_hip_cm,
+          mannequin_torso_cm: normalizedMannequin.mannequin_torso_cm,
+          mannequin_arm_cm: normalizedMannequin.mannequin_arm_cm,
           reference_photos: activeVariant.uploadedImages,
         })
         .select("id,label,variant_id,engine_used")
@@ -726,12 +728,12 @@ const ProductPage = () => {
               proportionJson: activeVariant.proportionJson,
               modelProfile: state.selectedProfile,
               mannequin: {
-                height_cm: mannequin.mannequin_height_cm,
-                bust_cm: mannequin.mannequin_bust_cm,
-                waist_cm: mannequin.mannequin_waist_cm,
-                hip_cm: mannequin.mannequin_hip_cm,
-                torso_cm: mannequin.mannequin_torso_cm,
-                arm_cm: mannequin.mannequin_arm_cm,
+                height_cm: normalizedMannequin.mannequin_height_cm,
+                bust_cm: normalizedMannequin.mannequin_bust_cm,
+                waist_cm: normalizedMannequin.mannequin_waist_cm,
+                hip_cm: normalizedMannequin.mannequin_hip_cm,
+                torso_cm: normalizedMannequin.mannequin_torso_cm,
+                arm_cm: normalizedMannequin.mannequin_arm_cm,
               },
               referenceImages: activeVariant.uploadedImages.slice(0, 3),
               image_url: img.type === "close-up" ? undefined : activeVariant.uploadedImages[0],
