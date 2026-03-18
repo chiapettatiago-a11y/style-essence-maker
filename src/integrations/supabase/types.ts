@@ -258,6 +258,7 @@ export type Database = {
       weekly_launches: {
         Row: {
           created_at: string
+          engine_used: string
           id: string
           label: string
           mannequin_arm_cm: number | null
@@ -272,6 +273,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          engine_used?: string
           id?: string
           label: string
           mannequin_arm_cm?: number | null
@@ -286,6 +288,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          engine_used?: string
           id?: string
           label?: string
           mannequin_arm_cm?: number | null
