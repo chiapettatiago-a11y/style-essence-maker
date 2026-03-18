@@ -842,6 +842,12 @@ const ProductPage = () => {
 
     const startedAt = performance.now();
     try {
+      const isCloseDetail = img.type === "close-tr-cuff" || img.type === "close-tr-label";
+      const shouldUseReferenceImage = isCloseDetail || img.type === "lookbook-front";
+      const referenceImageUrl = shouldUseReferenceImage
+        ? (isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0])
+        : undefined;
+
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
           angleType: img.type,
@@ -863,7 +869,7 @@ const ProductPage = () => {
             arm_cm: mannequin.mannequin_arm_cm,
           },
           referenceImages: activeVariant.uploadedImages.slice(0, 3),
-          image_url: isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0],
+          image_url: referenceImageUrl,
           attemptNumber: nextAttempt,
           launchId: sourceLaunch?.id,
         },
