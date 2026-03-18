@@ -44,7 +44,8 @@ const ANGLE_BLOCKS: Record<AngleType, string> = {
   "lookbook-back": "BACK VIEW — back to camera, slight head turn over left shoulder, natural posture.",
   "lookbook-left": "LEFT SIDE — left profile, mid-stride feel, natural arm swing, candid energy.",
   "lookbook-three-quarter": "RIGHT SIDE / 3-4 VIEW — right profile with slight hip shift and soft arm bend.",
-  "close-up": "EXTREME CLOSE-UP detail shot: right cuff only. TR button must be SHARP and CENTERED. DO NOT show face or full body.",
+  "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
+  "close-tr-label": "This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label \"THAIS RODRIGUES\" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.",
   "video-product": "Generate still image frame with strong product fidelity suitable for product-video storyboard.",
   "video-model": "Generate still image frame with model fidelity suitable for model-video storyboard.",
 };
