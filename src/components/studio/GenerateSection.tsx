@@ -1,9 +1,10 @@
 import React from "react";
-import { GarmentAnalysis, GenerationRequest, ModelProfile } from "@/types/fashion";
+import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
 import { Sparkles, PenLine, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { LAYER1_BASE } from "@/data/prompt-layers";
 import { assembleLayer2, generateAllRequests, buildPromptPreviewPT } from "@/data/prompt-builder";
 
@@ -13,13 +14,25 @@ interface GenerateSectionProps {
   garmentAnalysis: GarmentAnalysis | null;
   selectedProfile: ModelProfile | null;
   selectedPresets: Record<string, string>;
+  selectedEngine: GenerationEngine;
   onGenerate: (requests: GenerationRequest[]) => void;
   isGenerating: boolean;
 }
 
+const ENGINE_LABELS: Record<GenerationEngine, string> = {
+  gemini: "Google Gemini",
+  fal: "fal.ai — Flux Kontext",
+};
+
 const GenerateSection: React.FC<GenerateSectionProps> = ({
-  manualPrompt, onManualPromptChange, garmentAnalysis, selectedProfile,
-  selectedPresets, onGenerate, isGenerating,
+  manualPrompt,
+  onManualPromptChange,
+  garmentAnalysis,
+  selectedProfile,
+  selectedPresets,
+  selectedEngine,
+  onGenerate,
+  isGenerating,
 }) => {
   const layer2Text = assembleLayer2(selectedPresets);
   const requests = generateAllRequests(
@@ -40,7 +53,11 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
         </p>
       </div>
 
-      {/* Manual prompt */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+        <span>Motor selecionado:</span>
+        <Badge variant="secondary">{ENGINE_LABELS[selectedEngine]}</Badge>
+      </div>
+
       <div className="space-y-1.5">
         <Label className="text-xs flex items-center gap-1.5">
           <PenLine className="h-3 w-3 text-accent" />
@@ -55,7 +72,6 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
         />
       </div>
 
-      {/* Summary */}
       <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 flex items-center gap-3">
         <span>
           <span className="font-medium text-foreground">{imageRequests.length} imagens</span>
@@ -84,7 +100,6 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
         )}
       </Button>
 
-      {/* PT-BR Prompt previews */}
       <div className="border-t border-border pt-4 space-y-2">
         <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
           Preview dos Prompts (em português)
