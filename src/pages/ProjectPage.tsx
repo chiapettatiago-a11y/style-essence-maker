@@ -202,7 +202,7 @@ const ProjectPage = () => {
       activeVariantId: activeVariant?.id || "",
       uploadedImages: activeVariant?.uploadedImages || [],
       garmentAnalysis: activeVariant?.garmentAnalysis || null,
-      selectedProfile: product.model_profile as ModelProfile | null,
+      selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
       manualPrompt: product.manual_prompt || "",
       generatedImages: [],
