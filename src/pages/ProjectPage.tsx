@@ -1081,7 +1081,7 @@ const ProductPage = () => {
                           <div key={key} className="space-y-1">
                             <Label className="text-[10px]">{label}</Label>
                             <Input
-                              value={(activeVariant.garmentAnalysis as Record<string, string>)[key] || ""}
+                              value={(activeVariant.garmentAnalysis as unknown as Record<string, string>)[key] || ""}
                               onChange={(e) =>
                                 updateActiveVariant({
                                   garmentAnalysis: {
