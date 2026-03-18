@@ -40,6 +40,20 @@ type MannequinData = {
   mannequin_arm_cm: number | null;
 };
 
+const normalizeCmValue = (value: number | null | undefined) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  return value > 0 && value < 3 ? Math.round(value * 100) : Math.round(value);
+};
+
+const normalizeMannequinData = (data: MannequinData): MannequinData => ({
+  mannequin_height_cm: normalizeCmValue(data.mannequin_height_cm),
+  mannequin_bust_cm: normalizeCmValue(data.mannequin_bust_cm),
+  mannequin_waist_cm: normalizeCmValue(data.mannequin_waist_cm),
+  mannequin_hip_cm: normalizeCmValue(data.mannequin_hip_cm),
+  mannequin_torso_cm: normalizeCmValue(data.mannequin_torso_cm),
+  mannequin_arm_cm: normalizeCmValue(data.mannequin_arm_cm),
+});
+
 const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -496,7 +510,9 @@ const ProductPage = () => {
 
   const saveMannequin = async () => {
     try {
-      await saveProductMeta({ ...mannequin, name: productName.trim() || productName });
+      const normalizedMannequin = normalizeMannequinData(mannequin);
+      setMannequin(normalizedMannequin);
+      await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
       queryClient.invalidateQueries({ queryKey: ["product", projectId] });
       toast({ title: "Salvo", description: "Configurações atualizadas." });
     } catch (err: unknown) {
@@ -610,9 +626,11 @@ const ProductPage = () => {
     if (!activeVariant || !projectId) return;
 
     setIsGenerating(true);
+    const normalizedMannequin = normalizeMannequinData(mannequin);
+    setMannequin(normalizedMannequin);
 
     try {
-      await saveProductMeta({ ...mannequin, name: productName.trim() || productName });
+      await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
     } catch {
       // keep flow running
     }
@@ -627,12 +645,12 @@ const ProductPage = () => {
           label: `Semana ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
-          mannequin_height_cm: mannequin.mannequin_height_cm,
-          mannequin_bust_cm: mannequin.mannequin_bust_cm,
-          mannequin_waist_cm: mannequin.mannequin_waist_cm,
-          mannequin_hip_cm: mannequin.mannequin_hip_cm,
-          mannequin_torso_cm: mannequin.mannequin_torso_cm,
-          mannequin_arm_cm: mannequin.mannequin_arm_cm,
+          mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
+          mannequin_bust_cm: normalizedMannequin.mannequin_bust_cm,
+          mannequin_waist_cm: normalizedMannequin.mannequin_waist_cm,
+          mannequin_hip_cm: normalizedMannequin.mannequin_hip_cm,
+          mannequin_torso_cm: normalizedMannequin.mannequin_torso_cm,
+          mannequin_arm_cm: normalizedMannequin.mannequin_arm_cm,
           reference_photos: activeVariant.uploadedImages,
         })
         .select("id,label,variant_id,engine_used")
@@ -710,12 +728,12 @@ const ProductPage = () => {
               proportionJson: activeVariant.proportionJson,
               modelProfile: state.selectedProfile,
               mannequin: {
-                height_cm: mannequin.mannequin_height_cm,
-                bust_cm: mannequin.mannequin_bust_cm,
-                waist_cm: mannequin.mannequin_waist_cm,
-                hip_cm: mannequin.mannequin_hip_cm,
-                torso_cm: mannequin.mannequin_torso_cm,
-                arm_cm: mannequin.mannequin_arm_cm,
+                height_cm: normalizedMannequin.mannequin_height_cm,
+                bust_cm: normalizedMannequin.mannequin_bust_cm,
+                waist_cm: normalizedMannequin.mannequin_waist_cm,
+                hip_cm: normalizedMannequin.mannequin_hip_cm,
+                torso_cm: normalizedMannequin.mannequin_torso_cm,
+                arm_cm: normalizedMannequin.mannequin_arm_cm,
               },
               referenceImages: activeVariant.uploadedImages.slice(0, 3),
               image_url: img.type === "close-up" ? undefined : activeVariant.uploadedImages[0],
