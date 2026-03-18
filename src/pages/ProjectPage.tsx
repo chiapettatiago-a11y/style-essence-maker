@@ -709,57 +709,76 @@ const ProductPage = () => {
       weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, engineUsed: s.selectedEngine, images: [...w.images, ...initial] } : w)),
     }));
 
-    const imageTasks = initial
-      .filter((img) => img.type !== "video-product" && img.type !== "video-model")
-      .map(async (img) => {
-        updateImageInState(img.id, { status: "generating" });
-        const startedAt = performance.now();
+    const runImageGeneration = async (img: GeneratedImage, imageUrl?: string) => {
+      updateImageInState(img.id, { status: "generating" });
+      const startedAt = performance.now();
 
-        try {
-          const { data, error } = await supabase.functions.invoke("generate-image", {
-            body: {
-              angleType: img.type,
-              angle: img.type,
-              basePrompt: img.prompt,
-              prompt: img.prompt,
-              manualPrompt: state.manualPrompt,
-              engine: state.selectedEngine,
-              selectedPresets: state.selectedPresets,
-              garmentAnalysis: activeVariant.garmentAnalysis,
-              proportionJson: activeVariant.proportionJson,
-              modelProfile: state.selectedProfile,
-              mannequin: {
-                height_cm: normalizedMannequin.mannequin_height_cm,
-                bust_cm: normalizedMannequin.mannequin_bust_cm,
-                waist_cm: normalizedMannequin.mannequin_waist_cm,
-                hip_cm: normalizedMannequin.mannequin_hip_cm,
-                torso_cm: normalizedMannequin.mannequin_torso_cm,
-                arm_cm: normalizedMannequin.mannequin_arm_cm,
-              },
-              referenceImages: activeVariant.uploadedImages.slice(0, 3),
-              image_url: img.type === "close-up" ? undefined : activeVariant.uploadedImages[0],
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-image", {
+          body: {
+            angleType: img.type,
+            angle: img.type,
+            basePrompt: img.prompt,
+            prompt: img.prompt,
+            manualPrompt: state.manualPrompt,
+            engine: state.selectedEngine,
+            selectedPresets: state.selectedPresets,
+            garmentAnalysis: activeVariant.garmentAnalysis,
+            proportionJson: activeVariant.proportionJson,
+            modelProfile: state.selectedProfile,
+            mannequin: {
+              height_cm: normalizedMannequin.mannequin_height_cm,
+              bust_cm: normalizedMannequin.mannequin_bust_cm,
+              waist_cm: normalizedMannequin.mannequin_waist_cm,
+              hip_cm: normalizedMannequin.mannequin_hip_cm,
+              torso_cm: normalizedMannequin.mannequin_torso_cm,
+              arm_cm: normalizedMannequin.mannequin_arm_cm,
             },
-          });
+            referenceImages: activeVariant.uploadedImages.slice(0, 3),
+            image_url: imageUrl,
+          },
+        });
 
-          if (error) throw error;
+        if (error) throw error;
 
-          updateImageInState(img.id, {
-            status: "done",
-            imageUrl: data.previewUrl || data.imageUrl,
-            originalUrl: data.originalUrl || data.imageUrl,
-            previewUrl: data.previewUrl || data.imageUrl,
-            modelUsed: data.modelUsed,
-            generationMs: Math.round(performance.now() - startedAt),
-            attemptNumber: data.attemptNumber || 1,
-            promptUsed: data.promptUsed || img.prompt,
-          });
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : "Falha na geração";
-          updateImageInState(img.id, { status: "error", error: message });
-        }
+        updateImageInState(img.id, {
+          status: "done",
+          imageUrl: data.previewUrl || data.imageUrl,
+          originalUrl: data.originalUrl || data.imageUrl,
+          previewUrl: data.previewUrl || data.imageUrl,
+          modelUsed: data.modelUsed,
+          generationMs: Math.round(performance.now() - startedAt),
+          attemptNumber: data.attemptNumber || 1,
+          promptUsed: data.promptUsed || img.prompt,
+        });
+
+        return data.originalUrl || data.previewUrl || data.imageUrl || "";
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Falha na geração";
+        updateImageInState(img.id, { status: "error", error: message });
+        return "";
+      }
+    };
+
+    const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
+    const frontImage = imageItems.find((img) => img.type === "lookbook-front");
+    const closeImages = imageItems.filter((img) => img.type === "close-tr-cuff" || img.type === "close-tr-label");
+    const standardImages = imageItems.filter((img) => img.type !== "lookbook-front" && img.type !== "close-tr-cuff" && img.type !== "close-tr-label");
+
+    let frontReferenceUrl = "";
+    if (frontImage) {
+      frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
+    }
+
+    await Promise.allSettled(standardImages.map((img) => runImageGeneration(img, activeVariant.uploadedImages[0])));
+
+    if (!frontReferenceUrl && closeImages.length > 0) {
+      closeImages.forEach((img) => {
+        updateImageInState(img.id, { status: "error", error: "A front view precisa ser gerada primeiro para servir como referência dos closes." });
       });
-
-    await Promise.allSettled(imageTasks);
+    } else {
+      await Promise.allSettled(closeImages.map((img) => runImageGeneration(img, frontReferenceUrl)));
+    }
     setIsGenerating(false);
     setActiveTab("photos");
     queryClient.invalidateQueries({ queryKey: ["images", projectId] });
