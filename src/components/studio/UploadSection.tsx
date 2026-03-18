@@ -36,13 +36,28 @@ const UploadSection: React.FC<UploadSectionProps> = ({
   const [dragOver, setDragOver] = useState(false);
 
   const handleFiles = useCallback((files: FileList) => {
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        onImagesChange([...uploadedImages, e.target?.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
+    const selectedFiles = Array.from(files);
+
+    Promise.all(
+      selectedFiles.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve((e.target?.result as string) || "");
+            reader.onerror = () => reject(new Error(`Falha ao ler ${file.name}`));
+            reader.readAsDataURL(file);
+          })
+      )
+    )
+      .then((results) => {
+        const nextImages = results.filter(Boolean);
+        if (nextImages.length > 0) {
+          onImagesChange([...uploadedImages, ...nextImages]);
+        }
+      })
+      .catch(() => {
+        // silencioso por enquanto: o componente pai já lida com o estado visual
+      });
   }, [uploadedImages, onImagesChange]);
 
   const removeImage = (index: number) => {

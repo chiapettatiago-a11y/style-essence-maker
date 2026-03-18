@@ -373,18 +373,68 @@ const ProductPage = () => {
     if (key === "manualPrompt") saveProductMeta({ manual_prompt: value });
   };
 
-  const updateActiveVariant = (updates: Partial<ProductVariant>) => {
+  const createVariantRecord = useCallback(async (sortOrder: number, colorName: string) => {
+    if (!projectId) return null;
+
+    const { data, error } = await supabase
+      .from("product_variants")
+      .insert({ product_id: projectId, color_name: colorName, sort_order: sortOrder })
+      .select("*")
+      .single();
+
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return null;
+    }
+
+    const newVariant: ProductVariant = {
+      id: data.id,
+      productId: data.product_id,
+      colorName: data.color_name,
+      uploadedImages: (data.uploaded_images as string[]) || [],
+      garmentAnalysis: data.garment_analysis as GarmentAnalysis | null,
+      sortOrder: data.sort_order,
+      garmentType: data.garment_type,
+      garmentLength: data.garment_length,
+      garmentLengthCm: data.garment_length_cm,
+      hemBelowKneeCm: data.hem_below_knee_cm,
+      waistPositionCm: data.waist_position_cm,
+      sleeveLengthCm: data.sleeve_length_cm,
+      sleeveType: data.sleeve_type,
+      shoulderWidthCm: data.shoulder_width_cm,
+      proportionJson: data.proportion_json as Record<string, unknown> | null,
+      analysisRaw: data.analysis_raw,
+    };
+
+    return newVariant;
+  }, [projectId, toast]);
+
+  const updateActiveVariant = useCallback(async (updates: Partial<ProductVariant>) => {
+    let targetVariant = activeVariant;
+
+    if (!targetVariant) {
+      targetVariant = await createVariantRecord(state.variants.length, "Original");
+      if (!targetVariant) return;
+    }
+
     setState((s) => {
-      const newVariants = s.variants.map((v) => (v.id === s.activeVariantId ? { ...v, ...updates } : v));
+      const targetId = targetVariant!.id;
+      const variantsWithTarget = s.variants.some((v) => v.id === targetId)
+        ? s.variants
+        : [...s.variants, targetVariant!];
+      const newVariants = variantsWithTarget.map((v) => (v.id === targetId ? { ...v, ...updates } : v));
+
       return {
         ...s,
         variants: newVariants,
+        activeVariantId: targetId,
         ...(updates.uploadedImages !== undefined ? { uploadedImages: updates.uploadedImages } : {}),
         ...(updates.garmentAnalysis !== undefined ? { garmentAnalysis: updates.garmentAnalysis ?? null } : {}),
       };
     });
-    if (activeVariant) saveVariant(activeVariant.id, updates);
-  };
+
+    await saveVariant(targetVariant.id, updates);
+  }, [activeVariant, createVariantRecord, saveVariant, state.variants.length]);
 
   const switchVariant = (variantId: string) => {
     const variant = state.variants.find((v) => v.id === variantId);
@@ -398,34 +448,15 @@ const ProductPage = () => {
   };
 
   const addVariant = async () => {
-    if (!projectId) return;
-    const sortOrder = state.variants.length;
-    const { data, error } = await supabase
-      .from("product_variants")
-      .insert({ product_id: projectId, color_name: `Cor ${sortOrder + 1}`, sort_order: sortOrder })
-      .select("*")
-      .single();
-
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    const newVariant: ProductVariant = {
-      id: data.id,
-      productId: data.product_id,
-      colorName: data.color_name,
-      uploadedImages: [],
-      garmentAnalysis: null,
-      sortOrder: data.sort_order,
-    };
+    const newVariant = await createVariantRecord(state.variants.length, `Cor ${state.variants.length + 1}`);
+    if (!newVariant) return;
 
     setState((s) => ({
       ...s,
       variants: [...s.variants, newVariant],
       activeVariantId: newVariant.id,
-      uploadedImages: [],
-      garmentAnalysis: null,
+      uploadedImages: newVariant.uploadedImages,
+      garmentAnalysis: newVariant.garmentAnalysis,
     }));
   };
 
