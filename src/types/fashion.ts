@@ -51,6 +51,8 @@ export interface PromptLayers {
   layer3: string;
 }
 
+export type GenerationEngine = 'gemini' | 'fal';
+
 export interface GenerationRequest {
   type: 'lookbook-front' | 'lookbook-back' | 'lookbook-left' | 'lookbook-three-quarter' | 'close-up' | 'video-product' | 'video-model';
   label: string;
@@ -78,6 +80,7 @@ export interface WeeklyLaunch {
   id: string;
   label: string;
   variantId?: string;
+  engineUsed?: GenerationEngine;
   images: GeneratedImage[];
   mannequinHeightCm?: number | null;
   mannequinBustCm?: number | null;
