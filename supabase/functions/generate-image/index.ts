@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-up" | "video-product" | "video-model";
+type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-tr-cuff" | "close-tr-label" | "video-product" | "video-model";
 type GenerationEngine = "gemini" | "fal";
 
 type GarmentAnalysis = {
@@ -44,7 +44,8 @@ const ANGLE_BLOCKS: Record<AngleType, string> = {
   "lookbook-back": "BACK VIEW — back to camera, slight head turn over left shoulder, natural posture.",
   "lookbook-left": "LEFT SIDE — left profile, mid-stride feel, natural arm swing, candid energy.",
   "lookbook-three-quarter": "RIGHT SIDE / 3-4 VIEW — right profile with slight hip shift and soft arm bend.",
-  "close-up": "EXTREME CLOSE-UP detail shot: right cuff only. TR button must be SHARP and CENTERED. DO NOT show face or full body.",
+  "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
+  "close-tr-label": "This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label \"THAIS RODRIGUES\" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.",
   "video-product": "Generate still image frame with strong product fidelity suitable for product-video storyboard.",
   "video-model": "Generate still image frame with model fidelity suitable for model-video storyboard.",
 };
@@ -99,7 +100,7 @@ PROPORTIONS (from ${toCm(mannequin?.height_cm)} reference mannequin):
 - Total garment length: ${toCm(proportionJson?.garment_length_cm)}
 - Waist position: ${toCm(proportionJson?.waist_position_cm)} from shoulder`;
 
-  const blockC = angleType === "close-up" || angleType === "video-product"
+  const blockC = angleType === "video-product"
     ? ""
     : `Model: ${modelProfile?.promptSeed || modelProfile?.name || "Brazilian model"}
 Height: ${modelProfile?.height || "N/A"}m.
@@ -235,7 +236,7 @@ async function callFalEngine(params: {
 
   fal.config({ credentials: FAL_API_KEY });
 
-  const useReference = !!params.imageUrl && params.angleType !== "close-up";
+  const useReference = !!params.imageUrl;
   const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
   const result = await fal.subscribe(endpoint, {
     input: {

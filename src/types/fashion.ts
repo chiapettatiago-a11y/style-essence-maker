@@ -54,7 +54,15 @@ export interface PromptLayers {
 export type GenerationEngine = 'gemini' | 'fal';
 
 export interface GenerationRequest {
-  type: 'lookbook-front' | 'lookbook-back' | 'lookbook-left' | 'lookbook-three-quarter' | 'close-up' | 'video-product' | 'video-model';
+  type:
+    | 'lookbook-front'
+    | 'lookbook-back'
+    | 'lookbook-left'
+    | 'lookbook-three-quarter'
+    | 'close-tr-cuff'
+    | 'close-tr-label'
+    | 'video-product'
+    | 'video-model';
   label: string;
   prompt: string;
 }
