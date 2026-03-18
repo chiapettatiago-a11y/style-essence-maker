@@ -24,7 +24,8 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-back": "back_view",
   "lookbook-left": "left_side",
   "lookbook-three-quarter": "right_side",
-  "close-up": "close_tr",
+  "close-tr-cuff": "close_tr_cuff",
+  "close-tr-label": "close_tr_label",
   "video-product": "video_product",
   "video-model": "video_model",
 };
