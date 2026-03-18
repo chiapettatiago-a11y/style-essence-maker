@@ -714,30 +714,31 @@ const ProductPage = () => {
       const startedAt = performance.now();
 
       try {
-        const { data, error } = await supabase.functions.invoke("generate-image", {
-          body: {
-            angleType: img.type,
-            angle: img.type,
-            basePrompt: img.prompt,
-            prompt: img.prompt,
-            manualPrompt: state.manualPrompt,
-            engine: state.selectedEngine,
-            selectedPresets: state.selectedPresets,
-            garmentAnalysis: activeVariant.garmentAnalysis,
-            proportionJson: activeVariant.proportionJson,
-            modelProfile: state.selectedProfile,
-            mannequin: {
-              height_cm: normalizedMannequin.mannequin_height_cm,
-              bust_cm: normalizedMannequin.mannequin_bust_cm,
-              waist_cm: normalizedMannequin.mannequin_waist_cm,
-              hip_cm: normalizedMannequin.mannequin_hip_cm,
-              torso_cm: normalizedMannequin.mannequin_torso_cm,
-              arm_cm: normalizedMannequin.mannequin_arm_cm,
+          const { data, error } = await supabase.functions.invoke("generate-image", {
+            body: {
+              angleType: img.type,
+              angle: img.type,
+              basePrompt: img.prompt,
+              prompt: img.prompt,
+              manualPrompt: state.manualPrompt,
+              engine: state.selectedEngine,
+              selectedPresets: state.selectedPresets,
+              garmentAnalysis: activeVariant.garmentAnalysis,
+              proportionJson: activeVariant.proportionJson,
+              modelProfile: state.selectedProfile,
+              mannequin: {
+                height_cm: normalizedMannequin.mannequin_height_cm,
+                bust_cm: normalizedMannequin.mannequin_bust_cm,
+                waist_cm: normalizedMannequin.mannequin_waist_cm,
+                hip_cm: normalizedMannequin.mannequin_hip_cm,
+                torso_cm: normalizedMannequin.mannequin_torso_cm,
+                arm_cm: normalizedMannequin.mannequin_arm_cm,
+              },
+              referenceImages: activeVariant.uploadedImages.slice(0, 3),
+              image_url: imageUrl,
+              launchId: activeWeekId,
             },
-            referenceImages: activeVariant.uploadedImages.slice(0, 3),
-            image_url: imageUrl,
-          },
-        });
+          });
 
         if (error) throw error;
 
@@ -853,6 +854,7 @@ const ProductPage = () => {
           referenceImages: activeVariant.uploadedImages.slice(0, 3),
           image_url: isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0],
           attemptNumber: nextAttempt,
+          launchId: sourceLaunch?.id,
         },
       });
       if (error) throw error;

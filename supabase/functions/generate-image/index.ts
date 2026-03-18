@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { fal } from "npm:@fal-ai/client";
 
 const corsHeaders = {
@@ -53,6 +54,81 @@ const ANGLE_BLOCKS: Record<AngleType, string> = {
 function toCm(value: unknown): string {
   if (value === null || value === undefined || value === "") return "N/A";
   return `${value}cm`;
+}
+
+const STORAGE_BUCKET = "generated-assets";
+
+function getImageSize(angleType: AngleType) {
+  const isMacroClose = angleType === "close-tr-cuff" || angleType === "close-tr-label";
+  return isMacroClose
+    ? { width: 2048, height: 2048 }
+    : { width: 1365, height: 2048 };
+}
+
+function sanitizePathSegment(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9-_]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+async function fetchImageBytes(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch generated image: ${response.status}`);
+  const contentType = response.headers.get("content-type") || "image/png";
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  return { bytes, contentType };
+}
+
+function buildPublicObjectUrl(supabaseUrl: string, bucket: string, path: string) {
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+}
+
+function buildPreviewUrl(supabaseUrl: string, bucket: string, path: string) {
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  return `${supabaseUrl}/storage/v1/render/image/public/${bucket}/${encodedPath}?width=800&height=1200&resize=contain&format=webp&quality=80`;
+}
+
+async function uploadGeneratedAsset(params: {
+  sourceUrl: string;
+  launchId?: string;
+  type: AngleType;
+  attemptNumber: number;
+}) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return {
+      originalUrl: params.sourceUrl,
+      previewUrl: params.sourceUrl,
+      imageUrl: params.sourceUrl,
+    };
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { bytes, contentType } = await fetchImageBytes(params.sourceUrl);
+  const objectPath = [
+    sanitizePathSegment(params.launchId || "standalone"),
+    `${sanitizePathSegment(params.type)}-attempt-${params.attemptNumber}.png`,
+  ].join("/");
+
+  const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+    contentType: contentType.includes("png") ? contentType : "image/png",
+    cacheControl: "3600",
+    upsert: true,
+  });
+
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+
+  const originalUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+  const previewUrl = buildPreviewUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+
+  return {
+    originalUrl,
+    previewUrl,
+    imageUrl: previewUrl,
+  };
 }
 
 function buildPrompt(params: {
@@ -238,10 +314,16 @@ async function callFalEngine(params: {
 
   const useReference = !!params.imageUrl;
   const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
+  const imageSize = getImageSize(params.angleType);
   const result = await fal.subscribe(endpoint, {
     input: {
       prompt: params.promptUsed,
       ...(useReference ? { image_url: params.imageUrl } : {}),
+      image_size: imageSize,
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
+      output_format: "png",
+      output_quality: 100,
     },
   });
 
@@ -271,6 +353,7 @@ serve(async (req) => {
       mannequin,
       referenceImages,
       attemptNumber,
+      launchId,
     } = await req.json();
 
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
@@ -302,10 +385,17 @@ serve(async (req) => {
           attemptNumber: requestAttempt,
         });
 
+    const storedAsset = await uploadGeneratedAsset({
+      sourceUrl: result.imageUrl,
+      launchId,
+      type: parsedAngle,
+      attemptNumber: requestAttempt,
+    });
+
     return new Response(JSON.stringify({
-      imageUrl: result.imageUrl,
-      originalUrl: result.imageUrl,
-      previewUrl: result.imageUrl,
+      imageUrl: storedAsset.imageUrl,
+      originalUrl: storedAsset.originalUrl,
+      previewUrl: storedAsset.previewUrl,
       promptUsed,
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
