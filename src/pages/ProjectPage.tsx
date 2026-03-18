@@ -854,6 +854,7 @@ const ProductPage = () => {
           referenceImages: activeVariant.uploadedImages.slice(0, 3),
           image_url: isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0],
           attemptNumber: nextAttempt,
+          launchId: sourceLaunch?.id,
         },
       });
       if (error) throw error;

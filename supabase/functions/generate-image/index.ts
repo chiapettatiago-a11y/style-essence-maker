@@ -353,6 +353,7 @@ serve(async (req) => {
       mannequin,
       referenceImages,
       attemptNumber,
+      launchId,
     } = await req.json();
 
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
@@ -384,10 +385,17 @@ serve(async (req) => {
           attemptNumber: requestAttempt,
         });
 
+    const storedAsset = await uploadGeneratedAsset({
+      sourceUrl: result.imageUrl,
+      launchId,
+      type: parsedAngle,
+      attemptNumber: requestAttempt,
+    });
+
     return new Response(JSON.stringify({
-      imageUrl: result.imageUrl,
-      originalUrl: result.imageUrl,
-      previewUrl: result.imageUrl,
+      imageUrl: storedAsset.imageUrl,
+      originalUrl: storedAsset.originalUrl,
+      previewUrl: storedAsset.previewUrl,
       promptUsed,
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
