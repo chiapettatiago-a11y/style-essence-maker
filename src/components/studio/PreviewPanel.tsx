@@ -11,13 +11,17 @@ interface PreviewPanelProps {
 }
 
 const PreviewImage: React.FC<{ image: GeneratedImage; className?: string }> = ({ image, className }) => {
-  const primarySrc = image.previewUrl || image.imageUrl || image.originalUrl || "";
-  const fallbackSrc = image.originalUrl || image.imageUrl || image.previewUrl || "";
-  const [src, setSrc] = React.useState(primarySrc);
+  const candidates = React.useMemo(
+    () => [image.originalUrl, image.previewUrl, image.imageUrl].filter(Boolean) as string[],
+    [image.originalUrl, image.previewUrl, image.imageUrl]
+  );
+  const [srcIndex, setSrcIndex] = React.useState(0);
 
   React.useEffect(() => {
-    setSrc(primarySrc);
-  }, [primarySrc]);
+    setSrcIndex(0);
+  }, [candidates]);
+
+  const src = candidates[srcIndex] || "";
 
   if (!src) {
     return <ImageIcon className="h-12 w-12 opacity-30 text-muted-foreground" />;
@@ -30,7 +34,7 @@ const PreviewImage: React.FC<{ image: GeneratedImage; className?: string }> = ({
       className={className}
       loading="lazy"
       onError={() => {
-        if (src !== fallbackSrc && fallbackSrc) setSrc(fallbackSrc);
+        setSrcIndex((current) => (current < candidates.length - 1 ? current + 1 : current));
       }}
     />
   );
