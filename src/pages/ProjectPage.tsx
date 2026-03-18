@@ -1,23 +1,23 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { GarmentAnalysis, GeneratedImage, GenerationRequest, ModelProfile, WeeklyLaunch, WizardState, ProductVariant } from "@/types/fashion";
+import { GarmentAnalysis, GeneratedImage, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Palette } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles } from "lucide-react";
+import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
-import UploadSection from "@/components/studio/UploadSection";
-import ModelGallery from "@/components/studio/ModelGallery";
-import StyleSection from "@/components/studio/StyleSection";
-import GenerateSection from "@/components/studio/GenerateSection";
-import ResultsGrid from "@/components/studio/ResultsGrid";
-import { GalleryModel } from "@/data/model-gallery";
+import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
+import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
+import { useToast } from "@/hooks/use-toast";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -29,59 +29,23 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "video-model": "video_model",
 };
 
-const ProductSwitcher = ({ currentName, currentId, navigate: nav, userId }: { currentName: string; currentId: string; navigate: (path: string) => void; userId?: string }) => {
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const { data: products } = useQuery({
-    queryKey: ["products"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("products").select("id, name").order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!userId,
-  });
+type MainTab = "photos" | "video" | "analysis" | "settings";
 
-  if (!products || products.length <= 1) {
-    return <span className="text-sm font-medium">{currentName}</span>;
-  }
-
-  const filtered = products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
-
-  return (
-    <DropdownMenu open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-sm font-medium gap-1 px-1 h-auto py-0.5">
-          {currentName} <ChevronDown className="h-3 w-3" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64">
-        {products.length > 4 && (
-          <div className="px-2 py-1.5">
-            <Input placeholder="Buscar projeto..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-7 text-xs" autoFocus onKeyDown={(e) => e.stopPropagation()} />
-          </div>
-        )}
-        <div className="max-h-64 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <div className="px-2 py-3 text-xs text-muted-foreground text-center">Nenhum projeto encontrado</div>
-          ) : (
-            filtered.map((p) => (
-              <DropdownMenuItem key={p.id} className={cn(p.id === currentId && "bg-accent/15 text-accent")} onClick={() => { if (p.id !== currentId) nav(`/project/${p.id}`); }}>
-                <span className="truncate">{p.name}</span>
-              </DropdownMenuItem>
-            ))
-          )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+type MannequinData = {
+  mannequin_height_cm: number | null;
+  mannequin_bust_cm: number | null;
+  mannequin_waist_cm: number | null;
+  mannequin_hip_cm: number | null;
+  mannequin_torso_cm: number | null;
+  mannequin_arm_cm: number | null;
 };
 
-const ProjectPage = () => {
+const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const [state, setState] = useState<WizardState>({
     step: 0,
@@ -96,11 +60,25 @@ const ProjectPage = () => {
     weeklyLaunches: [],
     activeWeek: "",
   });
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [launchModalOpen, setLaunchModalOpen] = useState(false);
+  const [launchModalStep, setLaunchModalStep] = useState(1);
+  const [activeTab, setActiveTab] = useState<MainTab>("photos");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingVariantName, setEditingVariantName] = useState("");
+  const [productName, setProductName] = useState("");
+  const [mannequin, setMannequin] = useState<MannequinData>({
+    mannequin_height_cm: null,
+    mannequin_bust_cm: null,
+    mannequin_waist_cm: null,
+    mannequin_hip_cm: null,
+    mannequin_torso_cm: null,
+    mannequin_arm_cm: null,
+  });
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
@@ -112,10 +90,27 @@ const ProjectPage = () => {
     enabled: !!user && !!projectId,
   });
 
+  const { data: products } = useQuery({
+    queryKey: ["products"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, updated_at")
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
   const { data: dbVariants } = useQuery({
     queryKey: ["variants", projectId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("product_variants").select("*").eq("product_id", projectId!).order("sort_order", { ascending: true });
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("*")
+        .eq("product_id", projectId!)
+        .order("sort_order", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -125,7 +120,11 @@ const ProjectPage = () => {
   const { data: weeks } = useQuery({
     queryKey: ["weeks", projectId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("weekly_launches").select("*").eq("product_id", projectId!).order("created_at", { ascending: true });
+      const { data, error } = await supabase
+        .from("weekly_launches")
+        .select("*")
+        .eq("product_id", projectId!)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -137,17 +136,65 @@ const ProjectPage = () => {
     queryFn: async () => {
       if (!weeks || weeks.length === 0) return [];
       const weekIds = weeks.map((w) => w.id);
-      const { data, error } = await supabase.from("generated_images").select("*").in("launch_id", weekIds).order("created_at", { ascending: true });
+      const { data, error } = await supabase
+        .from("generated_images")
+        .select("*")
+        .in("launch_id", weekIds)
+        .order("created_at", { ascending: true });
       if (error) throw error;
       return data;
     },
     enabled: !!weeks && weeks.length > 0,
   });
 
+  const { data: allWeeks } = useQuery({
+    queryKey: ["all-weeks-for-sidebar"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("weekly_launches").select("id, product_id");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: allImages } = useQuery({
+    queryKey: ["all-images-for-sidebar", allWeeks?.length || 0],
+    queryFn: async () => {
+      if (!allWeeks || allWeeks.length === 0) return [];
+      const launchIds = allWeeks.map((w) => w.id);
+      const { data, error } = await supabase
+        .from("generated_images")
+        .select("launch_id, type, status")
+        .in("launch_id", launchIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!allWeeks && allWeeks.length > 0,
+  });
+
+  const sidebarPhotoCounts = useMemo(() => {
+    if (!allWeeks || !allImages) return new Map<string, number>();
+
+    const launchProductMap = new Map<string, string>();
+    allWeeks.forEach((w) => launchProductMap.set(w.id, w.product_id));
+
+    const productCountMap = new Map<string, number>();
+    allImages.forEach((img) => {
+      const productIdFromLaunch = launchProductMap.get(img.launch_id);
+      if (!productIdFromLaunch) return;
+      const isVideo = img.type === "video-product" || img.type === "video-model";
+      if (isVideo) return;
+      if (img.status !== "done") return;
+      productCountMap.set(productIdFromLaunch, (productCountMap.get(productIdFromLaunch) || 0) + 1);
+    });
+
+    return productCountMap;
+  }, [allWeeks, allImages]);
+
   useEffect(() => {
     if (!product || loaded) return;
 
-    const variants: ProductVariant[] = (dbVariants || []).map(v => ({
+    const variants: ProductVariant[] = (dbVariants || []).map((v) => ({
       id: v.id,
       productId: v.product_id,
       colorName: v.color_name,
@@ -177,25 +224,28 @@ const ProjectPage = () => {
       mannequinTorsoCm: w.mannequin_torso_cm,
       mannequinArmCm: w.mannequin_arm_cm,
       referencePhotos: (w.reference_photos as string[]) || [],
-      images: (dbImages || []).filter((img) => img.launch_id === w.id).map((img) => ({
-        id: img.id,
-        type: img.type as GeneratedImage["type"],
-        label: img.label,
-        prompt: img.prompt,
-        promptUsed: img.prompt_used || undefined,
-        imageUrl: img.preview_url || img.original_url || img.image_url || undefined,
-        originalUrl: img.original_url || undefined,
-        previewUrl: img.preview_url || undefined,
-        photoAngle: img.photo_angle || undefined,
-        generationMs: img.generation_ms || undefined,
-        modelUsed: img.model_used || undefined,
-        attemptNumber: img.attempt_number || undefined,
-        status: img.status as GeneratedImage["status"],
-        error: img.error || undefined,
-      })),
+      images: (dbImages || [])
+        .filter((img) => img.launch_id === w.id)
+        .map((img) => ({
+          id: img.id,
+          type: img.type as GeneratedImage["type"],
+          label: img.label,
+          prompt: img.prompt,
+          promptUsed: img.prompt_used || undefined,
+          imageUrl: img.preview_url || img.original_url || img.image_url || undefined,
+          originalUrl: img.original_url || img.image_url || undefined,
+          previewUrl: img.preview_url || undefined,
+          photoAngle: img.photo_angle || undefined,
+          generationMs: img.generation_ms || undefined,
+          modelUsed: img.model_used || undefined,
+          attemptNumber: img.attempt_number || undefined,
+          status: img.status as GeneratedImage["status"],
+          error: img.error || undefined,
+        })),
     }));
 
     const activeVariant = variants[0];
+
     setState({
       step: 0,
       variants,
@@ -209,6 +259,17 @@ const ProjectPage = () => {
       weeklyLaunches,
       activeWeek: weeklyLaunches[0]?.id || "",
     });
+
+    setProductName(product.name || "");
+    setMannequin({
+      mannequin_height_cm: product.mannequin_height_cm,
+      mannequin_bust_cm: product.mannequin_bust_cm,
+      mannequin_waist_cm: product.mannequin_waist_cm,
+      mannequin_hip_cm: product.mannequin_hip_cm,
+      mannequin_torso_cm: product.mannequin_torso_cm,
+      mannequin_arm_cm: product.mannequin_arm_cm,
+    });
+
     setLoaded(true);
   }, [product, weeks, dbImages, dbVariants, loaded]);
 
@@ -236,19 +297,23 @@ const ProjectPage = () => {
           ...s,
           weeklyLaunches: s.weeklyLaunches.map((w) => ({
             ...w,
-            images: w.images.map((i) => i.id !== row.id ? i : {
-              ...i,
-              status: row.status,
-              error: row.error || undefined,
-              imageUrl: row.preview_url || row.original_url || row.image_url || i.imageUrl,
-              originalUrl: row.original_url || i.originalUrl,
-              previewUrl: row.preview_url || i.previewUrl,
-              modelUsed: row.model_used || i.modelUsed,
-              generationMs: row.generation_ms || i.generationMs,
-              attemptNumber: row.attempt_number || i.attemptNumber,
-              promptUsed: row.prompt_used || i.promptUsed,
-              photoAngle: row.photo_angle || i.photoAngle,
-            }),
+            images: w.images.map((i) =>
+              i.id !== row.id
+                ? i
+                : {
+                    ...i,
+                    status: row.status,
+                    error: row.error || undefined,
+                    imageUrl: row.preview_url || row.original_url || row.image_url || i.imageUrl,
+                    originalUrl: row.original_url || row.image_url || i.originalUrl,
+                    previewUrl: row.preview_url || i.previewUrl,
+                    modelUsed: row.model_used || i.modelUsed,
+                    generationMs: row.generation_ms || i.generationMs,
+                    attemptNumber: row.attempt_number || i.attemptNumber,
+                    promptUsed: row.prompt_used || i.promptUsed,
+                    photoAngle: row.photo_angle || i.photoAngle,
+                  }
+            ),
           })),
         }));
       })
@@ -259,18 +324,19 @@ const ProjectPage = () => {
     };
   }, [projectId, user]);
 
-  const activeVariant = state.variants.find(v => v.id === state.activeVariantId) || state.variants[0];
-  const variantWeeklyLaunches = state.weeklyLaunches.filter(w => !w.variantId || w.variantId === state.activeVariantId);
+  const activeVariant = state.variants.find((v) => v.id === state.activeVariantId) || state.variants[0];
+  const variantWeeklyLaunches = state.weeklyLaunches.filter((w) => !w.variantId || w.variantId === state.activeVariantId);
 
-  const saveProduct = useCallback(async (updates: Partial<WizardState>) => {
+  const donePhotoCount = useMemo(() => {
+    return variantWeeklyLaunches
+      .flatMap((w) => w.images)
+      .filter((img) => img.status === "done" && img.type !== "video-product" && img.type !== "video-model").length;
+  }, [variantWeeklyLaunches]);
+
+  const saveProductMeta = useCallback(async (payload: Record<string, unknown>) => {
     if (!projectId) return;
-    const payload: Record<string, unknown> = {};
-    if (updates.selectedProfile !== undefined) payload.model_profile = updates.selectedProfile;
-    if (updates.selectedPresets !== undefined) payload.selected_presets = updates.selectedPresets;
-    if (updates.manualPrompt !== undefined) payload.manual_prompt = updates.manualPrompt;
-    if (Object.keys(payload).length > 0) {
-      await supabase.from("products").update(payload).eq("id", projectId);
-    }
+    const { error } = await supabase.from("products").update(payload).eq("id", projectId);
+    if (error) throw error;
   }, [projectId]);
 
   const saveVariant = useCallback(async (variantId: string, updates: Partial<ProductVariant>) => {
@@ -297,14 +363,15 @@ const ProjectPage = () => {
 
   const update = <K extends keyof WizardState>(key: K, value: WizardState[K]) => {
     setState((s) => ({ ...s, [key]: value }));
-    if (key !== "uploadedImages" && key !== "garmentAnalysis" && key !== "variants" && key !== "activeVariantId") {
-      saveProduct({ [key]: value });
-    }
+
+    if (key === "selectedProfile") saveProductMeta({ model_profile: value });
+    if (key === "selectedPresets") saveProductMeta({ selected_presets: value });
+    if (key === "manualPrompt") saveProductMeta({ manual_prompt: value });
   };
 
   const updateActiveVariant = (updates: Partial<ProductVariant>) => {
-    setState(s => {
-      const newVariants = s.variants.map(v => v.id === s.activeVariantId ? { ...v, ...updates } : v);
+    setState((s) => {
+      const newVariants = s.variants.map((v) => (v.id === s.activeVariantId ? { ...v, ...updates } : v));
       return {
         ...s,
         variants: newVariants,
@@ -316,16 +383,30 @@ const ProjectPage = () => {
   };
 
   const switchVariant = (variantId: string) => {
-    const variant = state.variants.find(v => v.id === variantId);
+    const variant = state.variants.find((v) => v.id === variantId);
     if (!variant) return;
-    setState(s => ({ ...s, activeVariantId: variantId, uploadedImages: variant.uploadedImages, garmentAnalysis: variant.garmentAnalysis }));
+    setState((s) => ({
+      ...s,
+      activeVariantId: variantId,
+      uploadedImages: variant.uploadedImages,
+      garmentAnalysis: variant.garmentAnalysis,
+    }));
   };
 
   const addVariant = async () => {
     if (!projectId) return;
     const sortOrder = state.variants.length;
-    const { data, error } = await supabase.from("product_variants").insert({ product_id: projectId, color_name: `Cor ${sortOrder + 1}`, sort_order: sortOrder }).select("*").single();
-    if (error) { console.error(error); return; }
+    const { data, error } = await supabase
+      .from("product_variants")
+      .insert({ product_id: projectId, color_name: `Cor ${sortOrder + 1}`, sort_order: sortOrder })
+      .select("*")
+      .single();
+
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+
     const newVariant: ProductVariant = {
       id: data.id,
       productId: data.product_id,
@@ -334,24 +415,43 @@ const ProjectPage = () => {
       garmentAnalysis: null,
       sortOrder: data.sort_order,
     };
-    setState(s => ({ ...s, variants: [...s.variants, newVariant], activeVariantId: newVariant.id, uploadedImages: [], garmentAnalysis: null }));
+
+    setState((s) => ({
+      ...s,
+      variants: [...s.variants, newVariant],
+      activeVariantId: newVariant.id,
+      uploadedImages: [],
+      garmentAnalysis: null,
+    }));
   };
 
   const deleteVariant = async (variantId: string) => {
     if (state.variants.length <= 1) return;
     await supabase.from("product_variants").delete().eq("id", variantId);
-    setState(s => {
-      const newVariants = s.variants.filter(v => v.id !== variantId);
-      const newActive = s.activeVariantId === variantId ? newVariants[0] : s.variants.find(v => v.id === s.activeVariantId);
+
+    setState((s) => {
+      const newVariants = s.variants.filter((v) => v.id !== variantId);
+      const newActive = s.activeVariantId === variantId ? newVariants[0] : s.variants.find((v) => v.id === s.activeVariantId);
       return {
         ...s,
         variants: newVariants,
         activeVariantId: newActive?.id || newVariants[0]?.id || "",
         uploadedImages: newActive?.uploadedImages || [],
         garmentAnalysis: newActive?.garmentAnalysis || null,
-        weeklyLaunches: s.weeklyLaunches.filter(w => w.variantId !== variantId),
+        weeklyLaunches: s.weeklyLaunches.filter((w) => w.variantId !== variantId),
       };
     });
+  };
+
+  const saveMannequin = async () => {
+    try {
+      await saveProductMeta({ ...mannequin, name: productName.trim() || productName });
+      queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+      toast({ title: "Salvo", description: "Configurações atualizadas." });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao salvar";
+      toast({ title: "Erro", description: message, variant: "destructive" });
+    }
   };
 
   const handleAnalyze = useCallback(async () => {
@@ -359,18 +459,20 @@ const ProjectPage = () => {
 
     setIsAnalyzing(true);
     try {
-      const mannequin = {
-        height_cm: product?.mannequin_height_cm || null,
-        bust_cm: product?.mannequin_bust_cm || null,
-        waist_cm: product?.mannequin_waist_cm || null,
-        hip_cm: product?.mannequin_hip_cm || null,
-        torso_cm: product?.mannequin_torso_cm || null,
-        arm_cm: product?.mannequin_arm_cm || null,
-      };
-
       const { data, error } = await supabase.functions.invoke("analyze-garment", {
-        body: { images: activeVariant.uploadedImages, mannequin },
+        body: {
+          images: activeVariant.uploadedImages,
+          mannequin: {
+            height_cm: mannequin.mannequin_height_cm,
+            bust_cm: mannequin.mannequin_bust_cm,
+            waist_cm: mannequin.mannequin_waist_cm,
+            hip_cm: mannequin.mannequin_hip_cm,
+            torso_cm: mannequin.mannequin_torso_cm,
+            arm_cm: mannequin.mannequin_arm_cm,
+          },
+        },
       });
+
       if (error) throw error;
 
       const analysis = data.analysis as GarmentAnalysis;
@@ -389,31 +491,20 @@ const ProjectPage = () => {
         proportionJson: proportions,
         analysisRaw: data.raw || null,
       });
-    } catch (err) {
-      console.error("Analysis error:", err);
-      updateActiveVariant({
-        garmentAnalysis: {
-          type: "Vestido",
-          fabric: "Jeans denim",
-          color: "Azul médio",
-          pattern: "Liso",
-          construction: "Costura reforçada, botões frontais",
-          details: "Botões metálicos, bordado dourado",
-          style: "Casual chic",
-          fullDescription: "",
-          length: "Longo até o tornozelo",
-          silhouette: "Evasê",
-          hemline: "Barra reta",
-          neckline: "Gola de camisa",
-          sleeves: "Manga longa",
-        },
-      });
+
+      toast({ title: "Análise concluída", description: "Dados técnicos atualizados." });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Falha na análise";
+      toast({ title: "Erro", description: message, variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
     }
-  }, [activeVariant, product]);
+  }, [activeVariant, mannequin]);
 
-  const handleSelectModel = useCallback((model: GalleryModel) => {
+  const handleSelectModelById = useCallback((modelId: string) => {
+    const model = MODEL_GALLERY.find((m) => m.id === modelId);
+    if (!model) return;
+
     const profile: ModelProfile = {
       id: model.id,
       name: model.name,
@@ -427,31 +518,73 @@ const ProjectPage = () => {
       generalStyle: model.generalStyle,
       promptSeed: model.promptBlockEN,
     };
+
     update("selectedProfile", profile);
   }, []);
+
+  const updateImageDb = (id: string, updates: Partial<GeneratedImage>) => {
+    const dbUpdate: Record<string, unknown> = {};
+    if (updates.status) dbUpdate.status = updates.status;
+    if (updates.imageUrl) dbUpdate.image_url = updates.imageUrl;
+    if (updates.originalUrl) dbUpdate.original_url = updates.originalUrl;
+    if (updates.previewUrl) dbUpdate.preview_url = updates.previewUrl;
+    if (updates.error) dbUpdate.error = updates.error;
+    if (updates.generationMs !== undefined) dbUpdate.generation_ms = updates.generationMs;
+    if (updates.modelUsed) dbUpdate.model_used = updates.modelUsed;
+    if (updates.attemptNumber !== undefined) dbUpdate.attempt_number = updates.attemptNumber;
+    if (updates.promptUsed) dbUpdate.prompt_used = updates.promptUsed;
+
+    if (Object.keys(dbUpdate).length > 0) {
+      supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
+    }
+  };
+
+  const updateImageInState = (id: string, updates: Partial<GeneratedImage>) => {
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => ({
+        ...w,
+        images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+      })),
+    }));
+
+    updateImageDb(id, updates);
+  };
 
   const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
     if (!activeVariant || !projectId) return;
 
     setIsGenerating(true);
-    let activeWeekId = variantWeeklyLaunches.find(w => w.variantId === state.activeVariantId)?.id;
+
+    try {
+      await saveProductMeta({ ...mannequin, name: productName.trim() || productName });
+    } catch {
+      // keep flow running
+    }
+
+    let activeWeekId = variantWeeklyLaunches.find((w) => w.variantId === state.activeVariantId)?.id;
 
     if (!activeWeekId) {
-      const { data, error } = await supabase.from("weekly_launches").insert({
-        product_id: projectId,
-        label: `Semana ${variantWeeklyLaunches.length + 1}`,
-        variant_id: state.activeVariantId,
-        mannequin_height_cm: product?.mannequin_height_cm || null,
-        mannequin_bust_cm: product?.mannequin_bust_cm || null,
-        mannequin_waist_cm: product?.mannequin_waist_cm || null,
-        mannequin_hip_cm: product?.mannequin_hip_cm || null,
-        mannequin_torso_cm: product?.mannequin_torso_cm || null,
-        mannequin_arm_cm: product?.mannequin_arm_cm || null,
-        reference_photos: activeVariant.uploadedImages,
-      }).select("id,label,variant_id").single();
+      const { data, error } = await supabase
+        .from("weekly_launches")
+        .insert({
+          product_id: projectId,
+          label: `Semana ${variantWeeklyLaunches.length + 1}`,
+          variant_id: state.activeVariantId,
+          mannequin_height_cm: mannequin.mannequin_height_cm,
+          mannequin_bust_cm: mannequin.mannequin_bust_cm,
+          mannequin_waist_cm: mannequin.mannequin_waist_cm,
+          mannequin_hip_cm: mannequin.mannequin_hip_cm,
+          mannequin_torso_cm: mannequin.mannequin_torso_cm,
+          mannequin_arm_cm: mannequin.mannequin_arm_cm,
+          reference_photos: activeVariant.uploadedImages,
+        })
+        .select("id,label,variant_id")
+        .single();
 
       if (error || !data?.id) {
         setIsGenerating(false);
+        toast({ title: "Erro", description: error?.message || "Falha ao criar lançamento", variant: "destructive" });
         return;
       }
 
@@ -491,38 +624,13 @@ const ProjectPage = () => {
     setState((s) => ({
       ...s,
       generatedImages: initial,
-      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === activeWeekId ? { ...w, images: [...w.images, ...initial] } : w),
+      weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, images: [...w.images, ...initial] } : w)),
     }));
-
-    const updateImageStatus = (id: string, updates: Partial<GeneratedImage>) => {
-      setState((s) => ({
-        ...s,
-        weeklyLaunches: s.weeklyLaunches.map((w) => ({
-          ...w,
-          images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
-        })),
-      }));
-
-      const dbUpdate: Record<string, unknown> = {};
-      if (updates.status) dbUpdate.status = updates.status;
-      if (updates.imageUrl) dbUpdate.image_url = updates.imageUrl;
-      if (updates.originalUrl) dbUpdate.original_url = updates.originalUrl;
-      if (updates.previewUrl) dbUpdate.preview_url = updates.previewUrl;
-      if (updates.error) dbUpdate.error = updates.error;
-      if (updates.generationMs !== undefined) dbUpdate.generation_ms = updates.generationMs;
-      if (updates.modelUsed) dbUpdate.model_used = updates.modelUsed;
-      if (updates.attemptNumber !== undefined) dbUpdate.attempt_number = updates.attemptNumber;
-      if (updates.promptUsed) dbUpdate.prompt_used = updates.promptUsed;
-
-      if (Object.keys(dbUpdate).length > 0) {
-        supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
-      }
-    };
 
     const imageTasks = initial
       .filter((img) => img.type !== "video-product" && img.type !== "video-model")
       .map(async (img) => {
-        updateImageStatus(img.id, { status: "generating" });
+        updateImageInState(img.id, { status: "generating" });
         const startedAt = performance.now();
 
         try {
@@ -536,12 +644,12 @@ const ProjectPage = () => {
               proportionJson: activeVariant.proportionJson,
               modelProfile: state.selectedProfile,
               mannequin: {
-                height_cm: product?.mannequin_height_cm || null,
-                bust_cm: product?.mannequin_bust_cm || null,
-                waist_cm: product?.mannequin_waist_cm || null,
-                hip_cm: product?.mannequin_hip_cm || null,
-                torso_cm: product?.mannequin_torso_cm || null,
-                arm_cm: product?.mannequin_arm_cm || null,
+                height_cm: mannequin.mannequin_height_cm,
+                bust_cm: mannequin.mannequin_bust_cm,
+                waist_cm: mannequin.mannequin_waist_cm,
+                hip_cm: mannequin.mannequin_hip_cm,
+                torso_cm: mannequin.mannequin_torso_cm,
+                arm_cm: mannequin.mannequin_arm_cm,
               },
               referenceImages: activeVariant.uploadedImages.slice(0, 3),
             },
@@ -549,7 +657,7 @@ const ProjectPage = () => {
 
           if (error) throw error;
 
-          updateImageStatus(img.id, {
+          updateImageInState(img.id, {
             status: "done",
             imageUrl: data.previewUrl || data.imageUrl,
             originalUrl: data.originalUrl || data.imageUrl,
@@ -560,16 +668,28 @@ const ProjectPage = () => {
             promptUsed: data.promptUsed || img.prompt,
           });
         } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : "Falha na geração";
-          updateImageStatus(img.id, { status: "error", error: msg });
+          const message = err instanceof Error ? err.message : "Falha na geração";
+          updateImageInState(img.id, { status: "error", error: message });
         }
       });
 
     await Promise.allSettled(imageTasks);
-
     setIsGenerating(false);
+    setActiveTab("photos");
     queryClient.invalidateQueries({ queryKey: ["images", projectId] });
-  }, [activeVariant, state.activeVariantId, state.manualPrompt, state.selectedPresets, state.selectedProfile, variantWeeklyLaunches, product, projectId, queryClient]);
+  }, [
+    activeVariant,
+    mannequin,
+    productName,
+    projectId,
+    queryClient,
+    saveProductMeta,
+    state.activeVariantId,
+    state.manualPrompt,
+    state.selectedPresets,
+    state.selectedProfile,
+    variantWeeklyLaunches,
+  ]);
 
   const handleRegenerate = useCallback(async (id: string) => {
     let img: GeneratedImage | undefined;
@@ -581,32 +701,7 @@ const ProjectPage = () => {
 
     const nextAttempt = (img.attemptNumber || 1) + 1;
 
-    const updateImg = (updates: Partial<GeneratedImage>) => {
-      setState((s) => ({
-        ...s,
-        weeklyLaunches: s.weeklyLaunches.map((w) => ({
-          ...w,
-          images: w.images.map((i) => (i.id === id ? { ...i, ...updates } : i)),
-        })),
-      }));
-
-      const dbUpdate: Record<string, unknown> = {};
-      if (updates.status) dbUpdate.status = updates.status;
-      if (updates.imageUrl) dbUpdate.image_url = updates.imageUrl;
-      if (updates.originalUrl) dbUpdate.original_url = updates.originalUrl;
-      if (updates.previewUrl) dbUpdate.preview_url = updates.previewUrl;
-      if (updates.error) dbUpdate.error = updates.error;
-      if (updates.generationMs !== undefined) dbUpdate.generation_ms = updates.generationMs;
-      if (updates.modelUsed) dbUpdate.model_used = updates.modelUsed;
-      if (updates.attemptNumber !== undefined) dbUpdate.attempt_number = updates.attemptNumber;
-      if (updates.promptUsed) dbUpdate.prompt_used = updates.promptUsed;
-
-      if (Object.keys(dbUpdate).length > 0) {
-        supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
-      }
-    };
-
-    updateImg({ status: "generating", error: undefined });
+    updateImageInState(id, { status: "generating", error: undefined });
 
     const startedAt = performance.now();
     try {
@@ -620,12 +715,12 @@ const ProjectPage = () => {
           proportionJson: activeVariant.proportionJson,
           modelProfile: state.selectedProfile,
           mannequin: {
-            height_cm: product?.mannequin_height_cm || null,
-            bust_cm: product?.mannequin_bust_cm || null,
-            waist_cm: product?.mannequin_waist_cm || null,
-            hip_cm: product?.mannequin_hip_cm || null,
-            torso_cm: product?.mannequin_torso_cm || null,
-            arm_cm: product?.mannequin_arm_cm || null,
+            height_cm: mannequin.mannequin_height_cm,
+            bust_cm: mannequin.mannequin_bust_cm,
+            waist_cm: mannequin.mannequin_waist_cm,
+            hip_cm: mannequin.mannequin_hip_cm,
+            torso_cm: mannequin.mannequin_torso_cm,
+            arm_cm: mannequin.mannequin_arm_cm,
           },
           referenceImages: activeVariant.uploadedImages.slice(0, 3),
           attemptNumber: nextAttempt,
@@ -633,7 +728,7 @@ const ProjectPage = () => {
       });
       if (error) throw error;
 
-      updateImg({
+      updateImageInState(id, {
         status: "done",
         imageUrl: data.previewUrl || data.imageUrl,
         originalUrl: data.originalUrl || data.imageUrl,
@@ -644,10 +739,74 @@ const ProjectPage = () => {
         promptUsed: data.promptUsed || img.prompt,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Falha na regeneração";
-      updateImg({ status: "error", error: msg, attemptNumber: nextAttempt });
+      const message = err instanceof Error ? err.message : "Falha na regeneração";
+      updateImageInState(id, { status: "error", error: message, attemptNumber: nextAttempt });
     }
-  }, [state.weeklyLaunches, state.manualPrompt, state.selectedPresets, state.selectedProfile, activeVariant, product]);
+  }, [activeVariant, mannequin, state.manualPrompt, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
+
+  const handleDownloadZip = async () => {
+    const imagesToZip = variantWeeklyLaunches
+      .flatMap((w) => w.images)
+      .filter((img) => img.status === "done" && img.type !== "video-product" && img.type !== "video-model")
+      .map((img) => ({ label: img.label, url: img.originalUrl || img.imageUrl }))
+      .filter((img): img is { label: string; url: string } => !!img.url);
+
+    if (imagesToZip.length === 0) {
+      toast({ title: "Nada para baixar", description: "Nenhuma imagem finalizada nesta variante." });
+      return;
+    }
+
+    try {
+      const zip = new JSZip();
+      await Promise.all(
+        imagesToZip.map(async (img, idx) => {
+          const response = await fetch(img.url);
+          const blob = await response.blob();
+          const safeName = img.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+          zip.file(`${String(idx + 1).padStart(2, "0")}-${safeName || "foto"}.png`, blob);
+        })
+      );
+
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(productName || "produto").toLowerCase().replace(/\s+/g, "-")}-lookbook.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Falha ao gerar ZIP";
+      toast({ title: "Erro", description: message, variant: "destructive" });
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!projectId) return;
+    const ok = confirm(`Excluir produto \"${productName}\"? Esta ação não pode ser desfeita.`);
+    if (!ok) return;
+
+    const { error } = await supabase.from("products").delete().eq("id", projectId);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+      return;
+    }
+    navigate("/");
+  };
+
+  const copyPrompt = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedPromptId(id);
+    setTimeout(() => setCopiedPromptId(null), 1200);
+  };
+
+  const proportionSummary = {
+    garmentLengthCm: activeVariant?.garmentLengthCm,
+    waistPositionCm: activeVariant?.waistPositionCm,
+    sleeveLengthCm: activeVariant?.sleeveLengthCm,
+    shoulderWidthCm: activeVariant?.shoulderWidthCm,
+    hemBelowKneeCm: activeVariant?.hemBelowKneeCm,
+    garmentLengthLabel: activeVariant?.garmentLength,
+  };
 
   if (authLoading || productLoading) {
     return (
@@ -660,131 +819,378 @@ const ProjectPage = () => {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <header className="border-b border-border px-4 py-2.5 flex items-center justify-between shrink-0 sticky top-0 bg-background/95 backdrop-blur-sm z-30">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/")}>
-            <Home className="h-3.5 w-3.5" />
+    <div className="min-h-screen bg-background flex">
+      <aside className="w-[220px] shrink-0 border-r border-border hidden md:flex md:flex-col">
+        <div className="px-4 py-4 border-b border-border flex items-center gap-2">
+          <img src={monograma} alt="Monograma" className="h-5" />
+        </div>
+
+        <div className="p-3 border-b border-border">
+          <Button className="w-full" size="sm" onClick={() => navigate("/")}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Novo produto
           </Button>
-          <div className="flex items-center gap-2">
-            <img src={monograma} alt="Logo" className="h-5" />
-            <span className="text-muted-foreground text-xs">|</span>
-            <ProductSwitcher currentName={product?.name || "Projeto"} currentId={projectId!} navigate={navigate} userId={user?.id} />
-          </div>
         </div>
-        <span className="text-[10px] text-muted-foreground">Fashion AI Studio</span>
-      </header>
 
-      {state.variants.length > 0 && (
-        <div className="border-b border-border px-4 py-1.5 flex items-center gap-1.5 shrink-0 bg-muted/30 sticky top-[45px] z-20">
-          <Palette className="h-3 w-3 text-muted-foreground" />
-          <span className="text-[10px] text-muted-foreground mr-1">Variantes:</span>
-          {state.variants.map((v) => (
-            <div key={v.id} className="flex items-center">
-              {editingVariantId === v.id ? (
-                <Input
-                  value={editingVariantName}
-                  onChange={(e) => setEditingVariantName(e.target.value)}
-                  onBlur={() => {
-                    if (editingVariantName.trim()) {
-                      setState(s => ({ ...s, variants: s.variants.map(vv => vv.id === v.id ? { ...vv, colorName: editingVariantName.trim() } : vv) }));
-                      saveVariant(v.id, { colorName: editingVariantName.trim() });
-                    }
-                    setEditingVariantId(null);
-                  }}
-                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                  className="h-5 text-[10px] w-20 px-1"
-                  autoFocus
-                />
-              ) : (
-                <button
-                  onClick={() => switchVariant(v.id)}
-                  onDoubleClick={() => { setEditingVariantId(v.id); setEditingVariantName(v.colorName); }}
-                  className={cn(
-                    "text-[10px] px-2 py-0.5 rounded-full transition-all",
-                    v.id === state.activeVariantId ? "bg-accent text-accent-foreground font-medium" : "bg-muted text-muted-foreground hover:bg-accent/20"
-                  )}
-                >
-                  {v.colorName}
-                  {v.uploadedImages.length > 0 && <span className="ml-1 opacity-60">({v.uploadedImages.length})</span>}
-                </button>
-              )}
+        <div className="p-3 space-y-1.5 overflow-y-auto">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-2">Produtos</p>
+          {(products || []).map((p) => {
+            const active = p.id === projectId;
+            const count = sidebarPhotoCounts.get(p.id) || 0;
+            return (
+              <button
+                key={p.id}
+                onClick={() => navigate(`/project/${p.id}`)}
+                className={cn(
+                  "w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-xs border transition-colors",
+                  active ? "border-accent bg-accent/10 text-accent" : "border-transparent hover:bg-muted text-foreground"
+                )}
+              >
+                <span className="flex items-center gap-2 min-w-0">
+                  <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{p.name}</span>
+                </span>
+                <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-auto p-3 border-t border-border">
+          <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
+        </div>
+      </aside>
+
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="border-b border-border px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={() => navigate("/")}>
+              <Home className="h-4 w-4" />
+            </Button>
+            <div className="min-w-0">
+              <h1 className="text-lg font-medium truncate">{productName || product?.name || "Produto"}</h1>
+              <p className="text-xs text-muted-foreground">
+                Atualizado em {product?.updated_at ? new Date(product.updated_at).toLocaleDateString("pt-BR") : "—"} · {donePhotoCount} fotos geradas
+              </p>
             </div>
-          ))}
-          <button onClick={addVariant} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-accent/20 transition-all flex items-center gap-0.5">
-            <Plus className="h-2.5 w-2.5" /> Nova Cor
-          </button>
-          {state.variants.length > 1 && activeVariant && (
-            <button
-              onClick={() => { if (confirm(`Excluir variante "${activeVariant.colorName}"?`)) deleteVariant(activeVariant.id); }}
-              className="text-[10px] px-1.5 py-0.5 rounded-full text-destructive hover:bg-destructive/10 transition-all ml-auto"
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={handleDownloadZip}>
+              <Download className="h-3.5 w-3.5 mr-1" /> Baixar ZIP
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setLaunchModalStep(3);
+                setLaunchModalOpen(true);
+              }}
             >
-              Excluir
+              <RefreshCw className="h-3.5 w-3.5 mr-1" /> Re-analisar
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setLaunchModalStep(1);
+                setLaunchModalOpen(true);
+              }}
+            >
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Novo lançamento
+            </Button>
+          </div>
+        </header>
+
+        {state.variants.length > 0 && (
+          <div className="border-b border-border px-4 sm:px-6 py-2 flex items-center gap-1.5 overflow-x-auto">
+            <span className="text-[10px] text-muted-foreground mr-1 shrink-0">Variantes:</span>
+            {state.variants.map((v) => (
+              <div key={v.id} className="flex items-center shrink-0">
+                {editingVariantId === v.id ? (
+                  <Input
+                    value={editingVariantName}
+                    onChange={(e) => setEditingVariantName(e.target.value)}
+                    onBlur={() => {
+                      if (editingVariantName.trim()) {
+                        setState((s) => ({
+                          ...s,
+                          variants: s.variants.map((vv) => (vv.id === v.id ? { ...vv, colorName: editingVariantName.trim() } : vv)),
+                        }));
+                        saveVariant(v.id, { colorName: editingVariantName.trim() });
+                      }
+                      setEditingVariantId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                    }}
+                    className="h-7 text-xs w-28"
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    onClick={() => switchVariant(v.id)}
+                    onDoubleClick={() => {
+                      setEditingVariantId(v.id);
+                      setEditingVariantName(v.colorName);
+                    }}
+                    className={cn(
+                      "text-xs px-2.5 py-1 rounded-full border transition-all",
+                      v.id === state.activeVariantId
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {v.colorName}
+                    {v.uploadedImages.length > 0 && <span className="ml-1 opacity-70">({v.uploadedImages.length})</span>}
+                  </button>
+                )}
+              </div>
+            ))}
+            <button onClick={addVariant} className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground shrink-0">
+              <Plus className="h-3 w-3 inline mr-1" /> Nova Cor
             </button>
-          )}
-        </div>
-      )}
+            {state.variants.length > 1 && activeVariant && (
+              <button
+                onClick={() => {
+                  if (confirm(`Excluir variante \"${activeVariant.colorName}\"?`)) deleteVariant(activeVariant.id);
+                }}
+                className="text-xs px-2.5 py-1 rounded-full text-destructive hover:bg-destructive/10 ml-auto shrink-0"
+              >
+                Excluir
+              </button>
+            )}
+          </div>
+        )}
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
-          <section id="section-upload" className="scroll-mt-24">
-            <UploadSection
-              uploadedImages={activeVariant?.uploadedImages || []}
-              onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
-              isAnalyzing={isAnalyzing}
-              onAnalyze={handleAnalyze}
-              garmentAnalysis={activeVariant?.garmentAnalysis || null}
-              onAnalysisUpdate={(a) => updateActiveVariant({ garmentAnalysis: a })}
-            />
-          </section>
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
+            <TabsList>
+              <TabsTrigger value="photos">Fotos</TabsTrigger>
+              <TabsTrigger value="video">Prompts de vídeo</TabsTrigger>
+              <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
+              <TabsTrigger value="settings">Configurações</TabsTrigger>
+            </TabsList>
 
-          <div className="border-t border-border" />
+            <TabsContent value="photos" className="mt-4 space-y-4">
+              {[...variantWeeklyLaunches].reverse().map((launch) => {
+                const photos = launch.images.filter((img) => img.type !== "video-product" && img.type !== "video-model");
+                if (photos.length === 0) return null;
+                return (
+                  <div key={launch.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold">{launch.label}</h3>
+                      <Badge variant="secondary">{photos.length} ângulos</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {photos.map((img) => (
+                        <div key={img.id} className="group rounded-xl border border-border bg-card overflow-hidden">
+                          <div className="aspect-[9/16] bg-muted relative flex items-center justify-center">
+                            {img.status === "done" && img.imageUrl && (
+                              <>
+                                <img src={img.imageUrl} alt={img.label} className="w-full h-full object-cover" loading="lazy" />
+                                <button
+                                  onClick={() => {
+                                    const a = document.createElement("a");
+                                    a.href = img.originalUrl || img.imageUrl!;
+                                    a.download = `${img.label}.png`;
+                                    a.click();
+                                  }}
+                                  className="absolute inset-0 bg-background/0 group-hover:bg-background/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                >
+                                  <Download className="h-5 w-5 text-foreground" />
+                                </button>
+                              </>
+                            )}
+                            {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
+                            {img.status === "pending" && <span className="text-xs text-muted-foreground">Aguardando</span>}
+                            {img.status === "error" && (
+                              <div className="text-center p-2">
+                                <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
+                                <Button size="sm" variant="outline" className="h-7 mt-2 text-xs" onClick={() => handleRegenerate(img.id)}>
+                                  <RefreshCw className="h-3 w-3 mr-1" /> Tentar
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="px-2.5 py-2 flex items-center justify-between">
+                            <span className="text-xs font-medium truncate">{img.label}</span>
+                            {img.status === "done" && (
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRegenerate(img.id)}>
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type !== "video-product" && img.type !== "video-model").length === 0) && (
+                <div className="py-16 text-center text-muted-foreground text-sm">Sem fotos geradas para esta variante.</div>
+              )}
+            </TabsContent>
 
-          <section id="section-model" className="scroll-mt-24">
-            <ModelGallery
-              selectedModelId={state.selectedProfile?.id || null}
-              onSelectModel={handleSelectModel}
-            />
-          </section>
+            <TabsContent value="video" className="mt-4 space-y-4">
+              {[...variantWeeklyLaunches].reverse().map((launch) => {
+                const videos = launch.images.filter((img) => img.type === "video-product" || img.type === "video-model");
+                if (videos.length === 0) return null;
+                return (
+                  <div key={launch.id} className="space-y-2">
+                    <h3 className="text-sm font-semibold">{launch.label}</h3>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                      {videos.map((v) => (
+                        <Card key={v.id}>
+                          <CardContent className="pt-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium">{v.label}</p>
+                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyPrompt(v.id, v.prompt)}>
+                                {copiedPromptId === v.id ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                {copiedPromptId === v.id ? "Copiado" : "Copiar"}
+                              </Button>
+                            </div>
+                            <pre className="text-xs whitespace-pre-wrap text-muted-foreground max-h-36 overflow-y-auto">{v.prompt}</pre>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type === "video-product" || img.type === "video-model").length === 0) && (
+                <div className="py-16 text-center text-muted-foreground text-sm">Sem prompts de vídeo gerados para esta variante.</div>
+              )}
+            </TabsContent>
 
-          <div className="border-t border-border" />
+            <TabsContent value="analysis" className="mt-4">
+              {activeVariant?.garmentAnalysis ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <Card>
+                    <CardContent className="pt-4 space-y-3">
+                      <h3 className="text-sm font-semibold">Campos técnicos detectados</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          ["type", "Tipo"],
+                          ["fabric", "Tecido"],
+                          ["color", "Cor"],
+                          ["silhouette", "Silhueta"],
+                          ["neckline", "Decote"],
+                          ["sleeves", "Mangas"],
+                          ["hemline", "Barra"],
+                          ["pattern", "Padrão"],
+                        ].map(([key, label]) => (
+                          <div key={key} className="space-y-1">
+                            <Label className="text-[10px]">{label}</Label>
+                            <Input
+                              value={(activeVariant.garmentAnalysis as unknown as Record<string, string>)[key] || ""}
+                              onChange={(e) =>
+                                updateActiveVariant({
+                                  garmentAnalysis: {
+                                    ...activeVariant.garmentAnalysis!,
+                                    [key]: e.target.value,
+                                  },
+                                })
+                              }
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
 
-          <section id="section-style" className="scroll-mt-24">
-            <StyleSection
-              selectedPresets={state.selectedPresets}
-              onPresetsChange={(p) => update("selectedPresets", p)}
-            />
-          </section>
+                  <Card>
+                    <CardContent className="pt-4 space-y-3">
+                      <h3 className="text-sm font-semibold">Proporções calculadas</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between"><span>Comprimento</span><strong>{activeVariant.garmentLengthCm ?? "—"} cm</strong></div>
+                        <div className="flex justify-between"><span>Posição cintura</span><strong>{activeVariant.waistPositionCm ?? "—"} cm</strong></div>
+                        <div className="flex justify-between"><span>Manga</span><strong>{activeVariant.sleeveLengthCm ?? "—"} cm</strong></div>
+                        <div className="flex justify-between"><span>Ombro</span><strong>{activeVariant.shoulderWidthCm ?? "—"} cm</strong></div>
+                        <div className="flex justify-between"><span>Barra vs joelho</span><strong>{activeVariant.hemBelowKneeCm ?? "—"} cm</strong></div>
+                      </div>
+                      <div className="rounded-md bg-muted/60 p-3 text-xs">
+                        Classificação automática: <strong>{activeVariant.garmentLength || "—"}</strong>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                <div className="py-16 text-center text-muted-foreground text-sm">Faça a análise da peça para visualizar os campos técnicos.</div>
+              )}
+            </TabsContent>
 
-          <div className="border-t border-border" />
+            <TabsContent value="settings" className="mt-4 space-y-4">
+              <Card>
+                <CardContent className="pt-4 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Nome do produto</Label>
+                    <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
+                  </div>
 
-          <section id="section-generate" className="scroll-mt-24">
-            <GenerateSection
-              manualPrompt={state.manualPrompt}
-              onManualPromptChange={(v) => update("manualPrompt", v)}
-              garmentAnalysis={activeVariant?.garmentAnalysis || null}
-              selectedProfile={state.selectedProfile}
-              selectedPresets={state.selectedPresets}
-              onGenerate={handleGenerate}
-              isGenerating={isGenerating}
-            />
-          </section>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      ["mannequin_height_cm", "Altura (cm)"],
+                      ["mannequin_bust_cm", "Busto (cm)"],
+                      ["mannequin_waist_cm", "Cintura (cm)"],
+                      ["mannequin_hip_cm", "Quadril (cm)"],
+                      ["mannequin_torso_cm", "Torso (cm)"],
+                      ["mannequin_arm_cm", "Braço (cm)"],
+                    ].map(([key, label]) => (
+                      <div key={key} className="space-y-1">
+                        <Label className="text-xs">{label}</Label>
+                        <Input
+                          type="number"
+                          value={mannequin[key as keyof MannequinData] ?? ""}
+                          onChange={(e) =>
+                            setMannequin((s) => ({
+                              ...s,
+                              [key]: e.target.value === "" ? null : Number(e.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
 
-          {variantWeeklyLaunches.some(w => w.images.length > 0) && (
-            <>
-              <div className="border-t border-border" />
-              <section id="section-results" className="scroll-mt-24">
-                <ResultsGrid
-                  weeklyLaunches={variantWeeklyLaunches}
-                  onRegenerate={handleRegenerate}
-                />
-              </section>
-            </>
-          )}
-        </div>
-      </main>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" onClick={saveMannequin}>
+                      <Settings className="h-3.5 w-3.5 mr-1" /> Salvar configurações
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={handleDeleteProduct}>
+                      Excluir produto
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+
+      <LaunchFlowModal
+        open={launchModalOpen}
+        onOpenChange={setLaunchModalOpen}
+        startStep={launchModalStep}
+        uploadedImages={activeVariant?.uploadedImages || []}
+        onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
+        isAnalyzing={isAnalyzing}
+        onAnalyze={handleAnalyze}
+        garmentAnalysis={activeVariant?.garmentAnalysis || null}
+        onAnalysisUpdate={(a) => updateActiveVariant({ garmentAnalysis: a })}
+        mannequin={mannequin}
+        onMannequinChange={setMannequin}
+        selectedProfile={state.selectedProfile}
+        onSelectModel={handleSelectModelById}
+        selectedPresets={state.selectedPresets}
+        onPresetsChange={(p) => update("selectedPresets", p)}
+        manualPrompt={state.manualPrompt}
+        onManualPromptChange={(v) => update("manualPrompt", v)}
+        onGenerate={handleGenerate}
+        isGenerating={isGenerating}
+        proportionSummary={proportionSummary}
+      />
     </div>
   );
 };
 
-export default ProjectPage;
+export default ProductPage;
