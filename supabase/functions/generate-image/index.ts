@@ -40,16 +40,45 @@ type ModelProfile = {
   promptSeed?: string;
 };
 
+const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
+  "lookbook-front",
+  "lookbook-back",
+  "lookbook-left",
+  "lookbook-three-quarter",
+]);
+
 const ANGLE_BLOCKS: Record<AngleType, string> = {
-  "lookbook-front": "FRONT VIEW — standing tall, weight evenly distributed, arms relaxed at sides, slight natural curve.",
-  "lookbook-back": "BACK VIEW — back to camera, slight head turn over left shoulder, natural posture.",
-  "lookbook-left": "LEFT SIDE — left profile, mid-stride feel, natural arm swing, candid energy.",
-  "lookbook-three-quarter": "RIGHT SIDE / 3-4 VIEW — right profile with slight hip shift and soft arm bend.",
-  "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
+  "lookbook-front": "front_view: facing camera directly, full body, straight on.",
+  "lookbook-back": "back_view: back to camera, full body, slight head turn left.",
+  "lookbook-left": "left_side: left profile, full body, facing right.",
+  "lookbook-three-quarter": "right_side: right profile, full body, facing left.",
+  "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved with \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
   "close-tr-label": "This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label \"THAIS RODRIGUES\" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.",
   "video-product": "Generate still image frame with strong product fidelity suitable for product-video storyboard.",
   "video-model": "Generate still image frame with model fidelity suitable for model-video storyboard.",
 };
+
+const FULL_BODY_CRITICAL_BLOCK = `FRAMING — CRITICAL:
+Full body shot, head to toe with breathing room.
+Model occupies 70% of frame height maximum.
+Minimum 10% empty space above head.
+Minimum 15% empty space below feet.
+Feet fully visible, ankles visible, NO cropping of legs.
+Wide enough to show both arms with space around them.
+Editorial fashion campaign framing — NOT e-commerce product zoom.
+NOT portrait crop. NOT tight crop. FULL BODY with air around.
+
+BACKGROUND — CRITICAL:
+Pure seamless white #FFFFFF infinity backdrop.
+NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
+NO texture. NO shadow on background. NO vignette.
+If background is any color other than pure white → image FAILED.`;
+
+const MIDI_DRESS_CRITICAL_BLOCK = `DRESS LENGTH — CRITICAL:
+Hem falls at mid-calf, 15cm below the knee.
+Full midi silhouette visible in frame.
+NOT mini. NOT knee-length. NOT above knee.
+The full skirt must be visible — do NOT crop the hem.`;
 
 function toCm(value: unknown): string {
   if (value === null || value === undefined || value === "") return "N/A";
@@ -67,6 +96,33 @@ function getImageSize(angleType: AngleType) {
 
 function sanitizePathSegment(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9-_]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function isDressLikeGarment(garmentAnalysis?: GarmentAnalysis | null) {
+  const text = [garmentAnalysis?.type, garmentAnalysis?.fullDescription, garmentAnalysis?.style]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /(dress|vestido|gown)/.test(text);
+}
+
+function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
+  if (!modelProfile) return "";
+
+  return [
+    "FACE ANCHOR — CRITICAL:",
+    `Identity anchor: ${modelProfile.promptSeed || modelProfile.name || "Brazilian model"}`,
+    "Use the exact same woman across all images.",
+    "Maintain identical facial structure, eye spacing, nose, lips, jawline and bone structure in every angle.",
+    modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone} — keep unchanged.` : "",
+    modelProfile.hairType ? `Hair texture/style: ${modelProfile.hairType} — keep unchanged.` : "",
+    modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same shade in every image.` : "",
+    "Do NOT drift identity between shots.",
+  ].filter(Boolean).join("\n");
+}
+
+function shouldUseFalReferenceImage(angleType: AngleType) {
+  return angleType === "lookbook-front" || angleType === "close-tr-cuff" || angleType === "close-tr-label";
 }
 
 async function fetchImageBytes(url: string) {
@@ -184,13 +240,18 @@ Measurements: bust ${toCm(modelProfile?.bust)}, waist ${toCm(modelProfile?.waist
 Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.`;
 
   const blockD = ANGLE_BLOCKS[angleType] || "";
+  const fullBodyBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FULL_BODY_CRITICAL_BLOCK : "";
+  const midiBlock = FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis) ? MIDI_DRESS_CRITICAL_BLOCK : "";
+  const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
 
   const blockE = manualPrompt?.trim()
     ? `Additional direction from the designer: ${manualPrompt.trim()}
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
-  return [blockA, blockB, blockC, blockD, basePrompt || "", blockE].filter(Boolean).join("\n\n");
+  return [blockA, blockB, blockC, faceAnchorBlock, blockD, fullBodyBlock, midiBlock, basePrompt || "", blockE]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 const extractGeminiImageUrl = (payload: any): string => {
@@ -372,11 +433,12 @@ serve(async (req) => {
       : (prompt || "");
 
     const firstReferenceImage = image_url || referenceImages?.[0] || undefined;
+    const falReferenceImage = shouldUseFalReferenceImage(parsedAngle) ? firstReferenceImage : undefined;
 
     const result = parsedEngine === "fal"
       ? await callFalEngine({
           promptUsed,
-          imageUrl: firstReferenceImage,
+          imageUrl: falReferenceImage,
           angleType: parsedAngle,
         })
       : await callGeminiGateway({
