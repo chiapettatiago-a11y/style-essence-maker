@@ -10,6 +10,32 @@ interface PreviewPanelProps {
   onRegenerate: (id: string) => void;
 }
 
+const PreviewImage: React.FC<{ image: GeneratedImage; className?: string }> = ({ image, className }) => {
+  const primarySrc = image.previewUrl || image.imageUrl || image.originalUrl || "";
+  const fallbackSrc = image.originalUrl || image.imageUrl || image.previewUrl || "";
+  const [src, setSrc] = React.useState(primarySrc);
+
+  React.useEffect(() => {
+    setSrc(primarySrc);
+  }, [primarySrc]);
+
+  if (!src) {
+    return <ImageIcon className="h-12 w-12 opacity-30 text-muted-foreground" />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={image.label}
+      className={className}
+      loading="lazy"
+      onError={() => {
+        if (src !== fallbackSrc && fallbackSrc) setSrc(fallbackSrc);
+      }}
+    />
+  );
+};
+
 const PreviewPanel: React.FC<PreviewPanelProps> = ({
   selectedAssetId,
   uploadedImages,
@@ -18,7 +44,6 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
 }) => {
   const [copied, setCopied] = React.useState(false);
 
-  // Find the selected asset
   let content: React.ReactNode = null;
   let selectedImage: GeneratedImage | null = null;
 
@@ -77,15 +102,11 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
           </div>
         </div>
       );
-    } else if (selectedImage.status === "done" && selectedImage.imageUrl) {
+    } else if (selectedImage.status === "done" && (selectedImage.previewUrl || selectedImage.imageUrl || selectedImage.originalUrl)) {
       content = (
         <div className="flex flex-col items-center justify-center h-full p-6 gap-3">
           <div className="flex-1 flex items-center justify-center min-h-0">
-            <img
-              src={selectedImage.imageUrl}
-              alt={selectedImage.label}
-              className="max-h-full max-w-full object-contain rounded-lg shadow-lg"
-            />
+            <PreviewImage image={selectedImage} className="max-h-full max-w-full object-contain rounded-lg shadow-lg" />
           </div>
           <div className="flex items-center gap-2 pt-2">
             <span className="text-sm font-medium mr-2">{selectedImage.label}</span>
@@ -94,7 +115,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
               size="sm"
               onClick={() => {
                 const a = document.createElement("a");
-                a.href = selectedImage!.imageUrl!;
+                a.href = selectedImage!.originalUrl || selectedImage!.imageUrl || selectedImage!.previewUrl || "";
                 a.download = `${selectedImage!.label}.png`;
                 a.click();
               }}
@@ -141,11 +162,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
     );
   }
 
-  return (
-    <div className="flex-1 bg-background flex flex-col min-h-0">
-      {content}
-    </div>
-  );
+  return <div className="flex-1 bg-background flex flex-col min-h-0">{content}</div>;
 };
 
 export default PreviewPanel;

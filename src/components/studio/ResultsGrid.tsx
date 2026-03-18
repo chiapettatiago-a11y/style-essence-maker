@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { GeneratedImage, WeeklyLaunch } from "@/types/fashion";
-import { cn } from "@/lib/utils";
 import { Download, RefreshCw, Copy, Check, Loader2, ImageIcon, X, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -9,15 +8,47 @@ interface ResultsGridProps {
   onRegenerate: (id: string) => void;
 }
 
+const GalleryImage: React.FC<{ image: GeneratedImage; className?: string }> = ({ image, className }) => {
+  const primarySrc = image.previewUrl || image.imageUrl || image.originalUrl || "";
+  const fallbackSrc = image.originalUrl || image.imageUrl || image.previewUrl || "";
+  const [src, setSrc] = useState(primarySrc);
+
+  React.useEffect(() => {
+    setSrc(primarySrc);
+  }, [primarySrc]);
+
+  if (!src) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+        <ImageIcon className="h-6 w-6 opacity-40" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={image.label}
+      className={className}
+      loading="lazy"
+      onError={() => {
+        if (src !== fallbackSrc && fallbackSrc) setSrc(fallbackSrc);
+      }}
+    />
+  );
+};
+
 const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate }) => {
   const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const allImages = weeklyLaunches.flatMap(w =>
-    w.images.filter(i => i.type !== "video-product" && i.type !== "video-model")
+  const allImages = useMemo(
+    () => weeklyLaunches.flatMap((w) => w.images.filter((i) => i.type !== "video-product" && i.type !== "video-model")),
+    [weeklyLaunches]
   );
-  const allVideos = weeklyLaunches.flatMap(w =>
-    w.images.filter(i => i.type === "video-product" || i.type === "video-model")
+  const allVideos = useMemo(
+    () => weeklyLaunches.flatMap((w) => w.images.filter((i) => i.type === "video-product" || i.type === "video-model")),
+    [weeklyLaunches]
   );
 
   if (allImages.length === 0 && allVideos.length === 0) {
@@ -38,16 +69,15 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
         </p>
       </div>
 
-      {/* Image grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {allImages.map((img) => (
           <div
             key={img.id}
             className="relative group aspect-[9/16] rounded-xl overflow-hidden border border-border bg-muted flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => img.status === "done" && img.imageUrl && setLightboxImage(img)}
+            onClick={() => img.status === "done" && (img.previewUrl || img.imageUrl || img.originalUrl) && setLightboxImage(img)}
           >
-            {img.status === "done" && img.imageUrl ? (
-              <img src={img.imageUrl} alt={img.label} className="w-full h-full object-cover" />
+            {img.status === "done" && (img.previewUrl || img.imageUrl || img.originalUrl) ? (
+              <GalleryImage image={img} className="w-full h-full object-cover" />
             ) : img.status === "generating" ? (
               <div className="flex flex-col items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-accent" />
@@ -66,12 +96,12 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/80 to-transparent p-2 pt-6">
               <p className="text-[10px] font-medium text-foreground truncate">{img.label}</p>
             </div>
-            {img.status === "done" && img.imageUrl && (
+            {img.status === "done" && (img.previewUrl || img.imageUrl || img.originalUrl) && (
               <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const a = document.createElement("a"); a.href = img.imageUrl!; a.download = `${img.label}.png`; a.click();
+                    const a = document.createElement("a"); a.href = img.originalUrl || img.imageUrl || img.previewUrl || ""; a.download = `${img.label}.png`; a.click();
                   }}
                   className="bg-background/80 rounded-full p-1 hover:bg-background"
                 >
@@ -89,7 +119,6 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
         ))}
       </div>
 
-      {/* Video prompts */}
       {allVideos.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-xs font-medium flex items-center gap-1.5">
@@ -122,7 +151,6 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
         </div>
       )}
 
-      {/* Lightbox */}
       {lightboxImage && (
         <div
           className="fixed inset-0 z-50 bg-background/90 flex items-center justify-center p-6"
@@ -135,15 +163,11 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
             >
               <X className="h-4 w-4" />
             </button>
-            <img
-              src={lightboxImage.imageUrl!}
-              alt={lightboxImage.label}
-              className="max-h-[80vh] object-contain rounded-lg shadow-xl"
-            />
+            <GalleryImage image={lightboxImage} className="max-h-[80vh] object-contain rounded-lg shadow-xl" />
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">{lightboxImage.label}</span>
               <Button variant="outline" size="sm" onClick={() => {
-                const a = document.createElement("a"); a.href = lightboxImage.imageUrl!; a.download = `${lightboxImage.label}.png`; a.click();
+                const a = document.createElement("a"); a.href = lightboxImage.originalUrl || lightboxImage.imageUrl || lightboxImage.previewUrl || ""; a.download = `${lightboxImage.label}.png`; a.click();
               }}>
                 <Download className="h-3 w-3 mr-1" /> Download
               </Button>
