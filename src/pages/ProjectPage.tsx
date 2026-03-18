@@ -103,7 +103,7 @@ const ProductPage = () => {
     enabled: !!user,
   });
 
-  const { data: dbVariants } = useQuery({
+  const { data: dbVariants, isLoading: variantsLoading } = useQuery({
     queryKey: ["variants", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -117,7 +117,7 @@ const ProductPage = () => {
     enabled: !!user && !!projectId,
   });
 
-  const { data: weeks } = useQuery({
+  const { data: weeks, isLoading: weeksLoading } = useQuery({
     queryKey: ["weeks", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -131,7 +131,7 @@ const ProductPage = () => {
     enabled: !!user && !!projectId,
   });
 
-  const { data: dbImages } = useQuery({
+  const { data: dbImages, isLoading: imagesLoading } = useQuery({
     queryKey: ["images", projectId],
     queryFn: async () => {
       if (!weeks || weeks.length === 0) return [];
@@ -144,7 +144,7 @@ const ProductPage = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!weeks && weeks.length > 0,
+    enabled: !!weeks,
   });
 
   const { data: allWeeks } = useQuery({
@@ -192,7 +192,11 @@ const ProductPage = () => {
   }, [allWeeks, allImages]);
 
   useEffect(() => {
-    if (!product || loaded) return;
+    setLoaded(false);
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!product || loaded || variantsLoading || weeksLoading || imagesLoading) return;
 
     const variants: ProductVariant[] = (dbVariants || []).map((v) => ({
       id: v.id,
@@ -244,14 +248,14 @@ const ProductPage = () => {
         })),
     }));
 
-    const activeVariant = variants[0];
+    const hydratedActiveVariant = variants[0];
 
     setState({
       step: 0,
       variants,
-      activeVariantId: activeVariant?.id || "",
-      uploadedImages: activeVariant?.uploadedImages || [],
-      garmentAnalysis: activeVariant?.garmentAnalysis || null,
+      activeVariantId: hydratedActiveVariant?.id || "",
+      uploadedImages: hydratedActiveVariant?.uploadedImages || [],
+      garmentAnalysis: hydratedActiveVariant?.garmentAnalysis || null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
       manualPrompt: product.manual_prompt || "",
@@ -271,7 +275,7 @@ const ProductPage = () => {
     });
 
     setLoaded(true);
-  }, [product, weeks, dbImages, dbVariants, loaded]);
+  }, [product, weeks, dbImages, dbVariants, loaded, imagesLoading, projectId, variantsLoading, weeksLoading]);
 
   useEffect(() => {
     if (!projectId || !user) return;
