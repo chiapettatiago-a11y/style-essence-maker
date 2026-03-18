@@ -30,6 +30,17 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "video-model": "video_model",
 };
 
+const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: string }> = {
+  gemini: {
+    label: "Estimativa: consumo baixo",
+    detail: "Lovable não expõe crédito exato por geração; Gemini tende a consumir menos IA.",
+  },
+  fal: {
+    label: "Estimativa: consumo alto",
+    detail: "Lovable não expõe crédito exato por geração; fal.ai tende a consumir mais IA.",
+  },
+};
+
 type MainTab = "photos" | "video" | "analysis" | "settings";
 
 type MannequinData = {
