@@ -236,7 +236,7 @@ async function callFalEngine(params: {
 
   fal.config({ credentials: FAL_API_KEY });
 
-  const useReference = !!params.imageUrl && params.angleType !== "close-up";
+  const useReference = !!params.imageUrl;
   const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
   const result = await fal.subscribe(endpoint, {
     input: {

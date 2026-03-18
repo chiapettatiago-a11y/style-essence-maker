@@ -167,7 +167,8 @@ export function generateAllRequests(
     { type: 'lookbook-back', label: 'Lookbook — Costas' },
     { type: 'lookbook-left', label: 'Lookbook — Lateral Esquerda' },
     { type: 'lookbook-three-quarter', label: 'Lookbook — ¾' },
-    { type: 'close-up', label: 'Close Técnico — Detalhe' },
+    { type: 'close-tr-cuff', label: 'Close TR — Punho Direito' },
+    { type: 'close-tr-label', label: 'Close TR — Gola / Etiqueta' },
     { type: 'video-product', label: 'Vídeo 360° Produto (prompt)' },
     { type: 'video-model', label: 'Vídeo 360° com Modelo (prompt)' },
   ];
