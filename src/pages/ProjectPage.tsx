@@ -392,7 +392,7 @@ const ProductPage = () => {
       productId: data.product_id,
       colorName: data.color_name,
       uploadedImages: (data.uploaded_images as string[]) || [],
-      garmentAnalysis: data.garment_analysis as GarmentAnalysis | null,
+      garmentAnalysis: data.garment_analysis as unknown as GarmentAnalysis | null,
       sortOrder: data.sort_order,
       garmentType: data.garment_type,
       garmentLength: data.garment_length,
