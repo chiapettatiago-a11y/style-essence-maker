@@ -56,6 +56,81 @@ function toCm(value: unknown): string {
   return `${value}cm`;
 }
 
+const STORAGE_BUCKET = "generated-assets";
+
+function getImageSize(angleType: AngleType) {
+  const isMacroClose = angleType === "close-tr-cuff" || angleType === "close-tr-label";
+  return isMacroClose
+    ? { width: 2048, height: 2048 }
+    : { width: 1365, height: 2048 };
+}
+
+function sanitizePathSegment(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9-_]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+async function fetchImageBytes(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch generated image: ${response.status}`);
+  const contentType = response.headers.get("content-type") || "image/png";
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  return { bytes, contentType };
+}
+
+function buildPublicObjectUrl(supabaseUrl: string, bucket: string, path: string) {
+  return `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+}
+
+function buildPreviewUrl(supabaseUrl: string, bucket: string, path: string) {
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  return `${supabaseUrl}/storage/v1/render/image/public/${bucket}/${encodedPath}?width=800&height=1200&resize=contain&format=webp&quality=80`;
+}
+
+async function uploadGeneratedAsset(params: {
+  sourceUrl: string;
+  launchId?: string;
+  type: AngleType;
+  attemptNumber: number;
+}) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return {
+      originalUrl: params.sourceUrl,
+      previewUrl: params.sourceUrl,
+      imageUrl: params.sourceUrl,
+    };
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const { bytes, contentType } = await fetchImageBytes(params.sourceUrl);
+  const objectPath = [
+    sanitizePathSegment(params.launchId || "standalone"),
+    `${sanitizePathSegment(params.type)}-attempt-${params.attemptNumber}.png`,
+  ].join("/");
+
+  const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+    contentType: contentType.includes("png") ? contentType : "image/png",
+    cacheControl: "3600",
+    upsert: true,
+  });
+
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+
+  const originalUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+  const previewUrl = buildPreviewUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+
+  return {
+    originalUrl,
+    previewUrl,
+    imageUrl: previewUrl,
+  };
+}
+
 function buildPrompt(params: {
   basePrompt?: string;
   manualPrompt?: string;
