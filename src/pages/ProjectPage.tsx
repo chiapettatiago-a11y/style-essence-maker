@@ -103,7 +103,7 @@ const ProductPage = () => {
     enabled: !!user,
   });
 
-  const { data: dbVariants } = useQuery({
+  const { data: dbVariants, isLoading: variantsLoading } = useQuery({
     queryKey: ["variants", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -117,7 +117,7 @@ const ProductPage = () => {
     enabled: !!user && !!projectId,
   });
 
-  const { data: weeks } = useQuery({
+  const { data: weeks, isLoading: weeksLoading } = useQuery({
     queryKey: ["weeks", projectId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -131,7 +131,7 @@ const ProductPage = () => {
     enabled: !!user && !!projectId,
   });
 
-  const { data: dbImages } = useQuery({
+  const { data: dbImages, isLoading: imagesLoading } = useQuery({
     queryKey: ["images", projectId],
     queryFn: async () => {
       if (!weeks || weeks.length === 0) return [];
@@ -144,7 +144,7 @@ const ProductPage = () => {
       if (error) throw error;
       return data;
     },
-    enabled: !!weeks && weeks.length > 0,
+    enabled: !!weeks,
   });
 
   const { data: allWeeks } = useQuery({
