@@ -314,10 +314,16 @@ async function callFalEngine(params: {
 
   const useReference = !!params.imageUrl;
   const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
+  const imageSize = getImageSize(params.angleType);
   const result = await fal.subscribe(endpoint, {
     input: {
       prompt: params.promptUsed,
       ...(useReference ? { image_url: params.imageUrl } : {}),
+      image_size: imageSize,
+      num_inference_steps: 28,
+      guidance_scale: 3.5,
+      output_format: "png",
+      output_quality: 100,
     },
   });
 
