@@ -782,7 +782,7 @@ const ProductPage = () => {
       frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
     }
 
-    await Promise.allSettled(standardImages.map((img) => runImageGeneration(img, activeVariant.uploadedImages[0])));
+    await Promise.allSettled(standardImages.map((img) => runImageGeneration(img)));
 
     if (!frontReferenceUrl && closeImages.length > 0) {
       closeImages.forEach((img) => {
