@@ -7,11 +7,14 @@ export interface GarmentAnalysis {
   details: string;
   style: string;
   fullDescription: string;
-  length: string;       // e.g. "midi", "longo até o tornozelo", "curto acima do joelho"
-  silhouette: string;   // e.g. "evasê", "reto", "ajustado"
-  hemline: string;      // e.g. "barra reta", "barra assimétrica"
-  neckline: string;     // e.g. "gola alta", "decote V"
-  sleeves: string;      // e.g. "manga longa", "sem manga"
+  length: string;
+  silhouette: string;
+  hemline: string;
+  neckline: string;
+  sleeves: string;
+  colorHexEstimate?: string;
+  patternDescription?: string;
+  hemType?: string;
 }
 
 export interface ModelProfile {
@@ -25,6 +28,7 @@ export interface ModelProfile {
   hairType: string;
   hairColor: string;
   generalStyle: string;
+  promptSeed?: string;
 }
 
 export interface StylePreset {
@@ -42,9 +46,9 @@ export interface StyleCategory {
 }
 
 export interface PromptLayers {
-  layer1: string; // Base técnica (locked)
-  layer2: string; // Assembled from selected presets
-  layer3: string; // Manual adjustments
+  layer1: string;
+  layer2: string;
+  layer3: string;
 }
 
 export interface GenerationRequest {
@@ -61,6 +65,13 @@ export interface GeneratedImage {
   imageUrl?: string;
   status: 'pending' | 'generating' | 'done' | 'error';
   error?: string;
+  photoAngle?: string;
+  originalUrl?: string;
+  previewUrl?: string;
+  promptUsed?: string;
+  generationMs?: number;
+  modelUsed?: string;
+  attemptNumber?: number;
 }
 
 export interface WeeklyLaunch {
@@ -68,6 +79,13 @@ export interface WeeklyLaunch {
   label: string;
   variantId?: string;
   images: GeneratedImage[];
+  mannequinHeightCm?: number | null;
+  mannequinBustCm?: number | null;
+  mannequinWaistCm?: number | null;
+  mannequinHipCm?: number | null;
+  mannequinTorsoCm?: number | null;
+  mannequinArmCm?: number | null;
+  referencePhotos?: string[];
 }
 
 export interface ProductVariant {
@@ -77,20 +95,28 @@ export interface ProductVariant {
   uploadedImages: string[];
   garmentAnalysis: GarmentAnalysis | null;
   sortOrder: number;
+  garmentType?: string | null;
+  garmentLength?: string | null;
+  garmentLengthCm?: number | null;
+  hemBelowKneeCm?: number | null;
+  waistPositionCm?: number | null;
+  sleeveLengthCm?: number | null;
+  sleeveType?: string | null;
+  shoulderWidthCm?: number | null;
+  proportionJson?: Record<string, unknown> | null;
+  analysisRaw?: string | null;
 }
 
 export interface WizardState {
   step: number;
   variants: ProductVariant[];
   activeVariantId: string;
-  // Shared configs
   selectedProfile: ModelProfile | null;
   selectedPresets: Record<string, string>;
   manualPrompt: string;
   generatedImages: GeneratedImage[];
   weeklyLaunches: WeeklyLaunch[];
   activeWeek: string;
-  // Convenience getters (derived from active variant)
   uploadedImages: string[];
   garmentAnalysis: GarmentAnalysis | null;
 }

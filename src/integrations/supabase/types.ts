@@ -16,35 +16,56 @@ export type Database = {
     Tables: {
       generated_images: {
         Row: {
+          attempt_number: number
           created_at: string
           error: string | null
+          generation_ms: number | null
           id: string
           image_url: string | null
           label: string
           launch_id: string
+          model_used: string | null
+          original_url: string | null
+          photo_angle: string
+          preview_url: string | null
           prompt: string
+          prompt_used: string | null
           status: string
           type: string
         }
         Insert: {
+          attempt_number?: number
           created_at?: string
           error?: string | null
+          generation_ms?: number | null
           id?: string
           image_url?: string | null
           label: string
           launch_id: string
+          model_used?: string | null
+          original_url?: string | null
+          photo_angle: string
+          preview_url?: string | null
           prompt?: string
+          prompt_used?: string | null
           status?: string
           type: string
         }
         Update: {
+          attempt_number?: number
           created_at?: string
           error?: string | null
+          generation_ms?: number | null
           id?: string
           image_url?: string | null
           label?: string
           launch_id?: string
+          model_used?: string | null
+          original_url?: string | null
+          photo_angle?: string
+          preview_url?: string | null
           prompt?: string
+          prompt_used?: string | null
           status?: string
           type?: string
         }
@@ -58,33 +79,111 @@ export type Database = {
           },
         ]
       }
+      model_profiles: {
+        Row: {
+          bust_cm: number | null
+          created_at: string
+          display_name: string
+          facial_features: string | null
+          hair_description: string | null
+          height_cm: number | null
+          hip_cm: number | null
+          id: string
+          prompt_seed: string
+          skin_tone: string | null
+          slug: string
+          updated_at: string
+          waist_cm: number | null
+        }
+        Insert: {
+          bust_cm?: number | null
+          created_at?: string
+          display_name: string
+          facial_features?: string | null
+          hair_description?: string | null
+          height_cm?: number | null
+          hip_cm?: number | null
+          id?: string
+          prompt_seed: string
+          skin_tone?: string | null
+          slug: string
+          updated_at?: string
+          waist_cm?: number | null
+        }
+        Update: {
+          bust_cm?: number | null
+          created_at?: string
+          display_name?: string
+          facial_features?: string | null
+          hair_description?: string | null
+          height_cm?: number | null
+          hip_cm?: number | null
+          id?: string
+          prompt_seed?: string
+          skin_tone?: string | null
+          slug?: string
+          updated_at?: string
+          waist_cm?: number | null
+        }
+        Relationships: []
+      }
       product_variants: {
         Row: {
+          analysis_raw: string | null
           color_name: string
           created_at: string
           garment_analysis: Json | null
+          garment_length: string | null
+          garment_length_cm: number | null
+          garment_type: string | null
+          hem_below_knee_cm: number | null
           id: string
           product_id: string
+          proportion_json: Json | null
+          shoulder_width_cm: number | null
+          sleeve_length_cm: number | null
+          sleeve_type: string | null
           sort_order: number
           uploaded_images: string[] | null
+          waist_position_cm: number | null
         }
         Insert: {
+          analysis_raw?: string | null
           color_name?: string
           created_at?: string
           garment_analysis?: Json | null
+          garment_length?: string | null
+          garment_length_cm?: number | null
+          garment_type?: string | null
+          hem_below_knee_cm?: number | null
           id?: string
           product_id: string
+          proportion_json?: Json | null
+          shoulder_width_cm?: number | null
+          sleeve_length_cm?: number | null
+          sleeve_type?: string | null
           sort_order?: number
           uploaded_images?: string[] | null
+          waist_position_cm?: number | null
         }
         Update: {
+          analysis_raw?: string | null
           color_name?: string
           created_at?: string
           garment_analysis?: Json | null
+          garment_length?: string | null
+          garment_length_cm?: number | null
+          garment_type?: string | null
+          hem_below_knee_cm?: number | null
           id?: string
           product_id?: string
+          proportion_json?: Json | null
+          shoulder_width_cm?: number | null
+          sleeve_length_cm?: number | null
+          sleeve_type?: string | null
           sort_order?: number
           uploaded_images?: string[] | null
+          waist_position_cm?: number | null
         }
         Relationships: [
           {
@@ -101,9 +200,16 @@ export type Database = {
           created_at: string
           garment_analysis: Json | null
           id: string
+          mannequin_arm_cm: number | null
+          mannequin_bust_cm: number | null
+          mannequin_height_cm: number | null
+          mannequin_hip_cm: number | null
+          mannequin_torso_cm: number | null
+          mannequin_waist_cm: number | null
           manual_prompt: string | null
           model_profile: Json | null
           name: string
+          reference_photos: string[] | null
           selected_presets: Json | null
           updated_at: string
           uploaded_images: string[] | null
@@ -113,9 +219,16 @@ export type Database = {
           created_at?: string
           garment_analysis?: Json | null
           id?: string
+          mannequin_arm_cm?: number | null
+          mannequin_bust_cm?: number | null
+          mannequin_height_cm?: number | null
+          mannequin_hip_cm?: number | null
+          mannequin_torso_cm?: number | null
+          mannequin_waist_cm?: number | null
           manual_prompt?: string | null
           model_profile?: Json | null
           name: string
+          reference_photos?: string[] | null
           selected_presets?: Json | null
           updated_at?: string
           uploaded_images?: string[] | null
@@ -125,9 +238,16 @@ export type Database = {
           created_at?: string
           garment_analysis?: Json | null
           id?: string
+          mannequin_arm_cm?: number | null
+          mannequin_bust_cm?: number | null
+          mannequin_height_cm?: number | null
+          mannequin_hip_cm?: number | null
+          mannequin_torso_cm?: number | null
+          mannequin_waist_cm?: number | null
           manual_prompt?: string | null
           model_profile?: Json | null
           name?: string
+          reference_photos?: string[] | null
           selected_presets?: Json | null
           updated_at?: string
           uploaded_images?: string[] | null
@@ -140,21 +260,42 @@ export type Database = {
           created_at: string
           id: string
           label: string
+          mannequin_arm_cm: number | null
+          mannequin_bust_cm: number | null
+          mannequin_height_cm: number | null
+          mannequin_hip_cm: number | null
+          mannequin_torso_cm: number | null
+          mannequin_waist_cm: number | null
           product_id: string
+          reference_photos: string[] | null
           variant_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           label: string
+          mannequin_arm_cm?: number | null
+          mannequin_bust_cm?: number | null
+          mannequin_height_cm?: number | null
+          mannequin_hip_cm?: number | null
+          mannequin_torso_cm?: number | null
+          mannequin_waist_cm?: number | null
           product_id: string
+          reference_photos?: string[] | null
           variant_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           label?: string
+          mannequin_arm_cm?: number | null
+          mannequin_bust_cm?: number | null
+          mannequin_height_cm?: number | null
+          mannequin_hip_cm?: number | null
+          mannequin_torso_cm?: number | null
+          mannequin_waist_cm?: number | null
           product_id?: string
+          reference_photos?: string[] | null
           variant_id?: string | null
         }
         Relationships: [
