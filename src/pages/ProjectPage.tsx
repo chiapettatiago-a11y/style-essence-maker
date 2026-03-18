@@ -40,6 +40,20 @@ type MannequinData = {
   mannequin_arm_cm: number | null;
 };
 
+const normalizeCmValue = (value: number | null | undefined) => {
+  if (value === null || value === undefined || Number.isNaN(value)) return null;
+  return value > 0 && value < 3 ? Math.round(value * 100) : Math.round(value);
+};
+
+const normalizeMannequinData = (data: MannequinData): MannequinData => ({
+  mannequin_height_cm: normalizeCmValue(data.mannequin_height_cm),
+  mannequin_bust_cm: normalizeCmValue(data.mannequin_bust_cm),
+  mannequin_waist_cm: normalizeCmValue(data.mannequin_waist_cm),
+  mannequin_hip_cm: normalizeCmValue(data.mannequin_hip_cm),
+  mannequin_torso_cm: normalizeCmValue(data.mannequin_torso_cm),
+  mannequin_arm_cm: normalizeCmValue(data.mannequin_arm_cm),
+});
+
 const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
