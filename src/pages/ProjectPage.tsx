@@ -813,6 +813,18 @@ const ProductPage = () => {
 
     const nextAttempt = (img.attemptNumber || 1) + 1;
     const engine = sourceLaunch?.engineUsed || state.selectedEngine;
+    const frontReference = sourceLaunch?.images.find((launchImg) => launchImg.type === "lookbook-front" && launchImg.status === "done");
+    const frontReferenceUrl = frontReference?.originalUrl || frontReference?.previewUrl || frontReference?.imageUrl || "";
+    const isCloseDetail = img.type === "close-tr-cuff" || img.type === "close-tr-label";
+
+    if (isCloseDetail && !frontReferenceUrl) {
+      updateImageInState(id, {
+        status: "error",
+        error: "Regere a front view primeiro para usar como referência deste close.",
+        attemptNumber: nextAttempt,
+      });
+      return;
+    }
 
     updateImageInState(id, { status: "generating", error: undefined });
 
@@ -839,7 +851,7 @@ const ProductPage = () => {
             arm_cm: mannequin.mannequin_arm_cm,
           },
           referenceImages: activeVariant.uploadedImages.slice(0, 3),
-          image_url: img.type === "close-up" ? undefined : activeVariant.uploadedImages[0],
+          image_url: isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0],
           attemptNumber: nextAttempt,
         },
       });
