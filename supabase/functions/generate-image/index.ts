@@ -100,7 +100,7 @@ PROPORTIONS (from ${toCm(mannequin?.height_cm)} reference mannequin):
 - Total garment length: ${toCm(proportionJson?.garment_length_cm)}
 - Waist position: ${toCm(proportionJson?.waist_position_cm)} from shoulder`;
 
-  const blockC = angleType === "close-up" || angleType === "video-product"
+  const blockC = angleType === "video-product"
     ? ""
     : `Model: ${modelProfile?.promptSeed || modelProfile?.name || "Brazilian model"}
 Height: ${modelProfile?.height || "N/A"}m.
