@@ -510,7 +510,9 @@ const ProductPage = () => {
 
   const saveMannequin = async () => {
     try {
-      await saveProductMeta({ ...mannequin, name: productName.trim() || productName });
+      const normalizedMannequin = normalizeMannequinData(mannequin);
+      setMannequin(normalizedMannequin);
+      await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
       queryClient.invalidateQueries({ queryKey: ["product", projectId] });
       toast({ title: "Salvo", description: "Configurações atualizadas." });
     } catch (err: unknown) {
