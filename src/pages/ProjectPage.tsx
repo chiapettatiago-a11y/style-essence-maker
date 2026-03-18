@@ -1010,9 +1010,17 @@ const ProductPage = () => {
             </Button>
             <div className="min-w-0">
               <h1 className="text-lg font-medium truncate">{productName || product?.name || "Produto"}</h1>
-              <p className="text-xs text-muted-foreground">
-                Atualizado em {product?.updated_at ? new Date(product.updated_at).toLocaleDateString("pt-BR") : "—"} · {donePhotoCount} fotos geradas
-                {activeLaunch?.engineUsed ? ` · motor ${activeLaunch.engineUsed}` : ""}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p className="text-xs text-muted-foreground">
+                  Atualizado em {product?.updated_at ? new Date(product.updated_at).toLocaleDateString("pt-BR") : "—"} · {donePhotoCount} fotos geradas
+                  {activeLaunch?.engineUsed ? ` · motor ${activeLaunch.engineUsed}` : ""}
+                </p>
+                <Badge variant="outline" className="text-[10px] font-medium">
+                  {ENGINE_CREDIT_ESTIMATE[state.selectedEngine].label}
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {ENGINE_CREDIT_ESTIMATE[state.selectedEngine].detail}
               </p>
             </div>
           </div>
