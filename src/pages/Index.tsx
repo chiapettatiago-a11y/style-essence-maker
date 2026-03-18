@@ -36,6 +36,7 @@ const Index = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
+    selectedEngine: "gemini",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [{ id: defaultWeekId, label: "Semana 1", images: [] }],
