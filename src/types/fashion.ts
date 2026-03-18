@@ -15,12 +15,6 @@ export interface GarmentAnalysis {
   colorHexEstimate?: string;
   patternDescription?: string;
   hemType?: string;
-  proportions?: {
-    garment_length_ratio?: number;
-    waist_ratio?: number;
-    sleeve_ratio?: number;
-    shoulder_ratio?: number;
-  };
 }
 
 export interface ModelProfile {
