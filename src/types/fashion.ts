@@ -15,6 +15,12 @@ export interface GarmentAnalysis {
   colorHexEstimate?: string;
   patternDescription?: string;
   hemType?: string;
+  lengthDescription?: string;
+  sleeveLength?: string;
+  closure?: string;
+  beltOrTie?: string;
+  signatureDetails?: string;
+  promptDescription?: string;
 }
 
 export interface ModelProfile {
