@@ -560,7 +560,7 @@ const ProductPage = () => {
       updateActiveVariant({
         garmentAnalysis: analysis,
         garmentType: analysis.type || null,
-        garmentLength: (proportions.garment_length as string) || analysis.length || null,
+        garmentLength: analysis.length || (proportions.garment_length as string) || null,
         garmentLengthCm: (proportions.garment_length_cm as number) || null,
         hemBelowKneeCm: (proportions.hem_below_knee_cm as number) || null,
         waistPositionCm: (proportions.waist_position_cm as number) || null,
@@ -568,7 +568,7 @@ const ProductPage = () => {
         sleeveType: analysis.sleeves || null,
         shoulderWidthCm: (proportions.shoulder_width_cm as number) || null,
         proportionJson: proportions,
-        analysisRaw: data.raw || null,
+        analysisRaw: data.raw ? JSON.stringify(data.raw) : null,
       });
 
       toast({ title: "Análise concluída", description: "Dados técnicos atualizados." });

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +15,7 @@ type Mannequin = {
   arm_cm?: number | null;
 };
 
-type GeminiAnalysis = {
+type ClaudeAnalysis = {
   garment_type?: string;
   fabric?: string;
   color?: string;
@@ -24,11 +25,16 @@ type GeminiAnalysis = {
   silhouette?: string;
   neckline?: string;
   sleeve_type?: string;
+  sleeve_length?: string;
   hem_type?: string;
+  garment_length?: string;
+  length_description?: string;
   construction?: string;
+  closure?: string;
+  belt_or_tie?: string;
   details?: string;
-  style?: string;
-  full_description?: string;
+  signature_details?: string;
+  prompt_description?: string;
   proportions?: {
     garment_length_ratio?: number;
     waist_ratio?: number;
@@ -37,13 +43,50 @@ type GeminiAnalysis = {
   };
 };
 
+const CLAUDE_SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand.
+Analyze the garment photos and return ONLY a valid JSON object with no text before or after.
+
+{
+  "garment_type": "dress|blouse|pants|skirt|jacket",
+  "fabric": "detailed fabric description",
+  "color": "precise color description",
+  "color_hex_estimate": "#xxxxxx",
+  "pattern": "solid|paisley|floral|geometric|stripes|etc",
+  "pattern_description": "detailed pattern description",
+  "silhouette": "A-line|fitted|straight|wrap|etc",
+  "neckline": "precise collar/neckline description",
+  "sleeve_type": "sleeveless|short|3/4|long|balloon|etc",
+  "sleeve_length": "exact description of sleeve length",
+  "hem_type": "straight|asymmetric|ruffled|etc",
+  "garment_length": "mini|knee|midi|maxi — with description e.g. midi, falls 15cm below knee",
+  "length_description": "precise description: where hem falls relative to knee",
+  "construction": "visible construction details",
+  "closure": "buttons|zipper|wrap|etc — describe in detail",
+  "belt_or_tie": "describe exactly: fabric self-tie sash / leather belt / none",
+  "details": "ALL details: buttons, cuffs, pockets, pleats, gathering",
+  "signature_details": "TR monogram button location, brand label location",
+  "proportions": {
+    "garment_length_ratio": 0.72,
+    "waist_ratio": 0.40,
+    "sleeve_ratio": 1.0,
+    "shoulder_ratio": 0.44
+  },
+  "prompt_description": "one paragraph describing the garment precisely for image generation, emphasizing ALL details that must be preserved"
+}
+
+Critical rules:
+- NEVER leave garment_length or length_description empty
+- If unsure of exact length, estimate based on visual proportions
+- Be extremely precise about belt/tie type — fabric sash vs leather belt are very different
+- The prompt_description field will be used directly in AI image generation prompts`;
+
 function normalizeRatio(value: unknown, fallback: number): number {
   const n = Number(value);
   if (Number.isNaN(n)) return fallback;
   return Math.max(0, Math.min(1, n));
 }
 
-function calculateProportions(geminiAnalysis: GeminiAnalysis, mannequin: Mannequin) {
+function calculateProportions(analysis: ClaudeAnalysis, mannequin: Mannequin) {
   const h = Number(mannequin.height_cm || 0);
   const bust = Number(mannequin.bust_cm || 0);
   const arm = Number(mannequin.arm_cm || 0);
@@ -55,14 +98,14 @@ function calculateProportions(geminiAnalysis: GeminiAnalysis, mannequin: Mannequ
       sleeve_length_cm: null,
       shoulder_width_cm: null,
       hem_below_knee_cm: null,
-      garment_length: null,
+      garment_length: analysis.garment_length || null,
     };
   }
 
-  const garmentLengthRatio = normalizeRatio(geminiAnalysis.proportions?.garment_length_ratio, 0.8);
-  const waistRatio = normalizeRatio(geminiAnalysis.proportions?.waist_ratio, 0.46);
-  const sleeveRatio = normalizeRatio(geminiAnalysis.proportions?.sleeve_ratio, 0.9);
-  const shoulderRatio = normalizeRatio(geminiAnalysis.proportions?.shoulder_ratio, 0.42);
+  const garmentLengthRatio = normalizeRatio(analysis.proportions?.garment_length_ratio, 0.8);
+  const waistRatio = normalizeRatio(analysis.proportions?.waist_ratio, 0.46);
+  const sleeveRatio = normalizeRatio(analysis.proportions?.sleeve_ratio, 0.9);
+  const shoulderRatio = normalizeRatio(analysis.proportions?.shoulder_ratio, 0.42);
 
   const garment_length_cm = Math.round(garmentLengthRatio * h);
   const waist_position_cm = Math.round(waistRatio * h);
@@ -72,7 +115,7 @@ function calculateProportions(geminiAnalysis: GeminiAnalysis, mannequin: Mannequ
   const knee_position_cm = Math.round(0.61 * h);
   const hem_below_knee_cm = garment_length_cm - knee_position_cm;
 
-  const garment_length =
+  const computedLength =
     garment_length_cm < knee_position_cm - 15
       ? "curto"
       : garment_length_cm < knee_position_cm + 5
@@ -89,7 +132,82 @@ function calculateProportions(geminiAnalysis: GeminiAnalysis, mannequin: Mannequ
     sleeve_length_cm,
     shoulder_width_cm,
     hem_below_knee_cm,
-    garment_length,
+    garment_length: analysis.garment_length || computedLength,
+  };
+}
+
+function stripJsonWrapper(content: string) {
+  const cleaned = content.replace(/```json|```/gi, "").trim();
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("Could not parse JSON from Claude response");
+  return jsonMatch[0];
+}
+
+function dataUrlToPart(image: string) {
+  const match = image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+  if (!match) return null;
+  return {
+    type: "image",
+    source: {
+      type: "base64",
+      media_type: match[1],
+      data: match[2],
+    },
+  };
+}
+
+async function urlToPart(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch image URL [${response.status}]`);
+
+  const mediaType = response.headers.get("content-type") || "image/jpeg";
+  const bytes = new Uint8Array(await response.arrayBuffer());
+
+  return {
+    type: "image",
+    source: {
+      type: "base64",
+      media_type: mediaType,
+      data: encodeBase64(bytes),
+    },
+  };
+}
+
+async function buildAnthropicImageParts(images: string[]) {
+  const limitedImages = images.slice(0, 4);
+  return await Promise.all(
+    limitedImages.map(async (image) => {
+      const dataUrlPart = dataUrlToPart(image);
+      if (dataUrlPart) return dataUrlPart;
+      return await urlToPart(image);
+    }),
+  );
+}
+
+function mapAnalysis(raw: ClaudeAnalysis, proportions: ReturnType<typeof calculateProportions>) {
+  return {
+    type: raw.garment_type || "",
+    fabric: raw.fabric || "",
+    color: raw.color || "",
+    pattern: raw.pattern || "",
+    construction: raw.construction || "",
+    details: raw.details || "",
+    style: "",
+    fullDescription: raw.prompt_description || "",
+    length: raw.garment_length || proportions.garment_length || "",
+    silhouette: raw.silhouette || "",
+    hemline: raw.hem_type || "",
+    neckline: raw.neckline || "",
+    sleeves: raw.sleeve_type || "",
+    colorHexEstimate: raw.color_hex_estimate || "",
+    patternDescription: raw.pattern_description || "",
+    hemType: raw.hem_type || "",
+    lengthDescription: raw.length_description || "",
+    sleeveLength: raw.sleeve_length || "",
+    closure: raw.closure || "",
+    beltOrTie: raw.belt_or_tie || "",
+    signatureDetails: raw.signature_details || "",
+    promptDescription: raw.prompt_description || "",
   };
 }
 
@@ -101,63 +219,41 @@ serve(async (req) => {
   try {
     const { images, mannequin } = await req.json();
 
-    if (!images || images.length === 0) {
+    if (!Array.isArray(images) || images.length === 0) {
       return new Response(JSON.stringify({ error: "No images provided" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
 
-    const imageParts = images.slice(0, 4).map((img: string) => {
-      const base64Match = img.match(/^data:image\/(.*?);base64,(.*)$/);
-      if (!base64Match) return { type: "text", text: "[image]" };
-      return {
-        type: "image_url",
-        image_url: {
-          url: `data:image/${base64Match[1]};base64,${base64Match[2]}`,
-        },
-      };
-    });
+    const imageParts = await buildAnthropicImageParts(images);
 
-    const analysisPrompt = `You are a professional fashion analyst for a Brazilian fashion brand.
-Analyze the garment photos carefully and return ONLY valid JSON.
-
-Required JSON schema:
-{
-  "garment_type": "dress|blouse|pants|skirt|jacket|etc",
-  "fabric": "brief fabric description in English",
-  "color": "primary color description",
-  "color_hex_estimate": "#xxxxxx",
-  "pattern": "solid|stripes|floral|paisley|geometric|etc",
-  "pattern_description": "detailed pattern description",
-  "silhouette": "fitted|A-line|straight|wrap|etc",
-  "neckline": "collar type description",
-  "sleeve_type": "sleeveless|short|3/4|long|balloon|etc",
-  "hem_type": "straight|asymmetric|ruffled|etc",
-  "construction": "construction details",
-  "details": "all key details; explicitly include TR golden metallic detail location if visible",
-  "style": "overall style category",
-  "full_description": "full faithful garment description for image generation",
-  "proportions": {
-    "garment_length_ratio": "0-1 ratio of garment length vs mannequin height",
-    "waist_ratio": "0-1 ratio of waist position vs mannequin height",
-    "sleeve_ratio": "0-1 ratio of sleeve length vs mannequin arm length",
-    "shoulder_ratio": "0-1 ratio of shoulder width vs mannequin bust"
-  }
-}`;
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [{ role: "user", content: [{ type: "text", text: analysisPrompt }, ...imageParts] }],
+        model: "claude-sonnet-4-5-20251001",
+        max_tokens: 1800,
+        system: CLAUDE_SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: "Analyze these hanger garment photos with maximum technical precision and return only the requested JSON.",
+              },
+              ...imageParts,
+            ],
+          },
+        ],
       }),
     });
 
@@ -171,42 +267,22 @@ Required JSON schema:
         });
       }
 
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Créditos de IA insuficientes no workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      throw new Error(`AI API call failed [${response.status}]: ${errText}`);
+      throw new Error(`Claude API call failed [${response.status}]: ${errText}`);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Could not parse JSON from AI response");
+    const content = Array.isArray(data.content)
+      ? data.content.filter((item: { type?: string }) => item.type === "text").map((item: { text?: string }) => item.text || "").join("\n")
+      : "";
 
-    const raw = JSON.parse(jsonMatch[0]) as GeminiAnalysis;
+    const raw = JSON.parse(stripJsonWrapper(content)) as ClaudeAnalysis;
+
+    if (!raw.garment_length || !raw.length_description) {
+      throw new Error("Claude response missing mandatory garment length fields");
+    }
+
     const proportions = calculateProportions(raw, mannequin || {});
-
-    const analysis = {
-      type: raw.garment_type || "",
-      fabric: raw.fabric || "",
-      color: raw.color || "",
-      pattern: raw.pattern || "",
-      construction: raw.construction || "",
-      details: raw.details || "",
-      style: raw.style || "",
-      fullDescription: raw.full_description || "",
-      length: proportions.garment_length || "",
-      silhouette: raw.silhouette || "",
-      hemline: raw.hem_type || "",
-      neckline: raw.neckline || "",
-      sleeves: raw.sleeve_type || "",
-      colorHexEstimate: raw.color_hex_estimate || "",
-      patternDescription: raw.pattern_description || "",
-      hemType: raw.hem_type || "",
-    };
+    const analysis = mapAnalysis(raw, proportions);
 
     return new Response(JSON.stringify({ analysis, proportions, raw }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
