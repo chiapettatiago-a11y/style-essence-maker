@@ -24,6 +24,15 @@ type GarmentAnalysis = {
   hemline?: string;
   neckline?: string;
   sleeves?: string;
+  colorHexEstimate?: string;
+  patternDescription?: string;
+  hemType?: string;
+  lengthDescription?: string;
+  sleeveLength?: string;
+  closure?: string;
+  beltOrTie?: string;
+  signatureDetails?: string;
+  promptDescription?: string;
 };
 
 type ModelProfile = {
