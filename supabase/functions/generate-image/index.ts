@@ -223,15 +223,22 @@ Format: 9:16 portrait.`;
 
   const blockB = `ABSOLUTE GARMENT FIDELITY — this is the most critical instruction.
 Do NOT redesign, alter proportions, remove or add any detail.
-
+${garmentAnalysis?.promptDescription ? `
+DEFINITIVE GARMENT DESCRIPTION — preserve exactly:
+${garmentAnalysis.promptDescription}
+` : ""}
 Preserve exactly:
 - Color: ${garmentAnalysis?.color || "N/A"} with ${garmentAnalysis?.pattern || "N/A"}
 - Silhouette: ${garmentAnalysis?.silhouette || "N/A"}
 - Neckline: ${garmentAnalysis?.neckline || "N/A"}
-- Sleeves: ${garmentAnalysis?.sleeves || "N/A"}, length ${toCm(proportionJson?.sleeve_length_cm)}
-- Hem: ${garmentAnalysis?.hemline || "N/A"}, falls ${toCm(proportionJson?.hem_below_knee_cm)} from knee reference
+- Sleeves: ${garmentAnalysis?.sleeves || "N/A"}, length ${garmentAnalysis?.sleeveLength || toCm(proportionJson?.sleeve_length_cm)}
+- Hem: ${garmentAnalysis?.hemline || "N/A"}, ${garmentAnalysis?.lengthDescription || `falls ${toCm(proportionJson?.hem_below_knee_cm)} from knee reference`}
+- Length: ${garmentAnalysis?.length || "N/A"}
+- Closure: ${garmentAnalysis?.closure || "N/A"}
+- Belt / tie: ${garmentAnalysis?.beltOrTie || "N/A"}
 - Construction: ${garmentAnalysis?.construction || "N/A"}
 - Details: ${garmentAnalysis?.details || "N/A"}
+- Signature details: ${garmentAnalysis?.signatureDetails || "N/A"}
 
 SIGNATURE DETAIL — mandatory in every photo:
 One golden metallic button engraved with "TR" in interlocking monogram style on the RIGHT cuff, serving as closure.
