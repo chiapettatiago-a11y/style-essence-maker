@@ -654,7 +654,7 @@ const ProductPage = () => {
         .from("weekly_launches")
         .insert({
           product_id: projectId,
-          label: `Semana ${variantWeeklyLaunches.length + 1}`,
+          label: `Lançamento ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
           mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
