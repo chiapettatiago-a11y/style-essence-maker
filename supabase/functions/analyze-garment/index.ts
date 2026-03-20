@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,7 +14,7 @@ type Mannequin = {
   arm_cm?: number | null;
 };
 
-type ClaudeAnalysis = {
+type AnalysisResult = {
   garment_type?: string;
   fabric?: string;
   color?: string;
@@ -43,7 +42,7 @@ type ClaudeAnalysis = {
   };
 };
 
-const CLAUDE_SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand.
+const SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand.
 Analyze the garment photos and return ONLY a valid JSON object with no text before or after.
 
 {
@@ -86,7 +85,7 @@ function normalizeRatio(value: unknown, fallback: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
-function calculateProportions(analysis: ClaudeAnalysis, mannequin: Mannequin) {
+function calculateProportions(analysis: AnalysisResult, mannequin: Mannequin) {
   const h = Number(mannequin.height_cm || 0);
   const bust = Number(mannequin.bust_cm || 0);
   const arm = Number(mannequin.arm_cm || 0);
@@ -139,52 +138,11 @@ function calculateProportions(analysis: ClaudeAnalysis, mannequin: Mannequin) {
 function stripJsonWrapper(content: string) {
   const cleaned = content.replace(/```json|```/gi, "").trim();
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Could not parse JSON from Claude response");
+  if (!jsonMatch) throw new Error("Could not parse JSON from AI response");
   return jsonMatch[0];
 }
 
-function dataUrlToPart(image: string) {
-  const match = image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
-  if (!match) return null;
-  return {
-    type: "image",
-    source: {
-      type: "base64",
-      media_type: match[1],
-      data: match[2],
-    },
-  };
-}
-
-async function urlToPart(url: string) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Failed to fetch image URL [${response.status}]`);
-
-  const mediaType = response.headers.get("content-type") || "image/jpeg";
-  const bytes = new Uint8Array(await response.arrayBuffer());
-
-  return {
-    type: "image",
-    source: {
-      type: "base64",
-      media_type: mediaType,
-      data: encodeBase64(bytes),
-    },
-  };
-}
-
-async function buildAnthropicImageParts(images: string[]) {
-  const limitedImages = images.slice(0, 4);
-  return await Promise.all(
-    limitedImages.map(async (image) => {
-      const dataUrlPart = dataUrlToPart(image);
-      if (dataUrlPart) return dataUrlPart;
-      return await urlToPart(image);
-    }),
-  );
-}
-
-function mapAnalysis(raw: ClaudeAnalysis, proportions: ReturnType<typeof calculateProportions>) {
+function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calculateProportions>) {
   return {
     type: raw.garment_type || "",
     fabric: raw.fabric || "",
@@ -211,6 +169,59 @@ function mapAnalysis(raw: ClaudeAnalysis, proportions: ReturnType<typeof calcula
   };
 }
 
+async function callLovableAI(images: string[]) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+  // Build content parts: images as data URLs or URLs
+  const contentParts: any[] = [];
+  
+  for (const image of images.slice(0, 4)) {
+    if (image.startsWith("data:")) {
+      contentParts.push({
+        type: "image_url",
+        image_url: { url: image },
+      });
+    } else {
+      contentParts.push({
+        type: "image_url",
+        image_url: { url: image },
+      });
+    }
+  }
+
+  contentParts.push({
+    type: "text",
+    text: "Analyze these hanger garment photos with maximum technical precision and return only the requested JSON.",
+  });
+
+  const response = await fetch("https://ai-gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-pro",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: contentParts },
+      ],
+      max_tokens: 2000,
+      temperature: 0.1,
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`AI Gateway call failed [${response.status}]: ${errText}`);
+  }
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content || "";
+  return content;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -226,59 +237,13 @@ serve(async (req) => {
       });
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
-
-    const imageParts = await buildAnthropicImageParts(images);
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20251001",
-        max_tokens: 1800,
-        system: CLAUDE_SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Analyze these hanger garment photos with maximum technical precision and return only the requested JSON.",
-              },
-              ...imageParts,
-            ],
-          },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, tente novamente em instantes." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      throw new Error(`Claude API call failed [${response.status}]: ${errText}`);
-    }
-
-    const data = await response.json();
-    const content = Array.isArray(data.content)
-      ? data.content.filter((item: { type?: string }) => item.type === "text").map((item: { text?: string }) => item.text || "").join("\n")
-      : "";
-
-    const raw = JSON.parse(stripJsonWrapper(content)) as ClaudeAnalysis;
+    const content = await callLovableAI(images);
+    const raw = JSON.parse(stripJsonWrapper(content)) as AnalysisResult;
 
     if (!raw.garment_length || !raw.length_description) {
-      throw new Error("Claude response missing mandatory garment length fields");
+      console.warn("AI response missing garment length fields, using defaults");
+      raw.garment_length = raw.garment_length || "midi";
+      raw.length_description = raw.length_description || "estimated from visual proportions";
     }
 
     const proportions = calculateProportions(raw, mannequin || {});
@@ -289,6 +254,7 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("analyze-garment error:", msg);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
