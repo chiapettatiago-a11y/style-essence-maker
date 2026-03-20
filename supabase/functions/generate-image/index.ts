@@ -83,6 +83,27 @@ NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
 If background is any color other than pure white → image FAILED.`;
 
+const FULL_BODY_CRITICAL_BLOCK_FAL = `FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
+Full body shot from head to toe. E-commerce product catalog photo.
+Model centered in frame, occupying 70-75% of frame height.
+Minimum 10% empty space above head, minimum 15% below feet.
+Feet fully visible, ankles visible, NO cropping of any body part.
+Clean, symmetrical, centered composition — like ZARA or NET-A-PORTER product page.
+Professional fashion e-commerce catalog photo — NOT editorial, NOT artistic, NOT lifestyle.
+NOT portrait crop. NOT tight crop. FULL BODY centered with breathing room.
+
+BACKGROUND — CRITICAL:
+Pure seamless white #FFFFFF studio cyclorama backdrop.
+NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient. NOT any environment.
+NO texture. NO shadow on background. NO vignette. NO props.
+Clean studio white only — if background is any color other than pure white → FAILED.
+
+LIGHTING — CRITICAL:
+Soft, diffused studio lighting from front and above.
+Even illumination — no harsh shadows on garment or skin.
+High-key, color-accurate: garment colors must look true to life.
+Standard e-commerce product lighting — bright, clean, neutral.`;
+
 const MIDI_DRESS_CRITICAL_BLOCK = `DRESS LENGTH — CRITICAL:
 Hem falls at mid-calf, 15cm below the knee.
 Full midi silhouette visible in frame.
@@ -204,6 +225,7 @@ function buildPrompt(params: {
   proportionJson?: Record<string, unknown> | null;
   modelProfile?: ModelProfile | null;
   mannequin?: Record<string, unknown> | null;
+  engine?: GenerationEngine;
 }) {
   const {
     basePrompt,
@@ -213,9 +235,19 @@ function buildPrompt(params: {
     proportionJson,
     modelProfile,
     mannequin,
+    engine,
   } = params;
 
-  const blockA = `Professional fashion photography, editorial quality.
+  const isFal = engine === "fal";
+
+  const blockA = isFal
+    ? `Professional e-commerce fashion product photography.
+Camera: studio DSLR, 85mm lens, f/5.6 for sharp full-body focus.
+Lighting: soft diffused studio lighting, high-key, color-accurate.
+Clean white studio cyclorama background. Centered model. Symmetrical framing.
+Format: portrait orientation, high resolution.
+Style: clean e-commerce catalog photo like ZARA, NET-A-PORTER, Farfetch.`
+    : `Professional fashion photography, editorial quality.
 Camera: Sony A7R V equivalent, 85mm f/1.8.
 Lighting: natural key light + soft fill, no harsh shadows.
 Resolution: 1080x1920px portrait, 4K clarity.
@@ -256,7 +288,9 @@ Measurements: bust ${toCm(modelProfile?.bust)}, waist ${toCm(modelProfile?.waist
 Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.`;
 
   const blockD = ANGLE_BLOCKS[angleType] || "";
-  const fullBodyBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FULL_BODY_CRITICAL_BLOCK : "";
+  const fullBodyBlock = FULL_BODY_ANGLE_TYPES.has(angleType)
+    ? (isFal ? FULL_BODY_CRITICAL_BLOCK_FAL : FULL_BODY_CRITICAL_BLOCK)
+    : "";
   const midiBlock = FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis) ? MIDI_DRESS_CRITICAL_BLOCK : "";
   const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
 
@@ -445,6 +479,7 @@ serve(async (req) => {
           proportionJson,
           modelProfile,
           mannequin,
+          engine: parsedEngine,
         })
       : (prompt || "");
 

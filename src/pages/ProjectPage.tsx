@@ -654,7 +654,7 @@ const ProductPage = () => {
         .from("weekly_launches")
         .insert({
           product_id: projectId,
-          label: `Semana ${variantWeeklyLaunches.length + 1}`,
+          label: `Lançamento ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
           mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
@@ -1146,7 +1146,19 @@ const ProductPage = () => {
                           <div className="aspect-[9/16] bg-muted relative flex items-center justify-center">
                             {img.status === "done" && img.imageUrl && (
                               <>
-                                <img src={img.imageUrl} alt={img.label} className="w-full h-full object-cover" loading="lazy" />
+                                <img
+                                  src={img.imageUrl}
+                                  alt={img.label}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    const fallback = img.originalUrl || img.previewUrl;
+                                    if (fallback && target.src !== fallback) {
+                                      target.src = fallback;
+                                    }
+                                  }}
+                                />
                                 <button
                                   onClick={() => {
                                     const a = document.createElement("a");
