@@ -83,6 +83,27 @@ NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
 If background is any color other than pure white → image FAILED.`;
 
+const FULL_BODY_CRITICAL_BLOCK_FAL = `FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
+Full body shot from head to toe. E-commerce product catalog photo.
+Model centered in frame, occupying 70-75% of frame height.
+Minimum 10% empty space above head, minimum 15% below feet.
+Feet fully visible, ankles visible, NO cropping of any body part.
+Clean, symmetrical, centered composition — like ZARA or NET-A-PORTER product page.
+Professional fashion e-commerce catalog photo — NOT editorial, NOT artistic, NOT lifestyle.
+NOT portrait crop. NOT tight crop. FULL BODY centered with breathing room.
+
+BACKGROUND — CRITICAL:
+Pure seamless white #FFFFFF studio cyclorama backdrop.
+NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient. NOT any environment.
+NO texture. NO shadow on background. NO vignette. NO props.
+Clean studio white only — if background is any color other than pure white → FAILED.
+
+LIGHTING — CRITICAL:
+Soft, diffused studio lighting from front and above.
+Even illumination — no harsh shadows on garment or skin.
+High-key, color-accurate: garment colors must look true to life.
+Standard e-commerce product lighting — bright, clean, neutral.`;
+
 const MIDI_DRESS_CRITICAL_BLOCK = `DRESS LENGTH — CRITICAL:
 Hem falls at mid-calf, 15cm below the knee.
 Full midi silhouette visible in frame.
