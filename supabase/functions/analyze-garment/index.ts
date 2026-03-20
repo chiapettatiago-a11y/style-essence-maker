@@ -237,7 +237,7 @@ serve(async (req) => {
       });
     }
 
-    const content = await callLovableAI(images);
+    const content = await callClaudeAPI(images);
     const raw = JSON.parse(stripJsonWrapper(content)) as AnalysisResult;
 
     if (!raw.garment_length || !raw.length_description) {
