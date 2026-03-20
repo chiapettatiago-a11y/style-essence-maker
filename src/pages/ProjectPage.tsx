@@ -1165,7 +1165,7 @@ const ProductPage = () => {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
             <TabsList>
               <TabsTrigger value="photos">Fotos</TabsTrigger>
-              <TabsTrigger value="video">Prompts de vídeo</TabsTrigger>
+              <TabsTrigger value="video">Vídeos</TabsTrigger>
               <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
               <TabsTrigger value="settings">Configurações</TabsTrigger>
             </TabsList>
