@@ -1249,6 +1249,10 @@ const ProductPage = () => {
                           ["sleeves", "Mangas"],
                           ["hemline", "Barra"],
                           ["pattern", "Padrão"],
+                          ["length", "Comprimento"],
+                          ["closure", "Fechamento"],
+                          ["beltOrTie", "Cinto / Laço"],
+                          ["signatureDetails", "Detalhes assinatura"],
                         ].map(([key, label]) => (
                           <div key={key} className="space-y-1">
                             <Label className="text-[10px]">{label}</Label>
@@ -1266,6 +1270,23 @@ const ProductPage = () => {
                             />
                           </div>
                         ))}
+                      </div>
+                      <div className="space-y-1 mt-2">
+                        <Label className="text-[10px]">Descrição para prompt (promptDescription)</Label>
+                        <textarea
+                          value={(activeVariant.garmentAnalysis as unknown as Record<string, string>)?.promptDescription || ""}
+                          onChange={(e) =>
+                            updateActiveVariant({
+                              garmentAnalysis: {
+                                ...activeVariant.garmentAnalysis!,
+                                promptDescription: e.target.value,
+                              },
+                            })
+                          }
+                          rows={4}
+                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          placeholder="Descrição técnica completa da peça usada nos prompts de geração..."
+                        />
                       </div>
                     </CardContent>
                   </Card>
