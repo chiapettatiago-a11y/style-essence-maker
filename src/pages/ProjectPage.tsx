@@ -791,6 +791,49 @@ const ProductPage = () => {
     } else {
       await Promise.allSettled(closeImages.map((img) => runImageGeneration(img, frontReferenceUrl)));
     }
+
+    // Generate videos using front_view as starting frame
+    const videoItems = initial.filter((img) => img.type === "video-product" || img.type === "video-model");
+    if (videoItems.length > 0 && frontReferenceUrl) {
+      for (const vid of videoItems) {
+        updateImageInState(vid.id, { status: "generating" });
+        const startedAt = performance.now();
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-image", {
+            body: {
+              angleType: vid.type,
+              angle: vid.type,
+              basePrompt: vid.prompt,
+              prompt: vid.prompt,
+              manualPrompt: state.manualPrompt,
+              engine: "fal",
+              garmentAnalysis: activeVariant.garmentAnalysis,
+              modelProfile: state.selectedProfile,
+              image_url: frontReferenceUrl,
+              launchId: activeWeekId,
+            },
+          });
+          if (error) throw error;
+          updateImageInState(vid.id, {
+            status: "done",
+            imageUrl: data.originalUrl || data.imageUrl,
+            originalUrl: data.originalUrl || data.imageUrl,
+            previewUrl: data.previewUrl || data.originalUrl || data.imageUrl,
+            modelUsed: data.modelUsed,
+            generationMs: Math.round(performance.now() - startedAt),
+            promptUsed: data.promptUsed || vid.prompt,
+          });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : "Falha na geração de vídeo";
+          updateImageInState(vid.id, { status: "error", error: message });
+        }
+      }
+    } else if (videoItems.length > 0 && !frontReferenceUrl) {
+      videoItems.forEach((vid) => {
+        updateImageInState(vid.id, { status: "error", error: "A front view precisa ser gerada primeiro para servir como frame inicial do vídeo." });
+      });
+    }
+
     setIsGenerating(false);
     setActiveTab("photos");
     queryClient.invalidateQueries({ queryKey: ["images", projectId] });
