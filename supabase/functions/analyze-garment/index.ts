@@ -308,43 +308,18 @@ async function callClaudeAI(images: string[]) {
 }
 
 async function callAI(images: string[]) {
-  const providers: Array<{ name: string; run: () => Promise<string> }> = [];
+  const hasClaude = Boolean(Deno.env.get("ANTHROPIC_API_KEY"));
+  const hasLovableAI = Boolean(Deno.env.get("LOVABLE_API_KEY"));
 
-  if (Deno.env.get("ANTHROPIC_API_KEY")) {
-    providers.push({ name: "Claude", run: () => callClaudeAI(images) });
+  if (hasClaude) {
+    return await callClaudeAI(images);
   }
 
-  if (Deno.env.get("LOVABLE_API_KEY")) {
-    providers.push({ name: "Lovable AI", run: () => callLovableAI(images) });
+  if (hasLovableAI) {
+    return await callLovableAI(images);
   }
 
-  if (providers.length === 0) {
-    throw new UpstreamAIError("Nenhum provedor de IA configurado para análise técnica.", 500, "missing_secret");
-  }
-
-  let lastError: UpstreamAIError | null = null;
-
-  for (const provider of providers) {
-    try {
-      return await provider.run();
-    } catch (error) {
-      const normalized = error instanceof UpstreamAIError
-        ? error
-        : new UpstreamAIError(`${provider.name} failed unexpectedly.`, 500, "ai_error");
-
-      lastError = normalized;
-
-      const shouldTryNextProvider = normalized.code === "payment_required"
-        || normalized.code === "rate_limited"
-        || normalized.status >= 500;
-
-      if (!shouldTryNextProvider) {
-        throw normalized;
-      }
-    }
-  }
-
-  throw lastError || new UpstreamAIError("Falha na análise técnica.", 500, "ai_error");
+  throw new UpstreamAIError("Nenhum provedor de IA configurado para análise técnica.", 500, "missing_secret");
 }
 
 serve(async (req) => {
