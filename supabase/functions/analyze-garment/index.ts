@@ -229,7 +229,7 @@ serve(async (req) => {
       });
     }
 
-    const content = await callClaudeAPI(images);
+    const content = await callAI(images);
     const raw = JSON.parse(stripJsonWrapper(content)) as AnalysisResult;
 
     if (!raw.garment_length || !raw.length_description) {
