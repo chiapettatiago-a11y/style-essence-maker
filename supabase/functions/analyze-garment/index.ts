@@ -42,6 +42,18 @@ type AnalysisResult = {
   };
 };
 
+class UpstreamAIError extends Error {
+  status: number;
+  code: string;
+
+  constructor(message: string, status = 500, code = "ai_error") {
+    super(message);
+    this.name = "UpstreamAIError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 const SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand.
 Analyze the garment photos and return ONLY a valid JSON object with no text before or after.
 
@@ -206,7 +218,24 @@ async function callAI(images: string[]) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`AI call failed [${response.status}]: ${errText}`);
+
+    if (response.status === 402 || /payment_required|not enough credits|credit balance is too low/i.test(errText)) {
+      throw new UpstreamAIError(
+        "Créditos de IA insuficientes para analisar a peça. Adicione créditos em Settings → Workspace → Usage e tente novamente.",
+        402,
+        "payment_required"
+      );
+    }
+
+    if (response.status === 429) {
+      throw new UpstreamAIError(
+        "Limite de requisições da IA atingido. Aguarde alguns instantes e tente novamente.",
+        429,
+        "rate_limited"
+      );
+    }
+
+    throw new UpstreamAIError(`AI call failed [${response.status}]: ${errText}`, response.status, "ai_error");
   }
 
   const data = await response.json();
@@ -246,9 +275,11 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
+    const status = error instanceof UpstreamAIError ? error.status : 500;
+    const code = error instanceof UpstreamAIError ? error.code : "unknown_error";
     console.error("analyze-garment error:", msg);
-    return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: msg, code }), {
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
