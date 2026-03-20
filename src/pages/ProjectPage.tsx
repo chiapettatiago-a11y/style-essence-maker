@@ -1258,12 +1258,54 @@ const ProductPage = () => {
                           <CardContent className="pt-4 space-y-2">
                             <div className="flex items-center justify-between">
                               <p className="text-sm font-medium">{v.label}</p>
-                              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyPrompt(v.id, v.prompt)}>
-                                {copiedPromptId === v.id ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                {copiedPromptId === v.id ? "Copiado" : "Copiar"}
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                {v.status === "generating" && (
+                                  <Badge variant="secondary" className="text-[10px]">
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                    Gerando...
+                                  </Badge>
+                                )}
+                                {v.status === "done" && v.originalUrl && (
+                                  <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
+                                    <a href={v.originalUrl} download target="_blank" rel="noopener noreferrer">
+                                      <Download className="h-3 w-3 mr-1" /> Download
+                                    </a>
+                                  </Button>
+                                )}
+                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyPrompt(v.id, v.prompt)}>
+                                  {copiedPromptId === v.id ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
+                                  {copiedPromptId === v.id ? "Copiado" : "Prompt"}
+                                </Button>
+                              </div>
                             </div>
-                            <pre className="text-xs whitespace-pre-wrap text-muted-foreground max-h-36 overflow-y-auto">{v.prompt}</pre>
+                            {v.status === "done" && v.originalUrl ? (
+                              <div className="rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[400px] flex items-center justify-center">
+                                <video
+                                  src={v.originalUrl}
+                                  controls
+                                  loop
+                                  muted
+                                  playsInline
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                            ) : v.status === "error" ? (
+                              <div className="rounded-lg bg-destructive/10 text-destructive text-xs p-3">{v.error}</div>
+                            ) : v.status === "generating" ? (
+                              <div className="rounded-lg bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
+                                <div className="text-center space-y-2">
+                                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                                  <p className="text-xs text-muted-foreground">Gerando vídeo via Kling 2.5...</p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="rounded-lg bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
+                                <p className="text-xs text-muted-foreground">Aguardando geração</p>
+                              </div>
+                            )}
+                            {v.modelUsed && (
+                              <p className="text-[10px] text-muted-foreground">Motor: {v.modelUsed} {v.generationMs ? `• ${(v.generationMs / 1000).toFixed(1)}s` : ""}</p>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
@@ -1272,7 +1314,7 @@ const ProductPage = () => {
                 );
               })}
               {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type === "video-product" || img.type === "video-model").length === 0) && (
-                <div className="py-16 text-center text-muted-foreground text-sm">Sem prompts de vídeo gerados para esta variante.</div>
+                <div className="py-16 text-center text-muted-foreground text-sm">Sem vídeos gerados para esta variante.</div>
               )}
             </TabsContent>
 
