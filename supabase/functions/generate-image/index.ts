@@ -479,6 +479,7 @@ serve(async (req) => {
           proportionJson,
           modelProfile,
           mannequin,
+          engine: parsedEngine,
         })
       : (prompt || "");
 
