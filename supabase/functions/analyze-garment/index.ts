@@ -169,27 +169,17 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
   };
 }
 
-async function callClaudeAPI(images: string[]) {
-  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not configured");
+async function callAI(images: string[]) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
   const contentParts: any[] = [];
 
   for (const image of images.slice(0, 4)) {
-    if (image.startsWith("data:")) {
-      const match = image.match(/^data:(image\/\w+);base64,(.+)$/);
-      if (match) {
-        contentParts.push({
-          type: "image",
-          source: { type: "base64", media_type: match[1], data: match[2] },
-        });
-      }
-    } else {
-      contentParts.push({
-        type: "image",
-        source: { type: "url", url: image },
-      });
-    }
+    contentParts.push({
+      type: "image_url",
+      image_url: { url: image },
+    });
   }
 
   contentParts.push({
@@ -197,28 +187,30 @@ async function callClaudeAPI(images: string[]) {
     text: "Analyze these hanger garment photos with maximum technical precision and return only the requested JSON.",
   });
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY,
-      "anthropic-version": "2023-06-01",
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5-20250514",
+      model: "google/gemini-2.5-pro",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: contentParts },
+      ],
       max_tokens: 2000,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: contentParts }],
+      temperature: 0.1,
     }),
   });
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`Claude API failed [${response.status}]: ${errText}`);
+    throw new Error(`AI call failed [${response.status}]: ${errText}`);
   }
 
   const data = await response.json();
-  const content = data.content?.[0]?.text || "";
+  const content = data.choices?.[0]?.message?.content || "";
   return content;
 }
 
