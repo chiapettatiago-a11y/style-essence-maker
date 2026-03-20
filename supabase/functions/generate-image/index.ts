@@ -555,6 +555,40 @@ serve(async (req) => {
     const firstReferenceImage = image_url || referenceImages?.[0] || undefined;
     const falReferenceImage = shouldUseFalReferenceImage(parsedAngle) ? firstReferenceImage : undefined;
 
+    const isVideoRequest = parsedAngle === "video-model" || parsedAngle === "video-product";
+
+    if (isVideoRequest) {
+      const videoReferenceImage = image_url || firstReferenceImage;
+      if (!videoReferenceImage) {
+        throw new Error("Video generation requires a reference image (front_view).");
+      }
+
+      const videoResult = await callFalVideoEngine({
+        promptUsed,
+        imageUrl: videoReferenceImage,
+      });
+
+      const storedVideo = await uploadGeneratedVideo({
+        sourceUrl: videoResult.videoUrl,
+        launchId,
+        type: parsedAngle,
+        attemptNumber: requestAttempt,
+      });
+
+      return new Response(JSON.stringify({
+        imageUrl: storedVideo.imageUrl,
+        originalUrl: storedVideo.originalUrl,
+        previewUrl: storedVideo.originalUrl,
+        promptUsed,
+        modelUsed: videoResult.modelUsed,
+        attemptNumber: requestAttempt,
+        engineUsed: "fal",
+        isVideo: true,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const result = parsedEngine === "fal"
       ? await callFalEngine({
           promptUsed,
