@@ -169,25 +169,17 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
   };
 }
 
-async function callLovableAI(images: string[]) {
+async function callAI(images: string[]) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-  // Build content parts: images as data URLs or URLs
   const contentParts: any[] = [];
-  
+
   for (const image of images.slice(0, 4)) {
-    if (image.startsWith("data:")) {
-      contentParts.push({
-        type: "image_url",
-        image_url: { url: image },
-      });
-    } else {
-      contentParts.push({
-        type: "image_url",
-        image_url: { url: image },
-      });
-    }
+    contentParts.push({
+      type: "image_url",
+      image_url: { url: image },
+    });
   }
 
   contentParts.push({
@@ -195,7 +187,7 @@ async function callLovableAI(images: string[]) {
     text: "Analyze these hanger garment photos with maximum technical precision and return only the requested JSON.",
   });
 
-  const response = await fetch("https://ai-gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -214,7 +206,7 @@ async function callLovableAI(images: string[]) {
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`AI Gateway call failed [${response.status}]: ${errText}`);
+    throw new Error(`AI call failed [${response.status}]: ${errText}`);
   }
 
   const data = await response.json();
@@ -237,7 +229,7 @@ serve(async (req) => {
       });
     }
 
-    const content = await callLovableAI(images);
+    const content = await callAI(images);
     const raw = JSON.parse(stripJsonWrapper(content)) as AnalysisResult;
 
     if (!raw.garment_length || !raw.length_description) {
