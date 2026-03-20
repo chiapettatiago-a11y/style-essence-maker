@@ -1241,7 +1241,35 @@ const ProductPage = () => {
                 );
               })}
               {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type !== "video-product" && img.type !== "video-model").length === 0) && (
-                <div className="py-16 text-center text-muted-foreground text-sm">Sem fotos geradas para esta variante.</div>
+                <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-accent" />
+                    </div>
+                    <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Clique em <strong>"Novo lançamento"</strong> para enviar as fotos da peça no cabide, configurar o manequim, escolher a modelo e gerar o lookbook completo.
+                    </p>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setLaunchModalStep(1);
+                        setLaunchModalOpen(true);
+                      }}
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Iniciar primeiro lançamento
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-6 text-[11px] text-muted-foreground mt-2">
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">1</span> Upload</span>
+                    <ArrowRight className="h-3 w-3" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">2</span> Manequim</span>
+                    <ArrowRight className="h-3 w-3" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">3</span> Análise</span>
+                    <ArrowRight className="h-3 w-3" />
+                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">4</span> Gerar</span>
+                  </div>
+                </div>
               )}
             </TabsContent>
 
