@@ -1342,7 +1342,24 @@ const ProductPage = () => {
                 );
               })}
               {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type === "video-product" || img.type === "video-model").length === 0) && (
-                <div className="py-16 text-center text-muted-foreground text-sm">Sem vídeos gerados para esta variante.</div>
+                <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+                  <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
+                    <h3 className="text-sm font-semibold">Nenhum vídeo gerado ainda</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Os vídeos são gerados automaticamente junto com as fotos ao criar um <strong>novo lançamento</strong>. O sistema usa a foto frontal como frame inicial para gerar vídeos via Kling 2.5.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setLaunchModalStep(1);
+                        setLaunchModalOpen(true);
+                      }}
+                    >
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Novo lançamento
+                    </Button>
+                  </div>
+                </div>
               )}
             </TabsContent>
 
