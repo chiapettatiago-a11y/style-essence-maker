@@ -285,7 +285,7 @@ async function callClaudeAI(images: string[]) {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5-20251001",
+      model: "claude-sonnet-4-6-20260320",
       system: SYSTEM_PROMPT,
       max_tokens: 2000,
       temperature: 0.1,
