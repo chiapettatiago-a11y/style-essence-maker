@@ -63,8 +63,8 @@ const ANGLE_BLOCKS: Record<AngleType, string> = {
   "lookbook-three-quarter": "right_side: right profile, full body, facing left.",
   "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved with \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
   "close-tr-label": "This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label \"THAIS RODRIGUES\" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.",
-  "video-product": "Generate still image frame with strong product fidelity suitable for product-video storyboard.",
-  "video-model": "Generate still image frame with model fidelity suitable for model-video storyboard.",
+  "video-product": "Slow 360-degree rotation of the garment on an invisible mannequin. Pure white background. Smooth continuous rotation showing all angles of the garment. The fabric moves naturally with the rotation, revealing construction details, seams, and texture. No model, just the garment floating and rotating. Professional product video for e-commerce.",
+  "video-model": "The model takes a slow, elegant step forward, then gracefully turns 180 degrees showing the back of the outfit, pauses briefly, then turns back to face the camera. Natural hair and fabric movement. Confident, editorial walk. Same white studio background. Subtle wind effect on hair and dress hem. Professional fashion lookbook video.",
 };
 
 const FULL_BODY_CRITICAL_BLOCK = `FRAMING — CRITICAL:
@@ -444,6 +444,75 @@ async function callFalEngine(params: {
   return { imageUrl, modelUsed: endpoint };
 }
 
+async function callFalVideoEngine(params: {
+  promptUsed: string;
+  imageUrl: string;
+}) {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
+
+  fal.config({ credentials: FAL_API_KEY });
+
+  const endpoint = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
+  const result = await fal.subscribe(endpoint, {
+    input: {
+      prompt: params.promptUsed,
+      image_url: params.imageUrl,
+      duration: "5",
+      cfg_scale: 0.5,
+      negative_prompt: "blur, distort, low quality, deformed hands, extra fingers, missing fingers, cropped, out of frame",
+    },
+  });
+
+  const videoUrl = (result as any)?.video?.url
+    || (result as any)?.data?.video?.url
+    || (result as any)?.video_url
+    || (result as any)?.data?.video_url
+    || "";
+
+  if (!videoUrl) throw new Error("No video found in Kling response");
+
+  return { videoUrl, modelUsed: endpoint };
+}
+
+async function uploadGeneratedVideo(params: {
+  sourceUrl: string;
+  launchId?: string;
+  type: AngleType;
+  attemptNumber: number;
+}) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return { originalUrl: params.sourceUrl, imageUrl: params.sourceUrl };
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const response = await fetch(params.sourceUrl);
+  if (!response.ok) throw new Error(`Failed to fetch video: ${response.status}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+
+  const objectPath = [
+    sanitizePathSegment(params.launchId || "standalone"),
+    `${sanitizePathSegment(params.type)}-attempt-${params.attemptNumber}.mp4`,
+  ].join("/");
+
+  const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+    contentType: "video/mp4",
+    cacheControl: "3600",
+    upsert: true,
+  });
+
+  if (error) throw new Error(`Video upload failed: ${error.message}`);
+
+  const originalUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+  return { originalUrl, imageUrl: originalUrl };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -485,6 +554,40 @@ serve(async (req) => {
 
     const firstReferenceImage = image_url || referenceImages?.[0] || undefined;
     const falReferenceImage = shouldUseFalReferenceImage(parsedAngle) ? firstReferenceImage : undefined;
+
+    const isVideoRequest = parsedAngle === "video-model" || parsedAngle === "video-product";
+
+    if (isVideoRequest) {
+      const videoReferenceImage = image_url || firstReferenceImage;
+      if (!videoReferenceImage) {
+        throw new Error("Video generation requires a reference image (front_view).");
+      }
+
+      const videoResult = await callFalVideoEngine({
+        promptUsed,
+        imageUrl: videoReferenceImage,
+      });
+
+      const storedVideo = await uploadGeneratedVideo({
+        sourceUrl: videoResult.videoUrl,
+        launchId,
+        type: parsedAngle,
+        attemptNumber: requestAttempt,
+      });
+
+      return new Response(JSON.stringify({
+        imageUrl: storedVideo.imageUrl,
+        originalUrl: storedVideo.originalUrl,
+        previewUrl: storedVideo.originalUrl,
+        promptUsed,
+        modelUsed: videoResult.modelUsed,
+        attemptNumber: requestAttempt,
+        engineUsed: "fal",
+        isVideo: true,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const result = parsedEngine === "fal"
       ? await callFalEngine({
