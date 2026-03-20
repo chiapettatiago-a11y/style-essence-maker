@@ -66,6 +66,42 @@ const normalizeMannequinData = (data: MannequinData): MannequinData => ({
   mannequin_arm_cm: normalizeCmValue(data.mannequin_arm_cm),
 });
 
+const getAnalysisErrorMessage = (error: unknown) => {
+  const fallback = "Falha na análise técnica";
+
+  if (!(error instanceof Error)) return fallback;
+
+  const rawMessage = error.message || fallback;
+  const jsonMatch = rawMessage.match(/\{[\s\S]*\}$/);
+
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]) as { error?: string; code?: string };
+      if (parsed.code === "payment_required") {
+        return parsed.error || "Créditos de IA insuficientes para analisar a peça.";
+      }
+
+      if (parsed.code === "rate_limited") {
+        return parsed.error || "Limite de requisições atingido. Tente novamente em instantes.";
+      }
+
+      if (parsed.error) return parsed.error;
+    } catch {
+      // fall through to string heuristics
+    }
+  }
+
+  if (/payment_required|not enough credits|credit balance is too low/i.test(rawMessage)) {
+    return "Créditos de IA insuficientes para analisar a peça. Adicione créditos e tente novamente.";
+  }
+
+  if (/429|rate limit/i.test(rawMessage)) {
+    return "Limite de requisições atingido. Aguarde um pouco e tente novamente.";
+  }
+
+  return rawMessage;
+};
+
 const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -573,7 +609,7 @@ const ProductPage = () => {
 
       toast({ title: "Análise concluída", description: "Dados técnicos atualizados." });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Falha na análise";
+      const message = getAnalysisErrorMessage(err);
       toast({ title: "Erro", description: message, variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
