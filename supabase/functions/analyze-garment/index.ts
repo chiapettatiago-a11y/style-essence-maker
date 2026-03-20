@@ -57,39 +57,44 @@ class UpstreamAIError extends Error {
 const SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand.
 Analyze the garment photos and return ONLY a valid JSON object with no text before or after.
 
+IMPORTANT: Photos may have dark backgrounds, hangers, wooden racks, or papers in front of the garment. Ignore all background elements. Focus ONLY on the garment itself.
+
 {
   "garment_type": "dress|blouse|pants|skirt|jacket",
-  "fabric": "detailed fabric description",
-  "color": "precise color description",
-  "color_hex_estimate": "#xxxxxx",
-  "pattern": "solid|paisley|floral|geometric|stripes|etc",
-  "pattern_description": "detailed pattern description",
-  "silhouette": "A-line|fitted|straight|wrap|etc",
+  "fabric": "detailed fabric description — if PATCHWORK, describe each panel's fabric separately",
+  "color": "precise color description — for patchwork list ALL panel colors e.g. navy blue, light blue, golden/caramel, white",
+  "color_hex_estimate": "#xxxxxx (dominant color)",
+  "pattern": "solid|paisley|floral|geometric|stripes|patchwork|etc",
+  "pattern_description": "detailed pattern description — for PATCHWORK: describe each panel separately including panel colors, arrangement (diagonal/square/triangular sections), pattern within each panel (paisley/floral/bandana/scroll), and how panels connect and transition",
+  "silhouette": "A-line|fitted|straight|wrap|tiered|etc",
   "neckline": "precise collar/neckline description",
-  "sleeve_type": "sleeveless|short|3/4|long|balloon|etc",
-  "sleeve_length": "exact description of sleeve length",
-  "hem_type": "straight|asymmetric|ruffled|etc",
-  "garment_length": "mini|knee|midi|maxi — with description e.g. midi, falls 15cm below knee",
+  "sleeve_type": "sleeveless|short|3/4|long|balloon|etc — note exact length and any cuff detail with button/hardware closure",
+  "sleeve_length": "exact description of sleeve length and cuff construction",
+  "hem_type": "straight|asymmetric|ruffled|tiered|etc — for TIERED/RUFFLE: count number of tiers, describe each tier separately with its gather point",
+  "garment_length": "mini|knee|midi|maxi — with description e.g. midi, falls 15cm below knee. For tiered dresses: count ruffle tiers visible and classify as midi if tiers extend below knee",
   "length_description": "precise description: where hem falls relative to knee",
-  "construction": "visible construction details",
+  "construction": "visible construction details — for PATCHWORK: describe panel arrangement, seaming, how different fabric sections are joined",
   "closure": "buttons|zipper|wrap|etc — describe in detail",
   "belt_or_tie": "describe exactly: fabric self-tie sash / leather belt / none",
-  "details": "ALL details: buttons, cuffs, pockets, pleats, gathering",
-  "signature_details": "TR monogram button location, brand label location",
+  "details": "ALL details: buttons, cuffs, pockets, pleats, gathering, ruffle tiers, panel transitions",
+  "signature_details": "Look carefully for a round metallic button engraved 'TR' — describe exact position (e.g. right cuff), size estimate, and metal tone (silver or gold). Also note brand label location if visible.",
   "proportions": {
     "garment_length_ratio": 0.72,
     "waist_ratio": 0.40,
     "sleeve_ratio": 1.0,
     "shoulder_ratio": 0.44
   },
-  "prompt_description": "one paragraph describing the garment precisely for image generation, emphasizing ALL details that must be preserved"
+  "prompt_description": "One extremely detailed paragraph for AI image generation. MUST include: 1) Each patchwork panel color and pattern described separately, 2) Number and size of ruffle/tiered tiers with gather points, 3) Exact sleeve length and cuff detail including any hardware, 4) TR button/hardware position and description, 5) All construction and finishing details that must be preserved in generation"
 }
 
 Critical rules:
 - NEVER leave garment_length or length_description empty
 - If unsure of exact length, estimate based on visual proportions
 - Be extremely precise about belt/tie type — fabric sash vs leather belt are very different
-- The prompt_description field will be used directly in AI image generation prompts`;
+- For PATCHWORK garments: describe EACH panel separately with color, pattern, position
+- For TIERED/RUFFLE garments: count tiers, describe each tier's gathering
+- For signature details: always check cuffs, collar, and front placket for TR branding
+- The prompt_description field will be used directly in AI image generation prompts — be exhaustively detailed`;
 
 function normalizeRatio(value: unknown, fallback: number): number {
   const n = Number(value);
