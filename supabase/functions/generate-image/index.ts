@@ -444,6 +444,75 @@ async function callFalEngine(params: {
   return { imageUrl, modelUsed: endpoint };
 }
 
+async function callFalVideoEngine(params: {
+  promptUsed: string;
+  imageUrl: string;
+}) {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
+
+  fal.config({ credentials: FAL_API_KEY });
+
+  const endpoint = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
+  const result = await fal.subscribe(endpoint, {
+    input: {
+      prompt: params.promptUsed,
+      image_url: params.imageUrl,
+      duration: "5",
+      cfg_scale: 0.5,
+      negative_prompt: "blur, distort, low quality, deformed hands, extra fingers, missing fingers, cropped, out of frame",
+    },
+  });
+
+  const videoUrl = (result as any)?.video?.url
+    || (result as any)?.data?.video?.url
+    || (result as any)?.video_url
+    || (result as any)?.data?.video_url
+    || "";
+
+  if (!videoUrl) throw new Error("No video found in Kling response");
+
+  return { videoUrl, modelUsed: endpoint };
+}
+
+async function uploadGeneratedVideo(params: {
+  sourceUrl: string;
+  launchId?: string;
+  type: AngleType;
+  attemptNumber: number;
+}) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return { originalUrl: params.sourceUrl, imageUrl: params.sourceUrl };
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const response = await fetch(params.sourceUrl);
+  if (!response.ok) throw new Error(`Failed to fetch video: ${response.status}`);
+  const bytes = new Uint8Array(await response.arrayBuffer());
+
+  const objectPath = [
+    sanitizePathSegment(params.launchId || "standalone"),
+    `${sanitizePathSegment(params.type)}-attempt-${params.attemptNumber}.mp4`,
+  ].join("/");
+
+  const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+    contentType: "video/mp4",
+    cacheControl: "3600",
+    upsert: true,
+  });
+
+  if (error) throw new Error(`Video upload failed: ${error.message}`);
+
+  const originalUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+  return { originalUrl, imageUrl: originalUrl };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
