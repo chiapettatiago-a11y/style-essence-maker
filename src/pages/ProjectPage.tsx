@@ -695,7 +695,7 @@ const ProductPage = () => {
       label: r.label,
       prompt: r.prompt,
       photoAngle: ANGLE_BY_TYPE[r.type],
-      status: r.type === "video-product" || r.type === "video-model" ? "done" : "pending",
+      status: "pending" as const,
       attemptNumber: 1,
       promptUsed: r.prompt,
     }));
