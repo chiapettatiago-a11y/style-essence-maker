@@ -181,18 +181,48 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
   };
 }
 
-async function callAI(images: string[]) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-  const contentParts: any[] = [];
-
-  for (const image of images.slice(0, 4)) {
-    contentParts.push({
-      type: "image_url",
-      image_url: { url: image },
-    });
+function parseDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) {
+    throw new UpstreamAIError("Formato de imagem inválido para análise técnica.", 400, "invalid_image");
   }
+
+  return {
+    mediaType: match[1],
+    data: match[2],
+  };
+}
+
+function mapProviderError(status: number, errText: string, providerLabel: string) {
+  if (status === 402 || /payment_required|not enough credits|credit balance is too low|insufficient credits/i.test(errText)) {
+    return new UpstreamAIError(
+      "Créditos de IA insuficientes para analisar a peça. Adicione créditos em Settings → Workspace → Usage e tente novamente.",
+      402,
+      "payment_required"
+    );
+  }
+
+  if (status === 429 || /rate limit/i.test(errText)) {
+    return new UpstreamAIError(
+      "Limite de requisições da IA atingido. Aguarde alguns instantes e tente novamente.",
+      429,
+      "rate_limited"
+    );
+  }
+
+  return new UpstreamAIError(`${providerLabel} failed [${status}]: ${errText}`, status, "ai_error");
+}
+
+async function callLovableAI(images: string[]) {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    throw new UpstreamAIError("LOVABLE_API_KEY is not configured", 500, "missing_secret");
+  }
+
+  const contentParts: Array<Record<string, unknown>> = images.slice(0, 4).map((image) => ({
+    type: "image_url",
+    image_url: { url: image },
+  }));
 
   contentParts.push({
     type: "text",
@@ -217,30 +247,104 @@ async function callAI(images: string[]) {
   });
 
   if (!response.ok) {
-    const errText = await response.text();
-
-    if (response.status === 402 || /payment_required|not enough credits|credit balance is too low/i.test(errText)) {
-      throw new UpstreamAIError(
-        "Créditos de IA insuficientes para analisar a peça. Adicione créditos em Settings → Workspace → Usage e tente novamente.",
-        402,
-        "payment_required"
-      );
-    }
-
-    if (response.status === 429) {
-      throw new UpstreamAIError(
-        "Limite de requisições da IA atingido. Aguarde alguns instantes e tente novamente.",
-        429,
-        "rate_limited"
-      );
-    }
-
-    throw new UpstreamAIError(`AI call failed [${response.status}]: ${errText}`, response.status, "ai_error");
+    throw mapProviderError(response.status, await response.text(), "Lovable AI");
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || "";
-  return content;
+  return data.choices?.[0]?.message?.content || "";
+}
+
+async function callClaudeAI(images: string[]) {
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!ANTHROPIC_API_KEY) {
+    throw new UpstreamAIError("ANTHROPIC_API_KEY is not configured", 500, "missing_secret");
+  }
+
+  const contentParts: Array<Record<string, unknown>> = images.slice(0, 4).map((image) => {
+    const parsed = parseDataUrl(image);
+    return {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: parsed.mediaType,
+        data: parsed.data,
+      },
+    };
+  });
+
+  contentParts.push({
+    type: "text",
+    text: "Analyze these hanger garment photos with maximum technical precision and return only the requested JSON.",
+  });
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5-20251001",
+      system: SYSTEM_PROMPT,
+      max_tokens: 2000,
+      temperature: 0.1,
+      messages: [
+        {
+          role: "user",
+          content: contentParts,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw mapProviderError(response.status, await response.text(), "Claude API");
+  }
+
+  const data = await response.json();
+  const textBlock = data.content?.find?.((item: { type?: string }) => item.type === "text");
+  return textBlock?.text || "";
+}
+
+async function callAI(images: string[]) {
+  const providers: Array<{ name: string; run: () => Promise<string> }> = [];
+
+  if (Deno.env.get("ANTHROPIC_API_KEY")) {
+    providers.push({ name: "Claude", run: () => callClaudeAI(images) });
+  }
+
+  if (Deno.env.get("LOVABLE_API_KEY")) {
+    providers.push({ name: "Lovable AI", run: () => callLovableAI(images) });
+  }
+
+  if (providers.length === 0) {
+    throw new UpstreamAIError("Nenhum provedor de IA configurado para análise técnica.", 500, "missing_secret");
+  }
+
+  let lastError: UpstreamAIError | null = null;
+
+  for (const provider of providers) {
+    try {
+      return await provider.run();
+    } catch (error) {
+      const normalized = error instanceof UpstreamAIError
+        ? error
+        : new UpstreamAIError(`${provider.name} failed unexpectedly.`, 500, "ai_error");
+
+      lastError = normalized;
+
+      const shouldTryNextProvider = normalized.code === "payment_required"
+        || normalized.code === "rate_limited"
+        || normalized.status >= 500;
+
+      if (!shouldTryNextProvider) {
+        throw normalized;
+      }
+    }
+  }
+
+  throw lastError || new UpstreamAIError("Falha na análise técnica.", 500, "ai_error");
 }
 
 serve(async (req) => {
