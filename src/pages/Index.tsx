@@ -14,8 +14,8 @@ import PromptReviewStep from "@/components/fashion/PromptReviewStep";
 import ResultsStep from "@/components/fashion/ResultsStep";
 
 const STEPS = [
-  { id: 0, label: "Upload" },
-  { id: 1, label: "Modelo" },
+  { id: 0, label: "Modelo" },
+  { id: 1, label: "Upload" },
   { id: 2, label: "Estilos" },
   { id: 3, label: "Prompts" },
   { id: 4, label: "Resultados" },
@@ -162,8 +162,8 @@ const Index = () => {
   }, [state.weeklyLaunches.length]);
 
   const canProceed =
-    state.step === 0 ? !!activeVariant.garmentAnalysis
-    : state.step === 1 ? !!state.selectedProfile
+    state.step === 0 ? !!state.selectedProfile
+    : state.step === 1 ? !!activeVariant.garmentAnalysis
     : true;
 
   return (
@@ -199,6 +199,10 @@ const Index = () => {
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         {state.step === 0 && (
+          <ModelProfileStep selectedProfile={state.selectedProfile} onProfileChange={(p) => update("selectedProfile", p)} />
+        )}
+
+        {state.step === 1 && (
           <div className="space-y-6">
             <UploadStep
               images={activeVariant.uploadedImages}
@@ -214,10 +218,6 @@ const Index = () => {
               />
             )}
           </div>
-        )}
-
-        {state.step === 1 && (
-          <ModelProfileStep selectedProfile={state.selectedProfile} onProfileChange={(p) => update("selectedProfile", p)} />
         )}
         {state.step === 2 && (
           <StyleLibraryStep selectedPresets={state.selectedPresets} onPresetsChange={(p) => update("selectedPresets", p)} />

@@ -37,6 +37,37 @@ Luxury fashion campaign aesthetic. No distortion, no artificial smoothing, high 
 // 🎛 CAMADA 2 — Biblioteca de Estilos
 export const STYLE_CATEGORIES: StyleCategory[] = [
   {
+    id: "tr-ecommerce",
+    label: "TR E-commerce",
+    icon: "Sparkles",
+    presets: [
+      {
+        id: "tr-ecom-front",
+        name: "TR Frontal",
+        description: "Ângulo frontal, fundo branco puro, padrão e-commerce TR",
+        promptBlock: "Pure white seamless studio background (#FFFFFF infinity backdrop). High-key even lighting, no shadows on background. Model facing camera directly, classic e-commerce front view. Full body head-to-toe framing, model centered occupying max 70% frame height, minimum 10% headroom and 15% below feet. Clean commercial product photography optimized for TR e-commerce catalog."
+      },
+      {
+        id: "tr-ecom-back",
+        name: "TR Costas",
+        description: "Ângulo traseiro, fundo branco puro, detalhes das costas",
+        promptBlock: "Pure white seamless studio background (#FFFFFF infinity backdrop). High-key even lighting, no shadows on background. Model with back turned to camera, showing full rear view of garment. Full body head-to-toe framing, model centered occupying max 70% frame height. Clean commercial back view optimized for TR e-commerce catalog."
+      },
+      {
+        id: "tr-ecom-side",
+        name: "TR Lateral",
+        description: "Ângulo lateral/perfil, fundo branco puro, silhueta",
+        promptBlock: "Pure white seamless studio background (#FFFFFF infinity backdrop). High-key even lighting, no shadows on background. Model in side profile view, showing garment silhouette and drape. Full body head-to-toe framing, model centered occupying max 70% frame height. Clean commercial side view optimized for TR e-commerce catalog."
+      },
+      {
+        id: "tr-ecom-three-quarter",
+        name: "TR ¾ Diagonal",
+        description: "Ângulo ¾, fundo branco puro, perspectiva tridimensional",
+        promptBlock: "Pure white seamless studio background (#FFFFFF infinity backdrop). High-key even lighting, no shadows on background. Model at three-quarter angle (45 degrees), showing dimensional view of garment construction. Full body head-to-toe framing, model centered occupying max 70% frame height. Clean commercial three-quarter view optimized for TR e-commerce catalog."
+      }
+    ]
+  },
+  {
     id: "model",
     label: "Modelo",
     icon: "User",
@@ -195,6 +226,18 @@ export const STYLE_CATEGORIES: StyleCategory[] = [
 
 // Preset profiles para reutilização
 export const DEFAULT_PROFILES = [
+  {
+    id: "tr-padrao",
+    name: "TR Padrão",
+    height: "1.72",
+    bust: "86",
+    waist: "62",
+    hip: "90",
+    skinTone: "Bronzeado médio",
+    hairType: "Liso ondulado",
+    hairColor: "Castanho escuro",
+    generalStyle: "E-commerce TR"
+  },
   {
     id: "editorial-br",
     name: "Modelo Editorial BR",
