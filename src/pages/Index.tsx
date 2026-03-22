@@ -162,8 +162,8 @@ const Index = () => {
   }, [state.weeklyLaunches.length]);
 
   const canProceed =
-    state.step === 0 ? !!activeVariant.garmentAnalysis
-    : state.step === 1 ? !!state.selectedProfile
+    state.step === 0 ? !!state.selectedProfile
+    : state.step === 1 ? !!activeVariant.garmentAnalysis
     : true;
 
   return (
