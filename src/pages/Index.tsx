@@ -199,6 +199,10 @@ const Index = () => {
 
       <main className="max-w-5xl mx-auto px-6 py-8">
         {state.step === 0 && (
+          <ModelProfileStep selectedProfile={state.selectedProfile} onProfileChange={(p) => update("selectedProfile", p)} />
+        )}
+
+        {state.step === 1 && (
           <div className="space-y-6">
             <UploadStep
               images={activeVariant.uploadedImages}
@@ -214,10 +218,6 @@ const Index = () => {
               />
             )}
           </div>
-        )}
-
-        {state.step === 1 && (
-          <ModelProfileStep selectedProfile={state.selectedProfile} onProfileChange={(p) => update("selectedProfile", p)} />
         )}
         {state.step === 2 && (
           <StyleLibraryStep selectedPresets={state.selectedPresets} onPresetsChange={(p) => update("selectedPresets", p)} />

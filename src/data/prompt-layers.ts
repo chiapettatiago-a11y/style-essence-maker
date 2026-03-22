@@ -227,6 +227,18 @@ export const STYLE_CATEGORIES: StyleCategory[] = [
 // Preset profiles para reutilização
 export const DEFAULT_PROFILES = [
   {
+    id: "tr-padrao",
+    name: "TR Padrão",
+    height: "1.72",
+    bust: "86",
+    waist: "62",
+    hip: "90",
+    skinTone: "Bronzeado médio",
+    hairType: "Liso ondulado",
+    hairColor: "Castanho escuro",
+    generalStyle: "E-commerce TR"
+  },
+  {
     id: "editorial-br",
     name: "Modelo Editorial BR",
     height: "1.75",
