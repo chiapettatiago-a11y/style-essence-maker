@@ -14,8 +14,8 @@ import PromptReviewStep from "@/components/fashion/PromptReviewStep";
 import ResultsStep from "@/components/fashion/ResultsStep";
 
 const STEPS = [
-  { id: 0, label: "Upload" },
-  { id: 1, label: "Modelo" },
+  { id: 0, label: "Modelo" },
+  { id: 1, label: "Upload" },
   { id: 2, label: "Estilos" },
   { id: 3, label: "Prompts" },
   { id: 4, label: "Resultados" },
