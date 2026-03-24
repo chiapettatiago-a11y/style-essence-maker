@@ -688,17 +688,24 @@ serve(async (req) => {
       });
     }
 
-    const result = parsedEngine === "fal"
-      ? await callFalEngine({
-          promptUsed,
-          imageUrl: falReferenceImage,
-          angleType: parsedAngle,
-        })
-      : await callGeminiGateway({
-          promptUsed,
-          referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
-          attemptNumber: requestAttempt,
-        });
+    let result: { imageUrl: string; modelUsed: string };
+    try {
+      result = parsedEngine === "fal"
+        ? await callFalEngine({
+            promptUsed,
+            imageUrl: falReferenceImage,
+            angleType: parsedAngle,
+          })
+        : await callGeminiGateway({
+            promptUsed,
+            referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
+            attemptNumber: requestAttempt,
+          });
+    } catch (engineErr: unknown) {
+      const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
+      console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
+      throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
+    }
 
     const storedAsset = await uploadGeneratedAsset({
       sourceUrl: result.imageUrl,
