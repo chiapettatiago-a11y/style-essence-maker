@@ -192,8 +192,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({
       {garmentAnalysis && (
         <div className="border border-border rounded-xl p-4 bg-card/80 space-y-3">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <ImageIcon className="h-3.5 w-3.5 text-emerald-500" />
+            <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
+              <ImageIcon className="h-3.5 w-3.5 text-accent" />
             </div>
             <h4 className="text-xs font-semibold">Análise Técnica da Peça</h4>
           </div>
