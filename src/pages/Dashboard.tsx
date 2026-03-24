@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, FolderOpen, LogOut, Loader2, Trash2, ChevronDown } from "lucide-react";
+import { Plus, FolderOpen, LogOut, Loader2, Trash2, ChevronDown, Sparkles } from "lucide-react";
 import monograma from "@/assets/monograma.png";
 import { useToast } from "@/hooks/use-toast";
 import {
