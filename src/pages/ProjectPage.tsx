@@ -1245,7 +1245,20 @@ const ProductPage = () => {
                                   alt={img.label}
                                   className="w-full h-full object-cover cursor-pointer"
                                   loading="lazy"
-                                  onClick={() => setLightboxImage(img)}
+                                  onClick={async () => {
+                                    try {
+                                      const resp = await fetch(img.originalUrl || img.imageUrl!);
+                                      const blob = await resp.blob();
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement("a");
+                                      a.href = url;
+                                      a.download = `${img.label}.png`;
+                                      a.click();
+                                      URL.revokeObjectURL(url);
+                                    } catch {
+                                      window.open(img.originalUrl || img.imageUrl!, "_blank");
+                                    }
+                                  }}
                                   onError={(e) => {
                                     const target = e.currentTarget;
                                     const fallback = img.originalUrl || img.previewUrl;
@@ -1255,10 +1268,11 @@ const ProductPage = () => {
                                   }}
                                 />
                                 <button
-                                  onClick={() => setLightboxImage(img)}
-                                  className="absolute inset-0 bg-background/0 group-hover:bg-background/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                  onClick={(e) => { e.stopPropagation(); setLightboxImage(img); }}
+                                  className="absolute top-1 right-1 bg-background/80 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                                  title="Ampliar"
                                 >
-                                  <ZoomIn className="h-5 w-5 text-foreground" />
+                                  <ZoomIn className="h-4 w-4 text-foreground" />
                                 </button>
                               </>
                             )}
