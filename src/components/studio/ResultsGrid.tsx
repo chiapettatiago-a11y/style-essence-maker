@@ -223,14 +223,11 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
           onClick={() => setLightboxImage(null)}
         >
           <div className="relative max-w-2xl max-h-full flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setLightboxImage(null)}
-              className="absolute -top-2 -right-2 bg-card border border-border rounded-full p-1 hover:bg-muted"
-            >
-              <X className="h-4 w-4" />
-            </button>
             <GalleryImage image={lightboxImage} className="max-h-[80vh] object-contain rounded-lg shadow-xl" />
             <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setLightboxImage(null)}>
+                <ArrowLeft className="h-3 w-3 mr-1" /> Voltar
+              </Button>
               <span className="text-sm font-medium">{lightboxImage.label}</span>
               <Button variant="outline" size="sm" onClick={() => {
                 const a = document.createElement("a"); a.href = lightboxImage.originalUrl || lightboxImage.imageUrl || lightboxImage.previewUrl || ""; a.download = `${lightboxImage.label}.png`; a.click();
