@@ -779,6 +779,8 @@ serve(async (req) => {
             angleType: parsedAngle,
             loraUrl: modelProfile?.lora_url,
             loraTriggerWord: modelProfile?.lora_trigger_word,
+            loraScale: modelProfile?.lora_scale ?? 1.0,
+            guidanceScale: modelProfile?.guidance_scale ?? 3.5,
           })
         : await callGeminiGateway({
             promptUsed,
