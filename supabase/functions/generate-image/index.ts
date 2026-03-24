@@ -177,7 +177,7 @@ function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
 }
 
 function shouldUseFalReferenceImage(angleType: AngleType) {
-  return angleType === "lookbook-front" || angleType === "close-tr-cuff" || angleType === "close-tr-label";
+  return true;
 }
 
 async function fetchImageBytes(url: string) {
