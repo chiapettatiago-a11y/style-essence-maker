@@ -351,7 +351,7 @@ ${MIDI_DRESS_CRITICAL_BLOCK}`
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
-  return [blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock, blockD, fullBodyBlock, midiBlock, basePrompt || "", blockE]
+  return [blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock, blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE]
     .filter(Boolean)
     .join("\n\n");
 }
