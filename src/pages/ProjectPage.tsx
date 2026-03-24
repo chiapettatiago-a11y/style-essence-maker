@@ -1126,6 +1126,7 @@ const ProductPage = () => {
             </Button>
             <Button
               size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
                 setLaunchModalStep(1);
                 setLaunchModalOpen(true);
@@ -1310,6 +1311,69 @@ const ProductPage = () => {
             </TabsContent>
 
             <TabsContent value="video" className="mt-4 space-y-4">
+              {/* Gerar Vídeo standalone button */}
+              {variantWeeklyLaunches.some((w) => w.images.some((img) => img.type === "lookbook-front" && img.status === "done")) && (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold">Gerar Vídeo com IA</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Usa a foto frontal como frame de referência para gerar um vídeo cinematográfico.
+                    </p>
+                  </div>
+                  <Button
+                    size="default"
+                    disabled={isGenerating}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
+                    onClick={async () => {
+                      const frontImg = variantWeeklyLaunches
+                        .flatMap((w) => w.images)
+                        .find((img) => img.type === "lookbook-front" && img.status === "done");
+                      if (!frontImg) {
+                        toast({ title: "Erro", description: "Gere a foto frontal antes de criar o vídeo.", variant: "destructive" });
+                        return;
+                      }
+                      const sourceUrl = frontImg.originalUrl || frontImg.imageUrl;
+                      if (!sourceUrl) return;
+
+                      setIsGenerating(true);
+                      toast({ title: "Gerando vídeo...", description: "Isso pode levar alguns segundos." });
+
+                      try {
+                        const videoPrompt = `Professional cinematic fashion video frame. Model wearing the exact same garment from the reference image. Slow elegant 360-degree turn showing all angles. Studio white background. Cinematic lighting. Fashion lookbook campaign quality.`;
+
+                        const { data, error } = await supabase.functions.invoke("generate-video", {
+                          body: {
+                            prompt: videoPrompt,
+                            sourceImageUrl: sourceUrl,
+                            videoType: "video-model",
+                          },
+                        });
+                        if (error) throw error;
+
+                        toast({ title: "Vídeo gerado!", description: "Frame de referência criado com sucesso." });
+                      } catch (err: unknown) {
+                        const message = err instanceof Error ? err.message : "Falha na geração de vídeo";
+                        toast({ title: "Erro", description: message, variant: "destructive" });
+                      } finally {
+                        setIsGenerating(false);
+                      }
+                    }}
+                  >
+                    {isGenerating ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Gerando...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="h-4 w-4" />
+                        GERAR VÍDEO
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              )}
+
               {[...variantWeeklyLaunches].reverse().map((launch) => {
                 const videos = launch.images.filter((img) => img.type === "video-product" || img.type === "video-model");
                 if (videos.length === 0) return null;
@@ -1353,13 +1417,17 @@ const ProductPage = () => {
                                   className="w-full h-full object-contain"
                                 />
                               </div>
+                            ) : v.status === "done" && v.imageUrl ? (
+                              <div className="rounded-lg overflow-hidden bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
+                                <img src={v.imageUrl} alt={v.label} className="w-full h-full object-contain" />
+                              </div>
                             ) : v.status === "error" ? (
                               <div className="rounded-lg bg-destructive/10 text-destructive text-xs p-3">{v.error}</div>
                             ) : v.status === "generating" ? (
                               <div className="rounded-lg bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
                                 <div className="text-center space-y-2">
                                   <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                                  <p className="text-xs text-muted-foreground">Gerando vídeo via Kling 2.5...</p>
+                                  <p className="text-xs text-muted-foreground">Gerando vídeo...</p>
                                 </div>
                               </div>
                             ) : (
@@ -1380,13 +1448,15 @@ const ProductPage = () => {
               {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type === "video-product" || img.type === "video-model").length === 0) && (
                 <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
                   <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-primary" />
+                    </div>
                     <h3 className="text-sm font-semibold">Nenhum vídeo gerado ainda</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Os vídeos são gerados automaticamente junto com as fotos ao criar um <strong>novo lançamento</strong>. O sistema usa a foto frontal como frame inicial para gerar vídeos via Kling 2.5.
+                      Gere primeiro as <strong>fotos do lookbook</strong> via "Novo lançamento", depois clique em <strong>"Gerar Vídeo"</strong> para criar o vídeo a partir da foto frontal.
                     </p>
                     <Button
                       size="sm"
-                      variant="outline"
                       onClick={() => {
                         setLaunchModalStep(1);
                         setLaunchModalOpen(true);
