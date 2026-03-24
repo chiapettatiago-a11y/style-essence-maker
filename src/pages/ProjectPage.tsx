@@ -900,7 +900,7 @@ const ProductPage = () => {
     variantWeeklyLaunches,
   ]);
 
-  const handleRegenerate = useCallback(async (id: string) => {
+  const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine) => {
     let img: GeneratedImage | undefined;
     let sourceLaunch: WeeklyLaunch | undefined;
     for (const w of state.weeklyLaunches) {
@@ -914,7 +914,7 @@ const ProductPage = () => {
     if (!img || !activeVariant) return;
 
     const nextAttempt = (img.attemptNumber || 1) + 1;
-    const engine = sourceLaunch?.engineUsed || state.selectedEngine;
+    const engine = overrideEngine || sourceLaunch?.engineUsed || state.selectedEngine;
     const frontReference = sourceLaunch?.images.find((launchImg) => launchImg.type === "lookbook-front" && launchImg.status === "done");
     const frontReferenceUrl = frontReference?.originalUrl || frontReference?.previewUrl || frontReference?.imageUrl || "";
     const isCloseDetail = img.type === "close-tr-cuff" || img.type === "close-tr-label";
