@@ -154,7 +154,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
             disabled={uploadedImages.length === 0 || isAnalyzing || !!garmentAnalysis}
             size="sm"
             className={cn(
-              garmentAnalysis ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
+              garmentAnalysis ? "bg-accent text-accent-foreground hover:bg-accent/90" : ""
             )}
           >
             {isAnalyzing ? (
