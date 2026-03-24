@@ -339,7 +339,7 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
   const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
   const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
-  const trBadgeBlock = TR_BADGE_DETAILED_BLOCK;
+  const trBadgeBlock = TR_BADGE_DETAILED_BLOCK_FN(garmentAnalysis?.signatureDetails);
 
   const blockE = manualPrompt?.trim()
     ? `Additional direction from the designer: ${manualPrompt.trim()}
