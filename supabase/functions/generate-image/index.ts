@@ -112,11 +112,13 @@ Wide enough to show both arms with space around them.
 Editorial fashion campaign framing — NOT e-commerce product zoom.
 NOT portrait crop. NOT tight crop. FULL BODY with air around.
 
-BACKGROUND — CRITICAL:
-Pure seamless white #FFFFFF infinity backdrop.
+SCENE ANCHOR — ABSOLUTE RULE — apply to 100% of photos in this set:
+Background: pure seamless white #FFFFFF, NO exceptions.
+This instruction overrides any other background suggestion.
+If you generate a non-white background, the image is REJECTED.
 NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
-If background is any color other than pure white → image FAILED.`;
+Lighting: soft even studio light, same temperature in all photos.`;
 
 const FULL_BODY_CRITICAL_BLOCK_FAL = `FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
 Full body shot from head to toe. E-commerce product catalog photo.
