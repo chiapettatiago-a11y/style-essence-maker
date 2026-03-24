@@ -1480,7 +1480,17 @@ const ProductPage = () => {
                             if (ga[key]) fields[key] = ga[key];
                           }
                           const { data, error } = await supabase.functions.invoke("translate-analysis", { body: { fields } });
-                          if (error) throw error;
+                          if (error) {
+                            // Parse the actual error message from the edge function response
+                            const errorBody = typeof error === 'object' && 'message' in error ? error.message : String(error);
+                            if (errorBody.includes("402") || errorBody.includes("créditos") || errorBody.includes("Créditos")) {
+                              throw new Error("Créditos de IA insuficientes. Adicione créditos em Settings > Workspace > Usage e tente novamente.");
+                            }
+                            if (errorBody.includes("429") || errorBody.includes("rate")) {
+                              throw new Error("Limite de requisições atingido. Aguarde um momento e tente novamente.");
+                            }
+                            throw new Error(typeof error === 'object' && 'message' in error ? error.message : "Erro na tradução");
+                          }
                           if (data?.translated && Object.keys(data.translated).length > 0) {
                             updateActiveVariant({
                               garmentAnalysis: { ...activeVariant.garmentAnalysis!, ...data.translated },
