@@ -721,6 +721,8 @@ serve(async (req) => {
             promptUsed,
             imageUrl: falReferenceImage,
             angleType: parsedAngle,
+            loraUrl: modelProfile?.lora_url,
+            loraTriggerWord: modelProfile?.lora_trigger_word,
           })
         : await callGeminiGateway({
             promptUsed,
