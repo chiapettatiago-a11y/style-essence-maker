@@ -45,6 +45,7 @@ interface LaunchFlowModalProps {
   onMannequinChange: (value: MannequinData) => void;
   selectedProfile: ModelProfile | null;
   onSelectModel: (modelId: string) => void;
+  onProfileUpdate: (profile: ModelProfile) => void;
   selectedPresets: Record<string, string>;
   onPresetsChange: (p: Record<string, string>) => void;
   manualPrompt: string;
