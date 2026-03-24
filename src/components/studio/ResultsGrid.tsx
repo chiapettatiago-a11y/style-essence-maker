@@ -1,11 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { GeneratedImage, WeeklyLaunch } from "@/types/fashion";
-import { Download, RefreshCw, Copy, Check, Loader2, ImageIcon, X, Video } from "lucide-react";
+import { GeneratedImage, GenerationEngine, WeeklyLaunch } from "@/types/fashion";
+import { Download, RefreshCw, Copy, Check, Loader2, ImageIcon, X, Video, Sparkles, Layers3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface ResultsGridProps {
   weeklyLaunches: WeeklyLaunch[];
-  onRegenerate: (id: string) => void;
+  onRegenerate: (id: string, engine?: GenerationEngine) => void;
+  onRegenerateAll?: (engine: GenerationEngine) => void;
 }
 
 const GalleryImage: React.FC<{ image: GeneratedImage; className?: string }> = ({ image, className }) => {
@@ -42,7 +44,12 @@ const GalleryImage: React.FC<{ image: GeneratedImage; className?: string }> = ({
   );
 };
 
-const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate }) => {
+const ENGINE_OPTIONS: Array<{ id: GenerationEngine; label: string; Icon: typeof Sparkles }> = [
+  { id: "gemini", label: "Gemini", Icon: Sparkles },
+  { id: "fal", label: "fal.ai Flux", Icon: Layers3 },
+];
+
+const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate, onRegenerateAll }) => {
   const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -55,6 +62,8 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
     [weeklyLaunches]
   );
 
+  const hasDoneImages = allImages.some((img) => img.status === "done");
+
   if (allImages.length === 0 && allVideos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
@@ -66,11 +75,32 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold">Resultados Gerados</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          {allImages.length} imagens • {allVideos.length} prompts de vídeo
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold">Resultados Gerados</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {allImages.length} imagens • {allVideos.length} prompts de vídeo
+          </p>
+        </div>
+
+        {hasDoneImages && onRegenerateAll && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="text-xs gap-1.5">
+                <RefreshCw className="h-3 w-3" />
+                Regenerar Todas
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {ENGINE_OPTIONS.map(({ id, label, Icon }) => (
+                <DropdownMenuItem key={id} onClick={() => onRegenerateAll(id)} className="gap-2 text-xs">
+                  <Icon className="h-3.5 w-3.5" />
+                  Regenerar com {label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -90,9 +120,21 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
             ) : img.status === "error" ? (
               <div className="flex flex-col items-center gap-2 p-3">
                 <span className="text-[10px] text-destructive text-center">{img.error || "Erro"}</span>
-                <Button variant="outline" size="sm" className="text-[10px] h-6" onClick={(e) => { e.stopPropagation(); onRegenerate(img.id); }}>
-                  <RefreshCw className="h-2.5 w-2.5 mr-1" /> Tentar
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="text-[10px] h-6" onClick={(e) => e.stopPropagation()}>
+                      <RefreshCw className="h-2.5 w-2.5 mr-1" /> Regenerar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                    {ENGINE_OPTIONS.map(({ id, label, Icon }) => (
+                      <DropdownMenuItem key={id} onClick={() => onRegenerate(img.id, id)} className="gap-2 text-xs">
+                        <Icon className="h-3.5 w-3.5" />
+                        {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ) : (
               <span className="text-[10px] text-muted-foreground">Pendente...</span>
@@ -111,12 +153,24 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
                 >
                   <Download className="h-3 w-3" />
                 </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onRegenerate(img.id); }}
-                  className="bg-background/80 rounded-full p-1 hover:bg-background"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="bg-background/80 rounded-full p-1 hover:bg-background"
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                    {ENGINE_OPTIONS.map(({ id, label, Icon }) => (
+                      <DropdownMenuItem key={id} onClick={() => onRegenerate(img.id, id)} className="gap-2 text-xs">
+                        <Icon className="h-3.5 w-3.5" />
+                        Regenerar com {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             )}
           </div>
@@ -175,9 +229,21 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate 
               }}>
                 <Download className="h-3 w-3 mr-1" /> Download
               </Button>
-              <Button variant="outline" size="sm" onClick={() => { onRegenerate(lightboxImage.id); setLightboxImage(null); }}>
-                <RefreshCw className="h-3 w-3 mr-1" /> Regenerar
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <RefreshCw className="h-3 w-3 mr-1" /> Regenerar
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {ENGINE_OPTIONS.map(({ id, label, Icon }) => (
+                    <DropdownMenuItem key={id} onClick={() => { onRegenerate(lightboxImage.id, id); setLightboxImage(null); }} className="gap-2 text-xs">
+                      <Icon className="h-3.5 w-3.5" />
+                      Regenerar com {label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
