@@ -38,11 +38,13 @@ Wide enough to show both arms with space around them.
 Editorial fashion campaign framing — NOT e-commerce product zoom.
 NOT portrait crop. NOT tight crop. FULL BODY with air around.
 
-BACKGROUND — CRITICAL:
-Pure seamless white #FFFFFF infinity backdrop.
+SCENE ANCHOR — ABSOLUTE RULE — apply to 100% of photos in this set:
+Background: pure seamless white #FFFFFF, NO exceptions.
+This instruction overrides any other background suggestion.
+If you generate a non-white background, the image is REJECTED.
 NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
-If background is any color other than pure white → image FAILED.`;
+Lighting: soft even studio light, same temperature in all photos.`;
 
 const MIDI_DRESS_CRITICAL_BLOCK = `DRESS LENGTH — CRITICAL:
 Hem falls at mid-calf, 15cm below the knee.
@@ -52,7 +54,7 @@ The full skirt must be visible — do NOT crop the hem.`;
 
 function isDressLikeGarment(garment: GarmentAnalysis | null): boolean {
   const text = [garment?.type, garment?.fullDescription, garment?.style].filter(Boolean).join(" ").toLowerCase();
-  return /(dress|vestido|gown)/.test(text);
+  return /(dress|vestido|gown|two-piece|two piece|conjunto|saia|skirt)/.test(text);
 }
 
 function buildFaceAnchorPrompt(input: {
@@ -109,10 +111,21 @@ export function buildFullPrompt(
   const parts: string[] = [base];
 
   if (garment) {
+    const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garment.type || "");
+    const twoPieceBlock = isTwoPieceSet
+      ? `\nTWO-PIECE SET RULE — CRITICAL:\nThis garment is a TWO-PIECE SET (top + bottom sold together).\n- Show BOTH pieces worn together in all body shots.\n- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.\n- Do NOT merge into a single dress silhouette.\n- Maintain visible separation line between top and bottom at waist.`
+      : "";
+
+    const trPositionNotVisible = !garment.signatureDetails || /not clearly visible/i.test(garment.signatureDetails);
+    const trBlock = trPositionNotVisible
+      ? `\nTR SIGNATURE: Not clearly visible in reference — do NOT add TR button anywhere.`
+      : `\nTR SIGNATURE HARDWARE — STRICT RULE:\nInclude the TR button ONLY at this exact position: ${garment.signatureDetails}\nNEVER invent or relocate the TR button.`;
+
     const garmentBlock = [
       `GARMENT SPECIFICATION (do NOT deviate from this description):`,
       `Type: ${garment.type}`,
       garment.promptDescription ? `Definitive fidelity description: ${garment.promptDescription}` : "",
+      twoPieceBlock,
       garment.length ? `Length: ${garment.length} — THIS LENGTH IS MANDATORY, do not shorten or lengthen` : "",
       garment.lengthDescription ? `Length note: ${garment.lengthDescription}` : "",
       garment.silhouette ? `Silhouette: ${garment.silhouette}` : "",
@@ -126,6 +139,7 @@ export function buildFullPrompt(
       garment.closure ? `Closure: ${garment.closure}` : "",
       garment.beltOrTie ? `Belt / tie: ${garment.beltOrTie}` : "",
       garment.signatureDetails ? `Signature details: ${garment.signatureDetails}` : "",
+      trBlock,
       `Construction: ${garment.construction}`,
       `Details: ${garment.details}`,
       garment.fullDescription ? `\nFull reference: ${garment.fullDescription}` : "",

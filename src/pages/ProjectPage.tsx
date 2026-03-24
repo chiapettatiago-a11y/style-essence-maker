@@ -900,7 +900,7 @@ const ProductPage = () => {
     variantWeeklyLaunches,
   ]);
 
-  const handleRegenerate = useCallback(async (id: string) => {
+  const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine) => {
     let img: GeneratedImage | undefined;
     let sourceLaunch: WeeklyLaunch | undefined;
     for (const w of state.weeklyLaunches) {
@@ -914,7 +914,7 @@ const ProductPage = () => {
     if (!img || !activeVariant) return;
 
     const nextAttempt = (img.attemptNumber || 1) + 1;
-    const engine = sourceLaunch?.engineUsed || state.selectedEngine;
+    const engine = overrideEngine || sourceLaunch?.engineUsed || state.selectedEngine;
     const frontReference = sourceLaunch?.images.find((launchImg) => launchImg.type === "lookbook-front" && launchImg.status === "done");
     const frontReferenceUrl = frontReference?.originalUrl || frontReference?.previewUrl || frontReference?.imageUrl || "";
     const isCloseDetail = img.type === "close-tr-cuff" || img.type === "close-tr-label";
@@ -1267,18 +1267,42 @@ const ProductPage = () => {
                             {img.status === "error" && (
                               <div className="text-center p-2">
                                 <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
-                                <Button size="sm" variant="outline" className="h-7 mt-2 text-xs" onClick={() => handleRegenerate(img.id)}>
-                                  <RefreshCw className="h-3 w-3 mr-1" /> Tentar
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="outline" className="h-7 mt-2 text-xs">
+                                      <RefreshCw className="h-3 w-3 mr-1" /> Regenerar
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
+                                      <Sparkles className="h-3.5 w-3.5" /> Gemini
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
+                                      <ArrowRight className="h-3.5 w-3.5" /> fal.ai Flux
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             )}
                           </div>
                           <div className="px-2.5 py-2 flex items-center justify-between">
                             <span className="text-xs font-medium truncate">{img.label}</span>
                             {img.status === "done" && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRegenerate(img.id)}>
-                                <RefreshCw className="h-3.5 w-3.5" />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
+                                    <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
+                                    <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             )}
                           </div>
                         </div>
@@ -1730,6 +1754,21 @@ const ProductPage = () => {
                 >
                   <Download className="h-3.5 w-3.5" /> Baixar
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="secondary" className="h-8 gap-1.5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Regenerar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "gemini"); setLightboxImage(null); }} className="gap-2 text-xs">
+                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "fal"); setLightboxImage(null); }} className="gap-2 text-xs">
+                      <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-white" onClick={() => setLightboxImage(null)}>
                   <X className="h-4 w-4" />
                 </Button>

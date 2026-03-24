@@ -67,19 +67,29 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
  Do NOT generate a male model under any circumstances.
  Female body proportions, female facial features, female silhouette — mandatory.`;
  
- const TR_BADGE_DETAILED_BLOCK = `SIGNATURE BRAND ELEMENT — "TR" GOLDEN BADGE — MANDATORY IN EVERY IMAGE:
- Element type: Small round metallic button/tag, approximately 1.5–2cm in diameter.
- Material: Polished 18k gold-finish metal, high-shine reflective surface.
- Engraving: Interlocking monogram letters "TR" in decorative gothic/serif typeface, raised/embossed from the metal surface.
- Position: Attached at the garment's designated closure point (typically center-front waistband for skirts, right cuff for dresses, or as detected in garment analysis).
- Attachment: Functional button with visible thread shank in matching garment color.
- Rendering requirements:
- - The "TR" letters must be LEGIBLE and SHARP — not blurred, not abstracted.
- - Gold color must be warm polished gold (#D4AF37 to #FFD700 range), NOT silver, NOT brass, NOT matte.
- - Must catch light realistically with specular highlights showing metallic surface.
- - Must appear at CORRECT SCALE relative to garment — approximately 2cm diameter, NOT oversized, NOT microscopic.
- - In close-up shots, individual letter strokes of "T" and "R" must be distinguishable.
- Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched inside collar/waistband fold.`;
+ const TR_BADGE_DETAILED_BLOCK_FN = (signatureDetails?: string) => {
+   const positionNotVisible = !signatureDetails || /not clearly visible/i.test(signatureDetails);
+   if (positionNotVisible) {
+     return `SIGNATURE BRAND ELEMENT — "TR" GOLDEN BADGE:
+The TR button was NOT clearly visible in the reference photos.
+Do NOT add a TR button/badge anywhere on the garment.
+Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched inside collar/waistband fold.`;
+   }
+   return `SIGNATURE BRAND ELEMENT — "TR" GOLDEN BADGE — MANDATORY IN EVERY IMAGE:
+Element type: Small round metallic button/tag, approximately 1.5–2cm in diameter.
+Material: Polished 18k gold-finish metal, high-shine reflective surface.
+Engraving: Interlocking monogram letters "TR" in decorative gothic/serif typeface, raised/embossed from the metal surface.
+Position: ${signatureDetails}
+Attachment: Functional button with visible thread shank in matching garment color.
+Rendering requirements:
+- The "TR" letters must be LEGIBLE and SHARP — not blurred, not abstracted.
+- Gold color must be warm polished gold (#D4AF37 to #FFD700 range), NOT silver, NOT brass, NOT matte.
+- Must catch light realistically with specular highlights showing metallic surface.
+- Must appear at CORRECT SCALE relative to garment — approximately 2cm diameter, NOT oversized, NOT microscopic.
+- In close-up shots, individual letter strokes of "T" and "R" must be distinguishable.
+- NEVER invent or relocate the TR button to a different position than specified above.
+Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched inside collar/waistband fold.`;
+ };
  
  const ANGLE_BLOCKS: Record<AngleType, string> = {
   "lookbook-front": "front_view: facing camera directly, full body head-to-toe, straight on. SAME FEMALE model as described.",
@@ -102,11 +112,13 @@ Wide enough to show both arms with space around them.
 Editorial fashion campaign framing — NOT e-commerce product zoom.
 NOT portrait crop. NOT tight crop. FULL BODY with air around.
 
-BACKGROUND — CRITICAL:
-Pure seamless white #FFFFFF infinity backdrop.
+SCENE ANCHOR — ABSOLUTE RULE — apply to 100% of photos in this set:
+Background: pure seamless white #FFFFFF, NO exceptions.
+This instruction overrides any other background suggestion.
+If you generate a non-white background, the image is REJECTED.
 NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
-If background is any color other than pure white → image FAILED.`;
+Lighting: soft even studio light, same temperature in all photos.`;
 
 const FULL_BODY_CRITICAL_BLOCK_FAL = `FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
 Full body shot from head to toe. E-commerce product catalog photo.
@@ -117,17 +129,16 @@ Clean, symmetrical, centered composition — like ZARA or NET-A-PORTER product p
 Professional fashion e-commerce catalog photo — NOT editorial, NOT artistic, NOT lifestyle.
 NOT portrait crop. NOT tight crop. FULL BODY centered with breathing room.
 
-BACKGROUND — CRITICAL:
-Pure seamless white #FFFFFF studio cyclorama backdrop.
+SCENE ANCHOR — ABSOLUTE RULE — apply to 100% of photos in this set:
+Background: pure seamless white #FFFFFF studio cyclorama backdrop, NO exceptions.
+This instruction overrides any other background suggestion.
+If you generate a non-white background, the image is REJECTED.
 NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient. NOT any environment.
 NO texture. NO shadow on background. NO vignette. NO props.
-Clean studio white only — if background is any color other than pure white → FAILED.
-
-LIGHTING — CRITICAL:
-Soft, diffused studio lighting from front and above.
+Lighting: soft, diffused studio lighting from front and above.
 Even illumination — no harsh shadows on garment or skin.
 High-key, color-accurate: garment colors must look true to life.
-Standard e-commerce product lighting — bright, clean, neutral.`;
+Same lighting temperature in all photos of this set.`;
 
 const MIDI_DRESS_CRITICAL_BLOCK = `DRESS LENGTH — CRITICAL:
 Hem falls at mid-calf, 15cm below the knee.
@@ -158,7 +169,7 @@ function isDressLikeGarment(garmentAnalysis?: GarmentAnalysis | null) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  return /(dress|vestido|gown)/.test(text);
+  return /(dress|vestido|gown|two-piece|two piece|conjunto|saia|skirt)/.test(text);
 }
 
 function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
@@ -278,12 +289,24 @@ Lighting: natural key light + soft fill, no harsh shadows.
 Resolution: 1080x1920px portrait, 4K clarity.
 Format: 9:16 portrait.`;
 
+  const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garmentAnalysis?.type || "");
+  const twoPieceBlock = isTwoPieceSet
+    ? `TWO-PIECE SET RULE — CRITICAL:
+This garment is a TWO-PIECE SET (top + bottom sold together).
+- Show BOTH pieces worn together in all body shots.
+- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.
+- Do NOT merge into a single dress silhouette.
+- Maintain visible separation line between top and bottom at waist.
+- Each piece must maintain its own construction and proportions.`
+    : "";
+
   const blockB = `ABSOLUTE GARMENT FIDELITY — this is the most critical instruction.
 Do NOT redesign, alter proportions, remove or add any detail.
 ${garmentAnalysis?.promptDescription ? `
 DEFINITIVE GARMENT DESCRIPTION — preserve exactly:
 ${garmentAnalysis.promptDescription}
 ` : ""}
+${twoPieceBlock}
 Preserve exactly:
 - Color: ${garmentAnalysis?.color || "N/A"} with ${garmentAnalysis?.pattern || "N/A"}
 - Silhouette: ${garmentAnalysis?.silhouette || "N/A"}
@@ -316,7 +339,7 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
   const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
   const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
-  const trBadgeBlock = TR_BADGE_DETAILED_BLOCK;
+  const trBadgeBlock = TR_BADGE_DETAILED_BLOCK_FN(garmentAnalysis?.signatureDetails);
 
   const blockE = manualPrompt?.trim()
     ? `Additional direction from the designer: ${manualPrompt.trim()}
@@ -437,6 +460,45 @@ async function callGeminiGateway(params: {
   return { imageUrl, modelUsed };
 }
 
+async function ensurePublicUrl(imageUrl: string): Promise<string> {
+  // If already a public URL, return as-is
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+
+  // If base64, upload to storage and return public URL
+  if (imageUrl.startsWith("data:image/")) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error("Cannot convert base64 to public URL: missing Supabase credentials");
+    }
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const match = imageUrl.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) throw new Error("Invalid base64 image format");
+
+    const ext = match[1] === "jpeg" ? "jpg" : match[1];
+    const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+    const objectPath = `temp-ref/${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+      contentType: `image/${match[1]}`,
+      cacheControl: "3600",
+      upsert: true,
+    });
+
+    if (error) throw new Error(`Failed to upload reference image: ${error.message}`);
+
+    return buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+  }
+
+  throw new Error("Unsupported image format for fal.ai reference");
+}
+
 async function callFalEngine(params: {
   promptUsed: string;
   imageUrl?: string;
@@ -447,13 +509,21 @@ async function callFalEngine(params: {
 
   fal.config({ credentials: FAL_API_KEY });
 
-  const useReference = !!params.imageUrl;
+  let publicImageUrl: string | undefined;
+  if (params.imageUrl) {
+    publicImageUrl = await ensurePublicUrl(params.imageUrl);
+  }
+
+  const useReference = !!publicImageUrl;
   const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
   const imageSize = getImageSize(params.angleType);
+
+  console.log(`[fal] endpoint=${endpoint}, hasRef=${useReference}, angleType=${params.angleType}`);
+
   const result = await fal.subscribe(endpoint, {
     input: {
       prompt: params.promptUsed,
-      ...(useReference ? { image_url: params.imageUrl } : {}),
+      ...(useReference ? { image_url: publicImageUrl } : {}),
       image_size: imageSize,
       num_inference_steps: 28,
       guidance_scale: 3.5,
