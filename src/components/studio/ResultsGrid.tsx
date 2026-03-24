@@ -126,10 +126,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
             className="relative group aspect-[9/16] rounded-xl overflow-hidden border border-border bg-muted flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => {
               if (img.status === "done" && (img.originalUrl || img.imageUrl || img.previewUrl)) {
-                const a = document.createElement("a");
-                a.href = img.originalUrl || img.imageUrl || img.previewUrl || "";
-                a.download = `${img.label}.png`;
-                a.click();
+                downloadFile(img.originalUrl || img.imageUrl || img.previewUrl || "", `${img.label}.png`);
               }
             }}
           >
