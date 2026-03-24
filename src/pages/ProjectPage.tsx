@@ -1764,6 +1764,7 @@ const ProductPage = () => {
         onMannequinChange={setMannequin}
         selectedProfile={state.selectedProfile}
         onSelectModel={handleSelectModelById}
+        onProfileUpdate={(profile) => update("selectedProfile", profile)}
         selectedPresets={state.selectedPresets}
         onPresetsChange={(p) => update("selectedPresets", p)}
         manualPrompt={state.manualPrompt}

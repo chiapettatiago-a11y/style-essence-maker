@@ -86,6 +86,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onMannequinChange,
   selectedProfile,
   onSelectModel,
+  onProfileUpdate,
   selectedPresets,
   onPresetsChange,
   manualPrompt,
