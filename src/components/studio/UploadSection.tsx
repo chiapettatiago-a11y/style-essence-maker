@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { GarmentAnalysis } from "@/types/fashion";
-import { Upload, X, ImageIcon, Sparkles } from "lucide-react";
+import { Upload, X, ImageIcon, Sparkles, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,10 +34,10 @@ const UploadSection: React.FC<UploadSectionProps> = ({
   uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate,
 }) => {
   const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback((files: FileList) => {
     const selectedFiles = Array.from(files);
-
     Promise.all(
       selectedFiles.map(
         (file) =>
@@ -55,102 +55,148 @@ const UploadSection: React.FC<UploadSectionProps> = ({
           onImagesChange([...uploadedImages, ...nextImages]);
         }
       })
-      .catch(() => {
-        // silencioso por enquanto: o componente pai já lida com o estado visual
-      });
+      .catch(() => {});
   }, [uploadedImages, onImagesChange]);
 
   const removeImage = (index: number) => {
     onImagesChange(uploadedImages.filter((_, i) => i !== index));
   };
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-semibold">Fotos de Referência da Peça</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Envie até 3 fotos da peça original para análise
-        </p>
-      </div>
+  const openFilePicker = () => fileInputRef.current?.click();
 
-      <div className="flex gap-3 items-start">
-        {/* Upload area */}
+  const hasImages = uploadedImages.length > 0;
+
+  return (
+    <div className="space-y-5">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => { if (e.target.files) handleFiles(e.target.files); e.target.value = ""; }}
+      />
+
+      {/* Main upload area - MAGION style */}
+      {!hasImages ? (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); }}
-          onClick={() => {
-            const input = document.createElement("input");
-            input.type = "file"; input.accept = "image/*"; input.multiple = true;
-            input.onchange = (e) => { const files = (e.target as HTMLInputElement).files; if (files) handleFiles(files); };
-            input.click();
-          }}
+          onClick={openFilePicker}
           className={cn(
-            "border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all min-w-[140px]",
-            dragOver ? "border-accent bg-accent/10" : "border-border hover:border-accent/50",
-            uploadedImages.length > 0 ? "w-[140px]" : "flex-1"
+            "border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all",
+            dragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border hover:border-primary/50 hover:bg-muted/30"
           )}
         >
-          <Upload className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
-          <p className="text-xs font-medium">Arraste ou clique</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">PNG, JPG</p>
+          <div className="mx-auto w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+            <Upload className="h-7 w-7 text-primary" />
+          </div>
+          <h3 className="text-base font-semibold mb-1">Arraste as fotos da peça aqui</h3>
+          <p className="text-sm text-muted-foreground">ou clique para selecionar • PNG, JPG, WEBP</p>
+          <p className="text-xs text-muted-foreground/60 mt-2">Envie quantas fotos quiser — frente, costas, detalhes, etiqueta</p>
         </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Fotos de referência</h3>
+              <p className="text-xs text-muted-foreground">{uploadedImages.length} foto{uploadedImages.length !== 1 ? "s" : ""} adicionada{uploadedImages.length !== 1 ? "s" : ""}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={openFilePicker} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Adicionar mais
+            </Button>
+          </div>
 
-        {/* Uploaded image thumbnails */}
-        {uploadedImages.length > 0 && (
-          <div className="flex gap-2 flex-wrap flex-1">
+          {/* Image grid with larger previews */}
+          <div
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); }}
+            className={cn(
+              "grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 p-3 rounded-xl border-2 border-dashed transition-colors",
+              dragOver ? "border-primary bg-primary/5" : "border-transparent"
+            )}
+          >
             {uploadedImages.map((img, i) => (
-              <div key={i} className="relative group w-[100px] aspect-square rounded-lg overflow-hidden border border-border">
+              <div key={i} className="relative group aspect-[3/4] rounded-lg overflow-hidden border border-border bg-card shadow-sm">
                 <img src={img} alt={`Ref ${i + 1}`} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
                 <button
                   onClick={() => removeImage(i)}
-                  className="absolute top-1 right-1 bg-background/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-sm rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3 w-3 text-white" />
                 </button>
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-[10px] text-white font-medium">Foto {i + 1}</span>
+                </div>
               </div>
             ))}
+
+            {/* Add more card */}
+            <button
+              onClick={openFilePicker}
+              className="aspect-[3/4] rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-primary transition-colors bg-muted/20"
+            >
+              <Plus className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Adicionar</span>
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Analyze button */}
-      <div className="flex gap-2">
-        <Button
-          onClick={onAnalyze}
-          disabled={uploadedImages.length === 0 || isAnalyzing || !!garmentAnalysis}
-          size="sm"
-        >
-          {isAnalyzing ? (
-            <span className="flex items-center gap-2">
-              <span className="h-3 w-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-              Analisando...
-            </span>
-          ) : garmentAnalysis ? (
-            <span className="flex items-center gap-1.5"><ImageIcon className="h-3 w-3" /> Análise concluída ✓</span>
-          ) : (
-            "Analisar Peça"
-          )}
-        </Button>
-        {garmentAnalysis && (
+      {hasImages && (
+        <div className="flex items-center gap-3">
           <Button
-            variant="outline"
+            onClick={onAnalyze}
+            disabled={uploadedImages.length === 0 || isAnalyzing || !!garmentAnalysis}
             size="sm"
-            disabled={isAnalyzing}
-            onClick={() => {
-              onAnalysisUpdate(null as any);
-              setTimeout(() => onAnalyze(), 100);
-            }}
+            className={cn(
+              garmentAnalysis ? "bg-accent text-accent-foreground hover:bg-accent/90" : ""
+            )}
           >
-            <Sparkles className="h-3 w-3 mr-1" /> Re-analisar
+            {isAnalyzing ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Analisando peça...
+              </span>
+            ) : garmentAnalysis ? (
+              <span className="flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> Análise concluída</span>
+            ) : (
+              <span className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Analisar Peça com IA</span>
+            )}
           </Button>
-        )}
-      </div>
+          {garmentAnalysis && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isAnalyzing}
+              onClick={() => {
+                onAnalysisUpdate(null as any);
+                setTimeout(() => onAnalyze(), 100);
+              }}
+              className="gap-1"
+            >
+              <Sparkles className="h-3 w-3" /> Re-analisar
+            </Button>
+          )}
+          {!garmentAnalysis && !isAnalyzing && (
+            <p className="text-xs text-muted-foreground">A IA vai identificar tipo, tecido, cor e detalhes da peça</p>
+          )}
+        </div>
+      )}
 
-      {/* Analysis results - compact horizontal */}
+      {/* Analysis results */}
       {garmentAnalysis && (
-        <div className="border border-border rounded-xl p-4 bg-card space-y-3">
-          <h4 className="text-xs font-semibold text-accent">Análise Técnica da Peça</h4>
+        <div className="border border-border rounded-xl p-4 bg-card/80 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center">
+              <ImageIcon className="h-3.5 w-3.5 text-accent" />
+            </div>
+            <h4 className="text-xs font-semibold">Análise Técnica da Peça</h4>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {analysisFields.map((f) => (
               <div key={f.key} className="space-y-0.5">
