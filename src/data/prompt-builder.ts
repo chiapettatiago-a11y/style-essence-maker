@@ -54,7 +54,7 @@ The full skirt must be visible — do NOT crop the hem.`;
 
 function isDressLikeGarment(garment: GarmentAnalysis | null): boolean {
   const text = [garment?.type, garment?.fullDescription, garment?.style].filter(Boolean).join(" ").toLowerCase();
-  return /(dress|vestido|gown)/.test(text);
+  return /(dress|vestido|gown|two-piece|two piece|conjunto|saia|skirt)/.test(text);
 }
 
 function buildFaceAnchorPrompt(input: {
