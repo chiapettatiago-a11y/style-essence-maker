@@ -37,6 +37,8 @@ export interface ModelProfile {
   promptSeed?: string;
   lora_url?: string;
   lora_trigger_word?: string;
+  lora_scale?: number;
+  guidance_scale?: number;
 }
 
 export interface StylePreset {
