@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, X, ZoomIn } from "lucide-react";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
@@ -142,6 +142,7 @@ const ProductPage = () => {
     mannequin_arm_cm: null,
   });
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
@@ -1048,8 +1049,11 @@ const ProductPage = () => {
   return (
     <div className="min-h-screen bg-background flex">
       <aside className="w-[220px] shrink-0 border-r border-border hidden md:flex md:flex-col">
-        <div className="px-4 py-4 border-b border-border flex items-center gap-2">
-          <img src={monograma} alt="Monograma" className="h-5 brightness-0 invert" />
+        <div className="px-4 py-4 border-b border-border flex items-center justify-between">
+          <img src={monograma} alt="Monograma" className="h-5 brightness-0 invert cursor-pointer" onClick={() => navigate("/")} />
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigate("/")}>
+            <Home className="h-4 w-4" />
+          </Button>
         </div>
 
         <div className="p-3 border-b border-border">
@@ -1229,8 +1233,9 @@ const ProductPage = () => {
                                 <img
                                   src={img.imageUrl}
                                   alt={img.label}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover cursor-pointer"
                                   loading="lazy"
+                                  onClick={() => setLightboxImage(img)}
                                   onError={(e) => {
                                     const target = e.currentTarget;
                                     const fallback = img.originalUrl || img.previewUrl;
@@ -1240,15 +1245,10 @@ const ProductPage = () => {
                                   }}
                                 />
                                 <button
-                                  onClick={() => {
-                                    const a = document.createElement("a");
-                                    a.href = img.originalUrl || img.imageUrl!;
-                                    a.download = `${img.label}.png`;
-                                    a.click();
-                                  }}
+                                  onClick={() => setLightboxImage(img)}
                                   className="absolute inset-0 bg-background/0 group-hover:bg-background/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                 >
-                                  <Download className="h-5 w-5 text-foreground" />
+                                  <ZoomIn className="h-5 w-5 text-foreground" />
                                 </button>
                               </>
                             )}
@@ -1620,6 +1620,56 @@ const ProductPage = () => {
         isGenerating={isGenerating}
         proportionSummary={proportionSummary}
       />
+
+      {/* Lightbox Modal */}
+      {lightboxImage && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onClick={() => setLightboxImage(null)}>
+          <div className="relative max-w-2xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            {/* Top bar */}
+            <div className="w-full flex items-center justify-between mb-3">
+              <span className="text-sm text-white/80 font-medium">{lightboxImage.label}</span>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 gap-1.5"
+                  onClick={() => {
+                    const a = document.createElement("a");
+                    a.href = lightboxImage.originalUrl || lightboxImage.imageUrl!;
+                    a.download = `${lightboxImage.label}.png`;
+                    a.click();
+                  }}
+                >
+                  <Download className="h-3.5 w-3.5" /> Baixar
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-white" onClick={() => setLightboxImage(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            {/* Image with hover zoom */}
+            <div className="rounded-xl overflow-hidden bg-card group cursor-zoom-in relative">
+              <img
+                src={lightboxImage.originalUrl || lightboxImage.imageUrl!}
+                alt={lightboxImage.label}
+                className="max-h-[75vh] w-auto object-contain transition-transform duration-300 group-hover:scale-150"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (lightboxImage.imageUrl && target.src !== lightboxImage.imageUrl) {
+                    target.src = lightboxImage.imageUrl;
+                  }
+                }}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = ((e.clientX - rect.left) / rect.width) * 100;
+                  const y = ((e.clientY - rect.top) / rect.height) * 100;
+                  e.currentTarget.style.transformOrigin = `${x}% ${y}%`;
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
