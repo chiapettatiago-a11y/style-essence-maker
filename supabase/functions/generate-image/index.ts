@@ -326,8 +326,10 @@ PROPORTIONS (from ${toCm(mannequin?.height_cm)} reference mannequin):
 
   const blockC = angleType === "video-product"
     ? ""
-    : `Model: ${modelProfile?.promptSeed || modelProfile?.name || "Brazilian model"}
-Height: ${modelProfile?.height || "N/A"}m.
+    : `MODEL — CRITICAL IDENTITY:
+Brazilian latina woman, warm morena clara skin tone, dark brown wavy hair with natural movement, defined facial features with broad cheekbones, dark expressive eyes, full lips, natural bronze undertone.
+NOT Asian features. NOT straight black hair. NOT pale skin. Authentic Brazilian commercial beauty, age 26-30.
+Height: ${modelProfile?.height || "1.72"}m.
 Measurements: bust ${toCm(modelProfile?.bust)}, waist ${toCm(modelProfile?.waist)}, hips ${toCm(modelProfile?.hip)}.
 Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.`;
 
@@ -335,7 +337,10 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
   const fullBodyBlock = FULL_BODY_ANGLE_TYPES.has(angleType)
     ? (isFal ? FULL_BODY_CRITICAL_BLOCK_FAL : FULL_BODY_CRITICAL_BLOCK)
     : "";
-  const midiBlock = FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis) ? MIDI_DRESS_CRITICAL_BLOCK : "";
+  const skirtLengthBlock = FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis)
+    ? `SKIRT LENGTH CRITICAL: maxi length, falls to ankle/floor level. The skirt hem must reach the ankle. NOT knee length. NOT midi. MAXI — ankle to floor.
+${MIDI_DRESS_CRITICAL_BLOCK}`
+    : "";
   const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
   const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
@@ -346,7 +351,7 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
-  return [blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock, blockD, fullBodyBlock, midiBlock, basePrompt || "", blockE]
+  return [blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock, blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE]
     .filter(Boolean)
     .join("\n\n");
 }
@@ -683,17 +688,24 @@ serve(async (req) => {
       });
     }
 
-    const result = parsedEngine === "fal"
-      ? await callFalEngine({
-          promptUsed,
-          imageUrl: falReferenceImage,
-          angleType: parsedAngle,
-        })
-      : await callGeminiGateway({
-          promptUsed,
-          referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
-          attemptNumber: requestAttempt,
-        });
+    let result: { imageUrl: string; modelUsed: string };
+    try {
+      result = parsedEngine === "fal"
+        ? await callFalEngine({
+            promptUsed,
+            imageUrl: falReferenceImage,
+            angleType: parsedAngle,
+          })
+        : await callGeminiGateway({
+            promptUsed,
+            referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
+            attemptNumber: requestAttempt,
+          });
+    } catch (engineErr: unknown) {
+      const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
+      console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
+      throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
+    }
 
     const storedAsset = await uploadGeneratedAsset({
       sourceUrl: result.imageUrl,

@@ -46,7 +46,9 @@ NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
 Lighting: soft even studio light, same temperature in all photos.`;
 
-const MIDI_DRESS_CRITICAL_BLOCK = `DRESS LENGTH — CRITICAL:
+const MIDI_DRESS_CRITICAL_BLOCK = `SKIRT LENGTH CRITICAL: maxi length, falls to ankle/floor level. The skirt hem must reach the ankle. NOT knee length. NOT midi. MAXI — ankle to floor.
+
+DRESS LENGTH — CRITICAL:
 Hem falls at mid-calf, 15cm below the knee.
 Full midi silhouette visible in frame.
 NOT mini. NOT knee-length. NOT above knee.
