@@ -337,7 +337,10 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
   const fullBodyBlock = FULL_BODY_ANGLE_TYPES.has(angleType)
     ? (isFal ? FULL_BODY_CRITICAL_BLOCK_FAL : FULL_BODY_CRITICAL_BLOCK)
     : "";
-  const midiBlock = FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis) ? MIDI_DRESS_CRITICAL_BLOCK : "";
+  const skirtLengthBlock = FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis)
+    ? `SKIRT LENGTH CRITICAL: maxi length, falls to ankle/floor level. The skirt hem must reach the ankle. NOT knee length. NOT midi. MAXI — ankle to floor.
+${MIDI_DRESS_CRITICAL_BLOCK}`
+    : "";
   const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
   const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
