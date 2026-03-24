@@ -1753,17 +1753,28 @@ const ProductPage = () => {
           <div className="relative max-w-2xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             {/* Top bar */}
             <div className="w-full flex items-center justify-between mb-3">
+              <Button size="sm" variant="secondary" className="h-8 gap-1.5" onClick={() => setLightboxImage(null)}>
+                <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+              </Button>
               <span className="text-sm text-white/80 font-medium">{lightboxImage.label}</span>
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   variant="secondary"
                   className="h-8 gap-1.5"
-                  onClick={() => {
-                    const a = document.createElement("a");
-                    a.href = lightboxImage.originalUrl || lightboxImage.imageUrl!;
-                    a.download = `${lightboxImage.label}.png`;
-                    a.click();
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(lightboxImage.originalUrl || lightboxImage.imageUrl!);
+                      const blob = await resp.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${lightboxImage.label}.png`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      window.open(lightboxImage.originalUrl || lightboxImage.imageUrl!, "_blank");
+                    }
                   }}
                 >
                   <Download className="h-3.5 w-3.5" /> Baixar
@@ -1783,9 +1794,6 @@ const ProductPage = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-white" onClick={() => setLightboxImage(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
               </div>
             </div>
             {/* Image with hover zoom */}
