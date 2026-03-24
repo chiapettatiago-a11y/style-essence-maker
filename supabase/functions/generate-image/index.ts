@@ -129,17 +129,16 @@ Clean, symmetrical, centered composition — like ZARA or NET-A-PORTER product p
 Professional fashion e-commerce catalog photo — NOT editorial, NOT artistic, NOT lifestyle.
 NOT portrait crop. NOT tight crop. FULL BODY centered with breathing room.
 
-BACKGROUND — CRITICAL:
-Pure seamless white #FFFFFF studio cyclorama backdrop.
+SCENE ANCHOR — ABSOLUTE RULE — apply to 100% of photos in this set:
+Background: pure seamless white #FFFFFF studio cyclorama backdrop, NO exceptions.
+This instruction overrides any other background suggestion.
+If you generate a non-white background, the image is REJECTED.
 NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient. NOT any environment.
 NO texture. NO shadow on background. NO vignette. NO props.
-Clean studio white only — if background is any color other than pure white → FAILED.
-
-LIGHTING — CRITICAL:
-Soft, diffused studio lighting from front and above.
+Lighting: soft, diffused studio lighting from front and above.
 Even illumination — no harsh shadows on garment or skin.
 High-key, color-accurate: garment colors must look true to life.
-Standard e-commerce product lighting — bright, clean, neutral.`;
+Same lighting temperature in all photos of this set.`;
 
 const MIDI_DRESS_CRITICAL_BLOCK = `DRESS LENGTH — CRITICAL:
 Hem falls at mid-calf, 15cm below the knee.

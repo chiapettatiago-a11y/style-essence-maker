@@ -59,8 +59,22 @@ Analyze the garment photos and return ONLY a valid JSON object with no text befo
 
 IMPORTANT: Photos may have dark backgrounds, hangers, wooden racks, or papers in front of the garment. Ignore all background elements. Focus ONLY on the garment itself.
 
+CRITICAL — TWO-PIECE SET DETECTION:
+If you see a cropped top/blouse AND a separate skirt/pants displayed together, identify as:
+  garment_type: "two-piece set"
+Describe EACH piece separately in the "details" and "prompt_description" fields.
+For example: "Cropped blouse with ruffled neckline + straight midi skirt with tiered ruffles"
+Do NOT merge two separate pieces into a single "dress" classification.
+
+TR SIGNATURE BUTTON/CHARM — ACCURACY RULE:
+Look carefully at the EXACT position of any TR metallic button/charm.
+Common positions: bottom hem of top/blouse (lateral), waistband, cuff of sleeve.
+Describe ONLY what you actually see and its exact position.
+If the TR button is not clearly visible in the reference photos, write: "TR button not clearly visible in reference photos"
+Do NOT assume or invent a position. Do NOT default to "right cuff" unless you see it there.
+
 {
-  "garment_type": "dress|blouse|pants|skirt|jacket",
+  "garment_type": "dress|blouse|pants|skirt|jacket|two-piece set",
   "fabric": "detailed fabric description — if PATCHWORK, describe each panel's fabric separately",
   "color": "precise color description — for patchwork list ALL panel colors e.g. navy blue, light blue, golden/caramel, white",
   "color_hex_estimate": "#xxxxxx (dominant color)",
@@ -73,18 +87,18 @@ IMPORTANT: Photos may have dark backgrounds, hangers, wooden racks, or papers in
   "hem_type": "straight|asymmetric|ruffled|tiered|etc — for TIERED/RUFFLE: count number of tiers, describe each tier separately with its gather point",
   "garment_length": "mini|knee|midi|maxi — with description e.g. midi, falls 15cm below knee. For tiered dresses: count ruffle tiers visible and classify as midi if tiers extend below knee",
   "length_description": "precise description: where hem falls relative to knee",
-  "construction": "visible construction details — for PATCHWORK: describe panel arrangement, seaming, how different fabric sections are joined",
+  "construction": "visible construction details — for PATCHWORK: describe panel arrangement, seaming, how different fabric sections are joined. For TWO-PIECE SET: describe construction of each piece separately",
   "closure": "buttons|zipper|wrap|etc — describe in detail",
   "belt_or_tie": "describe exactly: fabric self-tie sash / leather belt / none",
-  "details": "ALL details: buttons, cuffs, pockets, pleats, gathering, ruffle tiers, panel transitions",
-  "signature_details": "Look carefully for a round metallic button engraved 'TR' — describe exact position (e.g. right cuff), size estimate, and metal tone (silver or gold). Also note brand label location if visible.",
+  "details": "ALL details: buttons, cuffs, pockets, pleats, gathering, ruffle tiers, panel transitions. For TWO-PIECE SET: list details of each piece separately with clear labels (TOP: ... / BOTTOM: ...)",
+  "signature_details": "Look carefully for a round metallic button engraved 'TR' — describe exact position (e.g. bottom hem of blouse, lateral), size estimate, and metal tone (silver or gold). If NOT clearly visible write 'TR button not clearly visible in reference photos'. Also note brand label location if visible.",
   "proportions": {
     "garment_length_ratio": 0.72,
     "waist_ratio": 0.40,
     "sleeve_ratio": 1.0,
     "shoulder_ratio": 0.44
   },
-  "prompt_description": "One extremely detailed paragraph for AI image generation. MUST include: 1) Each patchwork panel color and pattern described separately, 2) Number and size of ruffle/tiered tiers with gather points, 3) Exact sleeve length and cuff detail including any hardware, 4) TR button/hardware position and description, 5) All construction and finishing details that must be preserved in generation"
+  "prompt_description": "One extremely detailed paragraph for AI image generation. MUST include: 1) Whether this is a single garment or two-piece set — if two-piece, describe EACH piece separately with clear separation, 2) Each patchwork panel color and pattern described separately, 3) Number and size of ruffle/tiered tiers with gather points, 4) Exact sleeve length and cuff detail including any hardware, 5) TR button/hardware position ONLY if clearly visible — if not visible say so, 6) All construction and finishing details that must be preserved in generation. For two-piece sets: emphasize that top and bottom are SEPARATE pieces meeting at natural waist."
 }
 
 Critical rules:
@@ -93,7 +107,8 @@ Critical rules:
 - Be extremely precise about belt/tie type — fabric sash vs leather belt are very different
 - For PATCHWORK garments: describe EACH panel separately with color, pattern, position
 - For TIERED/RUFFLE garments: count tiers, describe each tier's gathering
-- For signature details: always check cuffs, collar, and front placket for TR branding
+- For signature details: describe ONLY what you actually see — do NOT invent positions
+- For TWO-PIECE SETS: never merge into a single garment description
 - The prompt_description field will be used directly in AI image generation prompts — be exhaustively detailed`;
 
 function normalizeRatio(value: unknown, fallback: number): number {
