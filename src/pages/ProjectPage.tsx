@@ -1233,8 +1233,9 @@ const ProductPage = () => {
                                 <img
                                   src={img.imageUrl}
                                   alt={img.label}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover cursor-pointer"
                                   loading="lazy"
+                                  onClick={() => setLightboxImage(img)}
                                   onError={(e) => {
                                     const target = e.currentTarget;
                                     const fallback = img.originalUrl || img.previewUrl;
@@ -1244,15 +1245,10 @@ const ProductPage = () => {
                                   }}
                                 />
                                 <button
-                                  onClick={() => {
-                                    const a = document.createElement("a");
-                                    a.href = img.originalUrl || img.imageUrl!;
-                                    a.download = `${img.label}.png`;
-                                    a.click();
-                                  }}
+                                  onClick={() => setLightboxImage(img)}
                                   className="absolute inset-0 bg-background/0 group-hover:bg-background/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
                                 >
-                                  <Download className="h-5 w-5 text-foreground" />
+                                  <ZoomIn className="h-5 w-5 text-foreground" />
                                 </button>
                               </>
                             )}
