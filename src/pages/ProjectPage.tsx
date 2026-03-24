@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, X, ZoomIn } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, X, ZoomIn, Languages } from "lucide-react";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
@@ -127,6 +127,7 @@ const ProductPage = () => {
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [launchModalStep, setLaunchModalStep] = useState(1);
@@ -1462,8 +1463,46 @@ const ProductPage = () => {
 
             <TabsContent value="analysis" className="mt-4">
               {activeVariant?.garmentAnalysis ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <Card>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      disabled={isTranslating}
+                      onClick={async () => {
+                        if (!activeVariant?.garmentAnalysis) return;
+                        setIsTranslating(true);
+                        try {
+                          const ga = activeVariant.garmentAnalysis as unknown as Record<string, string>;
+                          const fields: Record<string, string> = {};
+                          for (const key of ["type", "fabric", "color", "silhouette", "neckline", "sleeves", "hemline", "pattern", "length", "closure", "beltOrTie", "signatureDetails", "promptDescription"]) {
+                            if (ga[key]) fields[key] = ga[key];
+                          }
+                          const { data, error } = await supabase.functions.invoke("translate-analysis", { body: { fields } });
+                          if (error) throw error;
+                          if (data?.translated && Object.keys(data.translated).length > 0) {
+                            updateActiveVariant({
+                              garmentAnalysis: { ...activeVariant.garmentAnalysis!, ...data.translated },
+                            });
+                            toast({ title: "Tradução aplicada", description: "Os campos foram traduzidos para português." });
+                          } else {
+                            toast({ title: "Aviso", description: "Não foi possível traduzir.", variant: "destructive" });
+                          }
+                        } catch (err: unknown) {
+                          const msg = err instanceof Error ? err.message : "Erro na tradução";
+                          toast({ title: "Erro", description: msg, variant: "destructive" });
+                        } finally {
+                          setIsTranslating(false);
+                        }
+                      }}
+                    >
+                      {isTranslating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Languages className="h-3.5 w-3.5" />}
+                      {isTranslating ? "Traduzindo..." : "Traduzir para Português"}
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <Card>
                     <CardContent className="pt-4 space-y-3">
                       <h3 className="text-sm font-semibold">Campos técnicos detectados</h3>
                       <div className="grid grid-cols-2 gap-2">
@@ -1579,6 +1618,7 @@ const ProductPage = () => {
                       </div>
                     </CardContent>
                   </Card>
+                  </div>
                 </div>
               ) : (
                 <div className="py-16 text-center text-muted-foreground text-sm">Faça a análise da peça para visualizar os campos técnicos.</div>
