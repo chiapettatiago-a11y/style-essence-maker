@@ -142,6 +142,7 @@ const ProductPage = () => {
     mannequin_arm_cm: null,
   });
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
