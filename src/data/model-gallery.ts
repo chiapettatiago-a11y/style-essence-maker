@@ -6,6 +6,7 @@ import nordicaEditorial from "@/assets/models/nordica-editorial.jpg";
 import asiaticaModerna from "@/assets/models/asiatica-moderna.jpg";
 import morenaComercial from "@/assets/models/morena-comercial.jpg";
 import latinaGlamour from "@/assets/models/latina-glamour.jpg";
+import thaisRodrigues from "@/assets/models/thais-rodrigues.jpg";
 
 export interface GalleryModel extends ModelProfile {
   faceImage: string;
