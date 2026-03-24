@@ -342,6 +342,14 @@ const ProductPage = () => {
     });
 
     setLoaded(true);
+
+    // Auto-open launch flow for newly created products
+    const isNew = searchParams.get("new") === "1";
+    if (isNew) {
+      setLaunchModalStep(1);
+      setLaunchModalOpen(true);
+      setSearchParams({}, { replace: true });
+    }
   }, [product, weeks, dbImages, dbVariants, loaded, imagesLoading, projectId, variantsLoading, weeksLoading]);
 
   useEffect(() => {
