@@ -60,6 +60,14 @@ interface LaunchFlowModalProps {
     hemBelowKneeCm?: number | null;
     garmentLengthLabel?: string | null;
   };
+  onProportionUpdate: (updates: {
+    garmentLength?: string | null;
+    garmentLengthCm?: number | null;
+    waistPositionCm?: number | null;
+    sleeveLengthCm?: number | null;
+    shoulderWidthCm?: number | null;
+    hemBelowKneeCm?: number | null;
+  }) => void;
 }
 
 const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
@@ -85,6 +93,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onGenerate,
   isGenerating,
   proportionSummary,
+  onProportionUpdate,
 }) => {
   const [step, setStep] = useState(startStep);
 
@@ -113,6 +122,15 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   const updateNumber = (key: keyof MannequinData, value: string) => {
     onMannequinChange({
       ...mannequin,
+      [key]: value === "" ? null : Number(value),
+    });
+  };
+
+  const updateProportionNumber = (
+    key: "garmentLengthCm" | "waistPositionCm" | "sleeveLengthCm" | "shoulderWidthCm" | "hemBelowKneeCm",
+    value: string,
+  ) => {
+    onProportionUpdate({
       [key]: value === "" ? null : Number(value),
     });
   };
@@ -250,16 +268,62 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
 
                   <Card>
                     <CardContent className="pt-4 space-y-3">
-                      <h4 className="text-xs font-semibold text-muted-foreground uppercase">Proporções calculadas</h4>
-                      <div className="space-y-2 text-xs">
-                        <div className="flex items-center justify-between"><span>Comprimento</span><strong>{proportionSummary.garmentLengthCm ?? "—"} cm</strong></div>
-                        <div className="flex items-center justify-between"><span>Posição cintura</span><strong>{proportionSummary.waistPositionCm ?? "—"} cm</strong></div>
-                        <div className="flex items-center justify-between"><span>Manga</span><strong>{proportionSummary.sleeveLengthCm ?? "—"} cm</strong></div>
-                        <div className="flex items-center justify-between"><span>Ombro</span><strong>{proportionSummary.shoulderWidthCm ?? "—"} cm</strong></div>
-                        <div className="flex items-center justify-between"><span>Barra vs joelho</span><strong>{proportionSummary.hemBelowKneeCm ?? "—"} cm</strong></div>
-                      </div>
-                      <div className="rounded-md bg-muted/60 p-3 text-xs">
-                        A peça termina <strong>{proportionSummary.hemBelowKneeCm ?? "—"} cm</strong> em relação ao joelho → classificada como <strong>{proportionSummary.garmentLengthLabel || "—"}</strong>.
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase">Proporções da peça</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Classificação de comprimento</Label>
+                          <Input
+                            value={proportionSummary.garmentLengthLabel || ""}
+                            onChange={(e) => onProportionUpdate({ garmentLength: e.target.value || null })}
+                            className="h-8 text-xs"
+                            placeholder="Ex: midi, curto, longo"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Comprimento (cm)</Label>
+                          <Input
+                            type="number"
+                            value={proportionSummary.garmentLengthCm ?? ""}
+                            onChange={(e) => updateProportionNumber("garmentLengthCm", e.target.value)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Posição cintura (cm)</Label>
+                          <Input
+                            type="number"
+                            value={proportionSummary.waistPositionCm ?? ""}
+                            onChange={(e) => updateProportionNumber("waistPositionCm", e.target.value)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Manga (cm)</Label>
+                          <Input
+                            type="number"
+                            value={proportionSummary.sleeveLengthCm ?? ""}
+                            onChange={(e) => updateProportionNumber("sleeveLengthCm", e.target.value)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Ombro (cm)</Label>
+                          <Input
+                            type="number"
+                            value={proportionSummary.shoulderWidthCm ?? ""}
+                            onChange={(e) => updateProportionNumber("shoulderWidthCm", e.target.value)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Barra vs joelho (cm)</Label>
+                          <Input
+                            type="number"
+                            value={proportionSummary.hemBelowKneeCm ?? ""}
+                            onChange={(e) => updateProportionNumber("hemBelowKneeCm", e.target.value)}
+                            className="h-8 text-xs"
+                          />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

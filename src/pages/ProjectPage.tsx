@@ -1520,16 +1520,62 @@ const ProductPage = () => {
 
                   <Card>
                     <CardContent className="pt-4 space-y-3">
-                      <h3 className="text-sm font-semibold">Proporções calculadas</h3>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between"><span>Comprimento</span><strong>{activeVariant.garmentLengthCm ?? "—"} cm</strong></div>
-                        <div className="flex justify-between"><span>Posição cintura</span><strong>{activeVariant.waistPositionCm ?? "—"} cm</strong></div>
-                        <div className="flex justify-between"><span>Manga</span><strong>{activeVariant.sleeveLengthCm ?? "—"} cm</strong></div>
-                        <div className="flex justify-between"><span>Ombro</span><strong>{activeVariant.shoulderWidthCm ?? "—"} cm</strong></div>
-                        <div className="flex justify-between"><span>Barra vs joelho</span><strong>{activeVariant.hemBelowKneeCm ?? "—"} cm</strong></div>
-                      </div>
-                      <div className="rounded-md bg-muted/60 p-3 text-xs">
-                        Classificação automática: <strong>{activeVariant.garmentLength || "—"}</strong>
+                      <h3 className="text-sm font-semibold">Proporções da peça</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Classificação de comprimento</Label>
+                          <Input
+                            value={activeVariant.garmentLength || ""}
+                            onChange={(e) => updateActiveVariant({ garmentLength: e.target.value || null })}
+                            className="h-8 text-xs"
+                            placeholder="Ex: midi, curto, longo"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Comprimento (cm)</Label>
+                          <Input
+                            type="number"
+                            value={activeVariant.garmentLengthCm ?? ""}
+                            onChange={(e) => updateActiveVariant({ garmentLengthCm: e.target.value === "" ? null : Number(e.target.value) })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Posição cintura (cm)</Label>
+                          <Input
+                            type="number"
+                            value={activeVariant.waistPositionCm ?? ""}
+                            onChange={(e) => updateActiveVariant({ waistPositionCm: e.target.value === "" ? null : Number(e.target.value) })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Manga (cm)</Label>
+                          <Input
+                            type="number"
+                            value={activeVariant.sleeveLengthCm ?? ""}
+                            onChange={(e) => updateActiveVariant({ sleeveLengthCm: e.target.value === "" ? null : Number(e.target.value) })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Ombro (cm)</Label>
+                          <Input
+                            type="number"
+                            value={activeVariant.shoulderWidthCm ?? ""}
+                            onChange={(e) => updateActiveVariant({ shoulderWidthCm: e.target.value === "" ? null : Number(e.target.value) })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">Barra vs joelho (cm)</Label>
+                          <Input
+                            type="number"
+                            value={activeVariant.hemBelowKneeCm ?? ""}
+                            onChange={(e) => updateActiveVariant({ hemBelowKneeCm: e.target.value === "" ? null : Number(e.target.value) })}
+                            className="h-8 text-xs"
+                          />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -1610,6 +1656,7 @@ const ProductPage = () => {
         onGenerate={handleGenerate}
         isGenerating={isGenerating}
         proportionSummary={proportionSummary}
+        onProportionUpdate={updateActiveVariant}
       />
 
       {/* Lightbox Modal */}
