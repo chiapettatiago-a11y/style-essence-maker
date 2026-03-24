@@ -141,7 +141,7 @@ const Index = () => {
       updateImg({ status: "generating" });
       try {
         const { data, error } = await supabase.functions.invoke("generate-image", {
-          body: { prompt: img.prompt, referenceImages: activeVariant.uploadedImages.slice(0, 3), engine: "gemini" },
+          body: { prompt: img.prompt, referenceImages: activeVariant.uploadedImages.slice(0, 3), engine: state.selectedEngine },
         });
         if (error) throw error;
         updateImg({ status: "done", imageUrl: data.imageUrl });
