@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, FolderOpen, LogOut, Loader2, Trash2, ChevronDown } from "lucide-react";
+import { Plus, FolderOpen, LogOut, Loader2, Trash2, ChevronDown, Sparkles } from "lucide-react";
 import monograma from "@/assets/monograma.png";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -58,7 +58,7 @@ const Dashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setDialogOpen(false);
       setNewName("");
-      navigate(`/project/${id}`);
+      navigate(`/project/${id}?new=1`);
     },
     onError: (err: any) => {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -168,10 +168,23 @@ const Dashboard = () => {
             <Loader2 className="h-6 w-6 animate-spin text-accent" />
           </div>
         ) : !products || products.length === 0 ? (
-          <div className="text-center py-16 space-y-3">
-            <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto" />
-            <p className="text-muted-foreground">Nenhum produto ainda.</p>
-            <p className="text-sm text-muted-foreground">Crie seu primeiro produto para começar.</p>
+          <div className="flex flex-col items-center justify-center py-24 space-y-6">
+            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Sparkles className="h-10 w-10 text-primary" />
+            </div>
+            <div className="text-center space-y-2 max-w-md">
+              <h3 className="text-xl font-semibold">Comece seu primeiro lookbook</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Crie um produto, faça upload das fotos no cabide e gere lookbooks profissionais com IA em poucos cliques.
+              </p>
+            </div>
+            <Button
+              size="lg"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Plus className="h-4 w-4" /> Criar primeiro produto
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

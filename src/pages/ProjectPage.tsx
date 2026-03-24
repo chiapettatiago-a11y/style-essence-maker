@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate, Navigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GarmentAnalysis, GeneratedImage, GenerationEngine, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
@@ -106,6 +106,7 @@ const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -342,6 +343,14 @@ const ProductPage = () => {
     });
 
     setLoaded(true);
+
+    // Auto-open launch flow for newly created products
+    const isNew = searchParams.get("new") === "1";
+    if (isNew) {
+      setLaunchModalStep(1);
+      setLaunchModalOpen(true);
+      setSearchParams({}, { replace: true });
+    }
   }, [product, weeks, dbImages, dbVariants, loaded, imagesLoading, projectId, variantsLoading, weeksLoading]);
 
   useEffect(() => {
@@ -1285,26 +1294,8 @@ const ProductPage = () => {
                     </div>
                     <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Clique em <strong>"Novo lançamento"</strong> para enviar as fotos da peça no cabide, configurar o manequim, escolher a modelo e gerar o lookbook completo.
+                      Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setLaunchModalStep(1);
-                        setLaunchModalOpen(true);
-                      }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Iniciar primeiro lançamento
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-6 text-[11px] text-muted-foreground mt-2">
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">1</span> Upload</span>
-                    <ArrowRight className="h-3 w-3" />
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">2</span> Manequim</span>
-                    <ArrowRight className="h-3 w-3" />
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">3</span> Análise</span>
-                    <ArrowRight className="h-3 w-3" />
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">4</span> Gerar</span>
                   </div>
                 </div>
               )}
