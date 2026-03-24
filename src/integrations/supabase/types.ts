@@ -89,6 +89,8 @@ export type Database = {
           height_cm: number | null
           hip_cm: number | null
           id: string
+          lora_trigger_word: string | null
+          lora_url: string | null
           prompt_seed: string
           skin_tone: string | null
           slug: string
@@ -104,6 +106,8 @@ export type Database = {
           height_cm?: number | null
           hip_cm?: number | null
           id?: string
+          lora_trigger_word?: string | null
+          lora_url?: string | null
           prompt_seed: string
           skin_tone?: string | null
           slug: string
@@ -119,6 +123,8 @@ export type Database = {
           height_cm?: number | null
           hip_cm?: number | null
           id?: string
+          lora_trigger_word?: string | null
+          lora_url?: string | null
           prompt_seed?: string
           skin_tone?: string | null
           slug?: string
