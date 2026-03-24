@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
-import { Check } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ModelGalleryProps {
   selectedModelId: string | null;
@@ -9,6 +10,21 @@ interface ModelGalleryProps {
 }
 
 const ModelGallery: React.FC<ModelGalleryProps> = ({ selectedModelId, onSelectModel }) => {
+  const [loraSlugs, setLoraSlugs] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const fetchLora = async () => {
+      const { data } = await supabase
+        .from("model_profiles")
+        .select("slug, lora_url")
+        .not("lora_url", "is", null);
+      if (data) {
+        setLoraSlugs(new Set(data.map((r: any) => r.slug)));
+      }
+    };
+    fetchLora();
+  }, []);
+
   return (
     <div className="space-y-3">
       <div>
@@ -20,6 +36,7 @@ const ModelGallery: React.FC<ModelGalleryProps> = ({ selectedModelId, onSelectMo
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         {MODEL_GALLERY.map((model) => {
           const isSelected = selectedModelId === model.id;
+          const hasLora = loraSlugs.has(model.id);
           return (
             <button
               key={model.id}
@@ -41,6 +58,12 @@ const ModelGallery: React.FC<ModelGalleryProps> = ({ selectedModelId, onSelectMo
               {isSelected && (
                 <div className="absolute top-1.5 right-1.5 bg-accent text-accent-foreground rounded-full p-0.5">
                   <Check className="h-3 w-3" />
+                </div>
+              )}
+              {hasLora && (
+                <div className="absolute top-1.5 left-1.5 bg-amber-500 text-white rounded-full px-1.5 py-0.5 flex items-center gap-0.5 shadow-sm">
+                  <Sparkles className="h-2.5 w-2.5" />
+                  <span className="text-[8px] font-bold tracking-wide">LoRA</span>
                 </div>
               )}
               <div className="p-2 bg-card">
