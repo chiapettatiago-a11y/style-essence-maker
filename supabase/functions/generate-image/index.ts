@@ -514,6 +514,8 @@ async function callFalEngine(params: {
   angleType: AngleType;
   loraUrl?: string;
   loraTriggerWord?: string;
+  loraScale?: number;
+  guidanceScale?: number;
 }) {
   const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
   if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
@@ -527,48 +529,100 @@ async function callFalEngine(params: {
 
   const useReference = !!publicImageUrl;
   const useLora = !!params.loraUrl;
+  const isCloseUp = params.angleType === "close-tr-cuff" || params.angleType === "close-tr-label";
+  const isFrontView = params.angleType === "lookbook-front";
+  const isSideOrBack = ["lookbook-back", "lookbook-left", "lookbook-three-quarter"].includes(params.angleType);
 
-  // Choose endpoint: LoRA > Kontext (ref) > flux-2-pro (no ref)
-  const endpoint = useLora
-    ? "fal-ai/flux-lora"
-    : useReference
-      ? "fal-ai/flux-pro/kontext"
-      : "fal-ai/flux-2-pro";
+  // Angle-specific endpoint selection:
+  // - front_view + LoRA → fal-ai/flux-lora
+  // - back/sides (with reference image from front) → fal-ai/flux-pro/kontext
+  // - close-ups → fal-ai/flux-2-pro (no LoRA)
+  // - no LoRA + reference → fal-ai/flux-pro/kontext
+  // - no LoRA + no reference → fal-ai/flux-2-pro
+  let endpoint: string;
+  if (isCloseUp) {
+    endpoint = "fal-ai/flux-2-pro";
+  } else if (useLora && isFrontView) {
+    endpoint = "fal-ai/flux-lora";
+  } else if (isSideOrBack && useReference) {
+    endpoint = "fal-ai/flux-pro/kontext";
+  } else if (useLora) {
+    endpoint = "fal-ai/flux-lora";
+  } else if (useReference) {
+    endpoint = "fal-ai/flux-pro/kontext";
+  } else {
+    endpoint = "fal-ai/flux-2-pro";
+  }
 
   const imageSize = getImageSize(params.angleType);
+  const loraScale = params.loraScale ?? 1.0;
+  const guidanceScale = params.guidanceScale ?? 3.5;
 
-  // Prepend trigger word to prompt when using LoRA
-  const finalPrompt = useLora && params.loraTriggerWord
+  // Prepend trigger word to prompt when using LoRA endpoint
+  const usingLoraEndpoint = endpoint === "fal-ai/flux-lora";
+  const finalPrompt = usingLoraEndpoint && params.loraTriggerWord
     ? `${params.loraTriggerWord} ${params.promptUsed}`
     : params.promptUsed;
 
-  console.log(`[fal] endpoint=${endpoint}, hasRef=${useReference}, useLora=${useLora}, angleType=${params.angleType}`);
+  console.log(`[fal] endpoint=${endpoint}, hasRef=${useReference}, useLora=${useLora}, angleType=${params.angleType}, loraScale=${loraScale}, guidanceScale=${guidanceScale}`);
 
   const input: Record<string, unknown> = {
     prompt: finalPrompt,
     image_size: imageSize,
-    num_inference_steps: 28,
-    guidance_scale: 3.5,
     output_format: "png",
-    output_quality: 100,
   };
 
-  if (useLora) {
-    input.loras = [{ path: params.loraUrl!, scale: 0.85 }];
-    // flux-lora also supports image_url for reference
+  if (usingLoraEndpoint) {
+    // LoRA-specific params
+    input.loras = [{ path: params.loraUrl!, scale: loraScale }];
+    input.num_inference_steps = 28;
+    input.guidance_scale = guidanceScale;
+    input.output_quality = 100;
     if (useReference) {
       input.image_url = publicImageUrl;
     }
-  } else if (useReference) {
+  } else if (endpoint === "fal-ai/flux-pro/kontext") {
+    // Kontext uses image_url for reference
     input.image_url = publicImageUrl;
+    input.num_inference_steps = 28;
+    input.guidance_scale = 3.5;
+    input.output_quality = 100;
+  } else {
+    // flux-2-pro defaults
+    input.num_inference_steps = 28;
+    input.guidance_scale = 3.5;
+    input.output_quality = 100;
   }
 
-  const result = await fal.subscribe(endpoint, { input });
+  console.log(`[fal] Full payload for ${endpoint}:`, JSON.stringify({
+    endpoint,
+    angleType: params.angleType,
+    hasLoraUrl: !!params.loraUrl,
+    loraScale,
+    guidanceScale,
+    imageSize,
+    promptLength: finalPrompt.length,
+    promptStart: finalPrompt.substring(0, 120),
+    hasImageUrl: !!input.image_url,
+    inputKeys: Object.keys(input),
+  }));
 
-  const imageUrl = extractFalImageUrl(result);
-  if (!imageUrl) throw new Error("No image found in fal.ai response");
-
-  return { imageUrl, modelUsed: endpoint };
+  try {
+    const result = await fal.subscribe(endpoint, { input });
+    const imageUrl = extractFalImageUrl(result);
+    if (!imageUrl) {
+      console.error(`[fal] No image in response for ${params.angleType}:`, JSON.stringify(result).substring(0, 500));
+      throw new Error("No image found in fal.ai response");
+    }
+    return { imageUrl, modelUsed: endpoint };
+  } catch (falError: unknown) {
+    const errMsg = falError instanceof Error ? falError.message : String(falError);
+    const errDetail = (falError as any)?.body || (falError as any)?.detail || (falError as any)?.response;
+    console.error(`[fal] ERROR for angle=${params.angleType}, endpoint=${endpoint}:`, errMsg);
+    console.error(`[fal] Error detail:`, JSON.stringify(errDetail || {}).substring(0, 1000));
+    console.error(`[fal] Input sent:`, JSON.stringify(input).substring(0, 1000));
+    throw new Error(`fal.ai ${endpoint} failed: ${errMsg}`);
+  }
 }
 
 async function callFalVideoEngine(params: {
