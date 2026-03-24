@@ -111,10 +111,21 @@ export function buildFullPrompt(
   const parts: string[] = [base];
 
   if (garment) {
+    const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garment.type || "");
+    const twoPieceBlock = isTwoPieceSet
+      ? `\nTWO-PIECE SET RULE — CRITICAL:\nThis garment is a TWO-PIECE SET (top + bottom sold together).\n- Show BOTH pieces worn together in all body shots.\n- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.\n- Do NOT merge into a single dress silhouette.\n- Maintain visible separation line between top and bottom at waist.`
+      : "";
+
+    const trPositionNotVisible = !garment.signatureDetails || /not clearly visible/i.test(garment.signatureDetails);
+    const trBlock = trPositionNotVisible
+      ? `\nTR SIGNATURE: Not clearly visible in reference — do NOT add TR button anywhere.`
+      : `\nTR SIGNATURE HARDWARE — STRICT RULE:\nInclude the TR button ONLY at this exact position: ${garment.signatureDetails}\nNEVER invent or relocate the TR button.`;
+
     const garmentBlock = [
       `GARMENT SPECIFICATION (do NOT deviate from this description):`,
       `Type: ${garment.type}`,
       garment.promptDescription ? `Definitive fidelity description: ${garment.promptDescription}` : "",
+      twoPieceBlock,
       garment.length ? `Length: ${garment.length} — THIS LENGTH IS MANDATORY, do not shorten or lengthen` : "",
       garment.lengthDescription ? `Length note: ${garment.lengthDescription}` : "",
       garment.silhouette ? `Silhouette: ${garment.silhouette}` : "",
@@ -128,6 +139,7 @@ export function buildFullPrompt(
       garment.closure ? `Closure: ${garment.closure}` : "",
       garment.beltOrTie ? `Belt / tie: ${garment.beltOrTie}` : "",
       garment.signatureDetails ? `Signature details: ${garment.signatureDetails}` : "",
+      trBlock,
       `Construction: ${garment.construction}`,
       `Details: ${garment.details}`,
       garment.fullDescription ? `\nFull reference: ${garment.fullDescription}` : "",
