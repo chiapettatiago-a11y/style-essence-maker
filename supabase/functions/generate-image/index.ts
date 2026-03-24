@@ -634,26 +634,53 @@ async function callFalVideoEngine(params: {
 
   fal.config({ credentials: FAL_API_KEY });
 
+  // Ensure we have a public URL for the reference image
+  const publicImageUrl = await ensurePublicUrl(params.imageUrl);
+
+  // Truncate prompt to avoid Kling's payload limits (max ~2000 chars)
+  const truncatedPrompt = params.promptUsed.length > 2000
+    ? params.promptUsed.substring(0, 2000)
+    : params.promptUsed;
+
   const endpoint = "fal-ai/kling-video/v2.5-turbo/pro/image-to-video";
-  const result = await fal.subscribe(endpoint, {
-    input: {
-      prompt: params.promptUsed,
-      image_url: params.imageUrl,
-      duration: "5",
-      cfg_scale: 0.5,
-      negative_prompt: "blur, distort, low quality, deformed hands, extra fingers, missing fingers, cropped, out of frame",
-    },
-  });
 
-  const videoUrl = (result as any)?.video?.url
-    || (result as any)?.data?.video?.url
-    || (result as any)?.video_url
-    || (result as any)?.data?.video_url
-    || "";
+  const videoInput = {
+    prompt: truncatedPrompt,
+    image_url: publicImageUrl,
+    duration: "5",
+    cfg_scale: 0.5,
+    negative_prompt: "blur, distort, low quality, deformed hands, extra fingers, missing fingers, cropped, out of frame",
+  };
 
-  if (!videoUrl) throw new Error("No video found in Kling response");
+  console.log(`[fal-video] Calling ${endpoint}:`, JSON.stringify({
+    promptLength: truncatedPrompt.length,
+    promptStart: truncatedPrompt.substring(0, 100),
+    imageUrl: publicImageUrl.substring(0, 100),
+    inputKeys: Object.keys(videoInput),
+  }));
 
-  return { videoUrl, modelUsed: endpoint };
+  try {
+    const result = await fal.subscribe(endpoint, { input: videoInput });
+
+    const videoUrl = (result as any)?.video?.url
+      || (result as any)?.data?.video?.url
+      || (result as any)?.video_url
+      || (result as any)?.data?.video_url
+      || "";
+
+    if (!videoUrl) {
+      console.error(`[fal-video] No video URL in response:`, JSON.stringify(result).substring(0, 500));
+      throw new Error("No video found in Kling response");
+    }
+
+    return { videoUrl, modelUsed: endpoint };
+  } catch (videoErr: unknown) {
+    const errMsg = videoErr instanceof Error ? videoErr.message : String(videoErr);
+    const errDetail = (videoErr as any)?.body || (videoErr as any)?.detail || (videoErr as any)?.response;
+    console.error(`[fal-video] ERROR for ${endpoint}:`, errMsg);
+    console.error(`[fal-video] Error detail:`, JSON.stringify(errDetail || {}).substring(0, 1000));
+    throw new Error(`Kling video generation failed: ${errMsg}`);
+  }
 }
 
 async function uploadGeneratedVideo(params: {

@@ -849,13 +849,17 @@ const ProductPage = () => {
     const closeImages = imageItems.filter((img) => img.type === "close-tr-cuff" || img.type === "close-tr-label");
     const standardImages = imageItems.filter((img) => img.type !== "lookbook-front" && img.type !== "close-tr-cuff" && img.type !== "close-tr-label");
 
+    // 1. Generate front_view first (anchor image for LoRA / reference)
     let frontReferenceUrl = "";
     if (frontImage) {
       frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
     }
 
-    await Promise.allSettled(standardImages.map((img) => runImageGeneration(img)));
+    // 2. Generate sides/back using frontReferenceUrl for kontext consistency
+    const sideBackRef = frontReferenceUrl || activeVariant.uploadedImages[0] || undefined;
+    await Promise.allSettled(standardImages.map((img) => runImageGeneration(img, sideBackRef)));
 
+    // 3. Generate close-ups using frontReferenceUrl
     if (!frontReferenceUrl && closeImages.length > 0) {
       closeImages.forEach((img) => {
         updateImageInState(img.id, { status: "error", error: "A front view precisa ser gerada primeiro para servir como referência dos closes." });

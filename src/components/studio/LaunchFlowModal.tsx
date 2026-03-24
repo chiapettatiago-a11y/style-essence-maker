@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import UploadSection from "@/components/studio/UploadSection";
 import ModelGallery from "@/components/studio/ModelGallery";
@@ -12,7 +13,7 @@ import StyleSection from "@/components/studio/StyleSection";
 import GenerateSection from "@/components/studio/GenerateSection";
 import EngineSelector from "@/components/studio/EngineSelector";
 import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 
 const STEPS = [
   { id: 1, title: "Upload da peça" },
