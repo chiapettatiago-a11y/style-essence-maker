@@ -58,7 +58,7 @@ const Dashboard = () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       setDialogOpen(false);
       setNewName("");
-      navigate(`/project/${id}`);
+      navigate(`/project/${id}?new=1`);
     },
     onError: (err: any) => {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
