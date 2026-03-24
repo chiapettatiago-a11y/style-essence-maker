@@ -108,7 +108,14 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
           <div
             key={img.id}
             className="relative group aspect-[9/16] rounded-xl overflow-hidden border border-border bg-muted flex items-center justify-center cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => img.status === "done" && (img.previewUrl || img.imageUrl || img.originalUrl) && setLightboxImage(img)}
+            onClick={() => {
+              if (img.status === "done" && (img.originalUrl || img.imageUrl || img.previewUrl)) {
+                const a = document.createElement("a");
+                a.href = img.originalUrl || img.imageUrl || img.previewUrl || "";
+                a.download = `${img.label}.png`;
+                a.click();
+              }
+            }}
           >
             {img.status === "done" && (img.previewUrl || img.imageUrl || img.originalUrl) ? (
               <GalleryImage image={img} className="w-full h-full object-cover" />
@@ -147,11 +154,12 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const a = document.createElement("a"); a.href = img.originalUrl || img.imageUrl || img.previewUrl || ""; a.download = `${img.label}.png`; a.click();
+                    setLightboxImage(img);
                   }}
                   className="bg-background/80 rounded-full p-1 hover:bg-background"
+                  title="Ampliar"
                 >
-                  <Download className="h-3 w-3" />
+                  <ZoomIn className="h-3 w-3" />
                 </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
