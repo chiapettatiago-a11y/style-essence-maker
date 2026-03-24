@@ -510,6 +510,8 @@ async function callFalEngine(params: {
   promptUsed: string;
   imageUrl?: string;
   angleType: AngleType;
+  loraUrl?: string;
+  loraTriggerWord?: string;
 }) {
   const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
   if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
@@ -522,22 +524,44 @@ async function callFalEngine(params: {
   }
 
   const useReference = !!publicImageUrl;
-  const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
+  const useLora = !!params.loraUrl;
+
+  // Choose endpoint: LoRA > Kontext (ref) > flux-2-pro (no ref)
+  const endpoint = useLora
+    ? "fal-ai/flux-lora"
+    : useReference
+      ? "fal-ai/flux-pro/kontext"
+      : "fal-ai/flux-2-pro";
+
   const imageSize = getImageSize(params.angleType);
 
-  console.log(`[fal] endpoint=${endpoint}, hasRef=${useReference}, angleType=${params.angleType}`);
+  // Prepend trigger word to prompt when using LoRA
+  const finalPrompt = useLora && params.loraTriggerWord
+    ? `${params.loraTriggerWord} ${params.promptUsed}`
+    : params.promptUsed;
 
-  const result = await fal.subscribe(endpoint, {
-    input: {
-      prompt: params.promptUsed,
-      ...(useReference ? { image_url: publicImageUrl } : {}),
-      image_size: imageSize,
-      num_inference_steps: 28,
-      guidance_scale: 3.5,
-      output_format: "png",
-      output_quality: 100,
-    },
-  });
+  console.log(`[fal] endpoint=${endpoint}, hasRef=${useReference}, useLora=${useLora}, angleType=${params.angleType}`);
+
+  const input: Record<string, unknown> = {
+    prompt: finalPrompt,
+    image_size: imageSize,
+    num_inference_steps: 28,
+    guidance_scale: 3.5,
+    output_format: "png",
+    output_quality: 100,
+  };
+
+  if (useLora) {
+    input.loras = [{ path: params.loraUrl!, scale: 0.85 }];
+    // flux-lora also supports image_url for reference
+    if (useReference) {
+      input.image_url = publicImageUrl;
+    }
+  } else if (useReference) {
+    input.image_url = publicImageUrl;
+  }
+
+  const result = await fal.subscribe(endpoint, { input });
 
   const imageUrl = extractFalImageUrl(result);
   if (!imageUrl) throw new Error("No image found in fal.ai response");
