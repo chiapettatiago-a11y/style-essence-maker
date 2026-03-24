@@ -1754,6 +1754,21 @@ const ProductPage = () => {
                 >
                   <Download className="h-3.5 w-3.5" /> Baixar
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="secondary" className="h-8 gap-1.5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Regenerar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "gemini"); setLightboxImage(null); }} className="gap-2 text-xs">
+                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "fal"); setLightboxImage(null); }} className="gap-2 text-xs">
+                      <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-white" onClick={() => setLightboxImage(null)}>
                   <X className="h-4 w-4" />
                 </Button>
