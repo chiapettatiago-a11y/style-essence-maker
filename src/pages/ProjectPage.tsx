@@ -1049,7 +1049,7 @@ const ProductPage = () => {
     <div className="min-h-screen bg-background flex">
       <aside className="w-[220px] shrink-0 border-r border-border hidden md:flex md:flex-col">
         <div className="px-4 py-4 border-b border-border flex items-center gap-2">
-          <img src={monograma} alt="Monograma" className="h-5" />
+          <img src={monograma} alt="Monograma" className="h-5 brightness-0 invert" />
         </div>
 
         <div className="p-3 border-b border-border">
