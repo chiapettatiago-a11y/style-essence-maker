@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, X, ZoomIn, Languages } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages } from "lucide-react";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
@@ -1245,7 +1245,20 @@ const ProductPage = () => {
                                   alt={img.label}
                                   className="w-full h-full object-cover cursor-pointer"
                                   loading="lazy"
-                                  onClick={() => setLightboxImage(img)}
+                                  onClick={async () => {
+                                    try {
+                                      const resp = await fetch(img.originalUrl || img.imageUrl!);
+                                      const blob = await resp.blob();
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement("a");
+                                      a.href = url;
+                                      a.download = `${img.label}.png`;
+                                      a.click();
+                                      URL.revokeObjectURL(url);
+                                    } catch {
+                                      window.open(img.originalUrl || img.imageUrl!, "_blank");
+                                    }
+                                  }}
                                   onError={(e) => {
                                     const target = e.currentTarget;
                                     const fallback = img.originalUrl || img.previewUrl;
@@ -1255,10 +1268,11 @@ const ProductPage = () => {
                                   }}
                                 />
                                 <button
-                                  onClick={() => setLightboxImage(img)}
-                                  className="absolute inset-0 bg-background/0 group-hover:bg-background/40 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                                  onClick={(e) => { e.stopPropagation(); setLightboxImage(img); }}
+                                  className="absolute top-1 right-1 bg-background/80 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                                  title="Ampliar"
                                 >
-                                  <ZoomIn className="h-5 w-5 text-foreground" />
+                                  <ZoomIn className="h-4 w-4 text-foreground" />
                                 </button>
                               </>
                             )}
@@ -1739,17 +1753,28 @@ const ProductPage = () => {
           <div className="relative max-w-2xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
             {/* Top bar */}
             <div className="w-full flex items-center justify-between mb-3">
+              <Button size="sm" variant="secondary" className="h-8 gap-1.5" onClick={() => setLightboxImage(null)}>
+                <ArrowLeft className="h-3.5 w-3.5" /> Voltar
+              </Button>
               <span className="text-sm text-white/80 font-medium">{lightboxImage.label}</span>
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
                   variant="secondary"
                   className="h-8 gap-1.5"
-                  onClick={() => {
-                    const a = document.createElement("a");
-                    a.href = lightboxImage.originalUrl || lightboxImage.imageUrl!;
-                    a.download = `${lightboxImage.label}.png`;
-                    a.click();
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(lightboxImage.originalUrl || lightboxImage.imageUrl!);
+                      const blob = await resp.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `${lightboxImage.label}.png`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      window.open(lightboxImage.originalUrl || lightboxImage.imageUrl!, "_blank");
+                    }
                   }}
                 >
                   <Download className="h-3.5 w-3.5" /> Baixar
@@ -1769,9 +1794,6 @@ const ProductPage = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-white" onClick={() => setLightboxImage(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
               </div>
             </div>
             {/* Image with hover zoom */}
