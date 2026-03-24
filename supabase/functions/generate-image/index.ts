@@ -67,19 +67,29 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
  Do NOT generate a male model under any circumstances.
  Female body proportions, female facial features, female silhouette — mandatory.`;
  
- const TR_BADGE_DETAILED_BLOCK = `SIGNATURE BRAND ELEMENT — "TR" GOLDEN BADGE — MANDATORY IN EVERY IMAGE:
- Element type: Small round metallic button/tag, approximately 1.5–2cm in diameter.
- Material: Polished 18k gold-finish metal, high-shine reflective surface.
- Engraving: Interlocking monogram letters "TR" in decorative gothic/serif typeface, raised/embossed from the metal surface.
- Position: Attached at the garment's designated closure point (typically center-front waistband for skirts, right cuff for dresses, or as detected in garment analysis).
- Attachment: Functional button with visible thread shank in matching garment color.
- Rendering requirements:
- - The "TR" letters must be LEGIBLE and SHARP — not blurred, not abstracted.
- - Gold color must be warm polished gold (#D4AF37 to #FFD700 range), NOT silver, NOT brass, NOT matte.
- - Must catch light realistically with specular highlights showing metallic surface.
- - Must appear at CORRECT SCALE relative to garment — approximately 2cm diameter, NOT oversized, NOT microscopic.
- - In close-up shots, individual letter strokes of "T" and "R" must be distinguishable.
- Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched inside collar/waistband fold.`;
+ const TR_BADGE_DETAILED_BLOCK_FN = (signatureDetails?: string) => {
+   const positionNotVisible = !signatureDetails || /not clearly visible/i.test(signatureDetails);
+   if (positionNotVisible) {
+     return `SIGNATURE BRAND ELEMENT — "TR" GOLDEN BADGE:
+The TR button was NOT clearly visible in the reference photos.
+Do NOT add a TR button/badge anywhere on the garment.
+Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched inside collar/waistband fold.`;
+   }
+   return `SIGNATURE BRAND ELEMENT — "TR" GOLDEN BADGE — MANDATORY IN EVERY IMAGE:
+Element type: Small round metallic button/tag, approximately 1.5–2cm in diameter.
+Material: Polished 18k gold-finish metal, high-shine reflective surface.
+Engraving: Interlocking monogram letters "TR" in decorative gothic/serif typeface, raised/embossed from the metal surface.
+Position: ${signatureDetails}
+Attachment: Functional button with visible thread shank in matching garment color.
+Rendering requirements:
+- The "TR" letters must be LEGIBLE and SHARP — not blurred, not abstracted.
+- Gold color must be warm polished gold (#D4AF37 to #FFD700 range), NOT silver, NOT brass, NOT matte.
+- Must catch light realistically with specular highlights showing metallic surface.
+- Must appear at CORRECT SCALE relative to garment — approximately 2cm diameter, NOT oversized, NOT microscopic.
+- In close-up shots, individual letter strokes of "T" and "R" must be distinguishable.
+- NEVER invent or relocate the TR button to a different position than specified above.
+Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched inside collar/waistband fold.`;
+ };
  
  const ANGLE_BLOCKS: Record<AngleType, string> = {
   "lookbook-front": "front_view: facing camera directly, full body head-to-toe, straight on. SAME FEMALE model as described.",
