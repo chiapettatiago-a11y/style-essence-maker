@@ -1,12 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
-import { Sparkles, PenLine, ChevronRight } from "lucide-react";
+import { Sparkles, PenLine, ChevronRight, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { LAYER1_BASE } from "@/data/prompt-layers";
-import { assembleLayer2, generateAllRequests, buildPromptPreviewPT } from "@/data/prompt-builder";
+import { assembleLayer2, generateAllRequests, buildPromptPreviewPT, buildFullPrompt } from "@/data/prompt-builder";
 
 interface GenerateSectionProps {
   manualPrompt: string;
@@ -35,6 +35,7 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
   isGenerating,
 }) => {
   const layer2Text = assembleLayer2(selectedPresets);
+  const [showEnglish, setShowEnglish] = useState(false);
   const requests = generateAllRequests(
     { layer1: LAYER1_BASE, layer2: layer2Text, layer3: manualPrompt },
     garmentAnalysis,
@@ -101,9 +102,20 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
       </Button>
 
       <div className="border-t border-border pt-4 space-y-2">
-        <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-          Preview dos Prompts (em português)
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Preview dos Prompts
+          </h4>
+          <Button
+            variant={showEnglish ? "secondary" : "outline"}
+            size="sm"
+            className="h-6 text-[10px] gap-1"
+            onClick={() => setShowEnglish((v) => !v)}
+          >
+            <Languages className="h-3 w-3" />
+            {showEnglish ? "Ver em Português" : "Ver Prompt Original (EN)"}
+          </Button>
+        </div>
         {requests.map((req) => (
           <details key={req.type} className="group">
             <summary className="text-xs font-medium cursor-pointer hover:text-accent transition-colors list-none flex items-center gap-1">
@@ -111,7 +123,7 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
               {req.label}
             </summary>
             <pre className="text-[10px] text-muted-foreground whitespace-pre-wrap font-mono mt-1 ml-4 max-h-32 overflow-y-auto bg-muted/30 rounded-md p-2">
-              {buildPromptPreviewPT(
+              {showEnglish ? req.prompt : buildPromptPreviewPT(
                 garmentAnalysis,
                 req.type,
                 selectedProfile,
