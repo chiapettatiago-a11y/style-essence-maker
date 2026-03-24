@@ -348,10 +348,10 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
 
               {/* LoRA / Guidance sliders — only when model has LoRA and fal engine selected */}
               {selectedProfile?.lora_url && selectedEngine === "fal" && (
-                <Card className="border-amber-500/30 bg-amber-500/5">
+                <Card className="border-accent/30 bg-accent/5">
                   <CardContent className="pt-4 space-y-4">
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      <Sparkles className="h-4 w-4 text-accent" />
                       <h4 className="text-xs font-semibold">Parâmetros LoRA — {selectedProfile.name}</h4>
                     </div>
                     <div className="space-y-3">
