@@ -35,6 +35,8 @@ export interface ModelProfile {
   hairColor: string;
   generalStyle: string;
   promptSeed?: string;
+  lora_url?: string;
+  lora_trigger_word?: string;
 }
 
 export interface StylePreset {

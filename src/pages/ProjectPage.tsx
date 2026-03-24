@@ -627,9 +627,26 @@ const ProductPage = () => {
     }
   }, [activeVariant, mannequin]);
 
-  const handleSelectModelById = useCallback((modelId: string) => {
+  const handleSelectModelById = useCallback(async (modelId: string) => {
     const model = MODEL_GALLERY.find((m) => m.id === modelId);
     if (!model) return;
+
+    // Fetch LoRA data from DB if available
+    let loraUrl: string | undefined;
+    let loraTriggerWord: string | undefined;
+    try {
+      const { data } = await supabase
+        .from("model_profiles")
+        .select("lora_url, lora_trigger_word")
+        .eq("slug", modelId)
+        .maybeSingle();
+      if (data?.lora_url) {
+        loraUrl = data.lora_url;
+        loraTriggerWord = data.lora_trigger_word || undefined;
+      }
+    } catch (e) {
+      console.warn("Could not fetch LoRA data for model:", e);
+    }
 
     const profile: ModelProfile = {
       id: model.id,
@@ -643,6 +660,8 @@ const ProductPage = () => {
       hairColor: model.hairColor,
       generalStyle: model.generalStyle,
       promptSeed: model.promptBlockEN,
+      lora_url: loraUrl,
+      lora_trigger_word: loraTriggerWord,
     };
 
     update("selectedProfile", profile);
