@@ -243,7 +243,7 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
               </Button>
               <span className="text-sm font-medium">{lightboxImage.label}</span>
               <Button variant="outline" size="sm" onClick={() => {
-                const a = document.createElement("a"); a.href = lightboxImage.originalUrl || lightboxImage.imageUrl || lightboxImage.previewUrl || ""; a.download = `${lightboxImage.label}.png`; a.click();
+                downloadFile(lightboxImage.originalUrl || lightboxImage.imageUrl || lightboxImage.previewUrl || "", `${lightboxImage.label}.png`);
               }}>
                 <Download className="h-3 w-3 mr-1" /> Download
               </Button>
