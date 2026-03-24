@@ -43,7 +43,7 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center space-y-4">
-          <img src={monograma} alt="Monograma" className="h-8 mx-auto" />
+          <img src={monograma} alt="Monograma" className="h-8 mx-auto brightness-0 invert" />
           <p className="text-sm text-muted-foreground">
             Fashion AI Studio
           </p>
