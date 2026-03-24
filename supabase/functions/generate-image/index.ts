@@ -49,6 +49,8 @@ type ModelProfile = {
   promptSeed?: string;
   lora_url?: string;
   lora_trigger_word?: string;
+  lora_scale?: number;
+  guidance_scale?: number;
 };
 
 const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
