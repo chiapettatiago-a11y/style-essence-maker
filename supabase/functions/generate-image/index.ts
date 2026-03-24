@@ -56,11 +56,36 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
   "lookbook-three-quarter",
 ]);
 
-const ANGLE_BLOCKS: Record<AngleType, string> = {
-  "lookbook-front": "front_view: facing camera directly, full body, straight on.",
-  "lookbook-back": "back_view: back to camera, full body, slight head turn left.",
-  "lookbook-left": "left_side: left profile, full body, facing right.",
-  "lookbook-three-quarter": "right_side: right profile, full body, facing left.",
+ const FOOTWEAR_BLOCK = `FOOTWEAR — CRITICAL:
+ The model MUST be wearing shoes. NEVER barefoot, NEVER without footwear.
+ Default: nude-colored pointed-toe stiletto pumps matching skin tone.
+ Shoes must be elegant, fashion-appropriate, and fully visible in full-body shots.
+ Do NOT show bare feet under any circumstances.`;
+ 
+ const GENDER_BLOCK = `GENDER — CRITICAL:
+ The model is FEMALE. This is a WOMEN'S garment.
+ Do NOT generate a male model under any circumstances.
+ Female body proportions, female facial features, female silhouette — mandatory.`;
+ 
+ const TR_BADGE_DETAILED_BLOCK = `SIGNATURE BRAND ELEMENT — "TR" GOLDEN BADGE — MANDATORY IN EVERY IMAGE:
+ Element type: Small round metallic button/tag, approximately 1.5–2cm in diameter.
+ Material: Polished 18k gold-finish metal, high-shine reflective surface.
+ Engraving: Interlocking monogram letters "TR" in decorative gothic/serif typeface, raised/embossed from the metal surface.
+ Position: Attached at the garment's designated closure point (typically center-front waistband for skirts, right cuff for dresses, or as detected in garment analysis).
+ Attachment: Functional button with visible thread shank in matching garment color.
+ Rendering requirements:
+ - The "TR" letters must be LEGIBLE and SHARP — not blurred, not abstracted.
+ - Gold color must be warm polished gold (#D4AF37 to #FFD700 range), NOT silver, NOT brass, NOT matte.
+ - Must catch light realistically with specular highlights showing metallic surface.
+ - Must appear at CORRECT SCALE relative to garment — approximately 2cm diameter, NOT oversized, NOT microscopic.
+ - In close-up shots, individual letter strokes of "T" and "R" must be distinguishable.
+ Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched inside collar/waistband fold.`;
+ 
+ const ANGLE_BLOCKS: Record<AngleType, string> = {
+  "lookbook-front": "front_view: facing camera directly, full body head-to-toe, straight on. SAME FEMALE model as described.",
+  "lookbook-back": "back_view: SAME FEMALE model, back to camera, full body head-to-toe, slight head turn left. SAME garment, SAME shoes.",
+  "lookbook-left": "left_side: SAME FEMALE model, left profile, full body head-to-toe, facing right. SAME garment, SAME shoes.",
+  "lookbook-three-quarter": "right_side: SAME FEMALE model, right profile, full body head-to-toe, facing left. SAME garment, SAME shoes.",
   "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved with \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
   "close-tr-label": "This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label \"THAIS RODRIGUES\" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.",
   "video-product": "Slow 360-degree rotation of the garment on an invisible mannequin. Pure white background. Smooth continuous rotation showing all angles of the garment. The fabric moves naturally with the rotation, revealing construction details, seams, and texture. No model, just the garment floating and rotating. Professional product video for e-commerce.",
@@ -272,10 +297,6 @@ Preserve exactly:
 - Details: ${garmentAnalysis?.details || "N/A"}
 - Signature details: ${garmentAnalysis?.signatureDetails || "N/A"}
 
-SIGNATURE DETAIL — mandatory in every photo:
-One golden metallic button engraved with "TR" in interlocking monogram style on the RIGHT cuff, serving as closure.
-Internal black label "THAIS RODRIGUES" stitched below the neckline.
-
 PROPORTIONS (from ${toCm(mannequin?.height_cm)} reference mannequin):
 - Total garment length: ${toCm(proportionJson?.garment_length_cm)}
 - Waist position: ${toCm(proportionJson?.waist_position_cm)} from shoulder`;
@@ -293,13 +314,16 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
     : "";
   const midiBlock = FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis) ? MIDI_DRESS_CRITICAL_BLOCK : "";
   const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
+  const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
+  const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
+  const trBadgeBlock = TR_BADGE_DETAILED_BLOCK;
 
   const blockE = manualPrompt?.trim()
     ? `Additional direction from the designer: ${manualPrompt.trim()}
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
-  return [blockA, blockB, blockC, faceAnchorBlock, blockD, fullBodyBlock, midiBlock, basePrompt || "", blockE]
+  return [blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock, blockD, fullBodyBlock, midiBlock, basePrompt || "", blockE]
     .filter(Boolean)
     .join("\n\n");
 }
