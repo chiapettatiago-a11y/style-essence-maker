@@ -169,7 +169,7 @@ function isDressLikeGarment(garmentAnalysis?: GarmentAnalysis | null) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  return /(dress|vestido|gown)/.test(text);
+  return /(dress|vestido|gown|two-piece|two piece|conjunto|saia|skirt)/.test(text);
 }
 
 function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
