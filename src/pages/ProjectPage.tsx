@@ -1618,7 +1618,6 @@ const ProductPage = () => {
                       </div>
                     </CardContent>
                   </Card>
-                    </Card>
                   </div>
                 </div>
               ) : (
