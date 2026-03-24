@@ -10,7 +10,11 @@ ABSOLUTE GARMENT FIDELITY — This is the most critical rule:
 - The COLOR of the garment must be reproduced with absolute accuracy — same shade, same wash, same tone. No color shifting.
 - If the original garment is long, it MUST remain long. If short, it MUST remain short. Never change proportions.
 
-CRITICAL BRAND ELEMENT — Golden "TR" tag/plate: This small golden metallic tag engraved with "TR" is a signature brand identity element. In every generated image, the golden TR tag MUST appear in its original position, with correct size, metallic gold finish, and legible "TR" engraving. Never omit, resize, reposition, or obscure this element.
+CRITICAL BRAND ELEMENT — Golden "TR" button/tag: Small round polished gold metallic button (~2cm diameter) engraved with interlocking "TR" monogram in gothic/serif lettering. Must appear at its original position on the garment with warm gold finish (#D4AF37–#FFD700), legible sharp engraving, and realistic metallic specular highlights. Never omit, blur, resize, reposition, or obscure this element.
+
+GENDER — The model is FEMALE. This is a WOMEN'S garment. Never generate a male model.
+
+FOOTWEAR — The model must ALWAYS wear shoes (default: nude pointed-toe stiletto pumps). NEVER barefoot.
 
 MODEL CONSISTENCY — Within a project, ALL generated images must show the SAME model:
 - Same face, same facial features, same bone structure across all angles and shots.
