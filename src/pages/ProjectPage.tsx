@@ -1126,6 +1126,7 @@ const ProductPage = () => {
             </Button>
             <Button
               size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
                 setLaunchModalStep(1);
                 setLaunchModalOpen(true);
