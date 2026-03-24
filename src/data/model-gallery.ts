@@ -17,6 +17,23 @@ export interface GalleryModel extends ModelProfile {
 
 export const MODEL_GALLERY: GalleryModel[] = [
   {
+    id: "thais-rodrigues",
+    name: "Thais Rodrigues",
+    description: "Modelo oficial TR — LoRA treinada, morena clara, cabelo ondulado castanho",
+    faceImage: thaisRodrigues,
+    height: "1.72",
+    bust: "86",
+    waist: "62",
+    hip: "92",
+    skinTone: "Morena clara, bronze natural",
+    hairType: "Ondulado natural com movimento",
+    hairColor: "Castanho",
+    generalStyle: "Editorial/Comercial",
+    promptBlockEN: "MODELO_THAIS Brazilian female model, 1.72m height, morena clara skin with natural bronze undertone, broad cheekbones, dark expressive eyes, full lips, brown wavy hair with natural movement, authentic Brazilian commercial beauty, age 26-30. NOT Asian features, NOT straight black hair, NOT pale skin.",
+    lora_url: "https://v3b.fal.media/files/b/0a937f0e/Hm1Fcjsk0831sOokpV8bv_pytorch_lora_weights.safetensors",
+    lora_trigger_word: "MODELO_THAIS",
+  },
+  {
     id: "brasileira-natural",
     name: "Brasileira Natural",
     description: "Pele bronzeada, cabelo ondulado escuro, proporções naturais",
