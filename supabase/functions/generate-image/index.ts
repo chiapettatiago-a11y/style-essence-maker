@@ -289,12 +289,24 @@ Lighting: natural key light + soft fill, no harsh shadows.
 Resolution: 1080x1920px portrait, 4K clarity.
 Format: 9:16 portrait.`;
 
+  const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garmentAnalysis?.type || "");
+  const twoPieceBlock = isTwoPieceSet
+    ? `TWO-PIECE SET RULE — CRITICAL:
+This garment is a TWO-PIECE SET (top + bottom sold together).
+- Show BOTH pieces worn together in all body shots.
+- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.
+- Do NOT merge into a single dress silhouette.
+- Maintain visible separation line between top and bottom at waist.
+- Each piece must maintain its own construction and proportions.`
+    : "";
+
   const blockB = `ABSOLUTE GARMENT FIDELITY — this is the most critical instruction.
 Do NOT redesign, alter proportions, remove or add any detail.
 ${garmentAnalysis?.promptDescription ? `
 DEFINITIVE GARMENT DESCRIPTION — preserve exactly:
 ${garmentAnalysis.promptDescription}
 ` : ""}
+${twoPieceBlock}
 Preserve exactly:
 - Color: ${garmentAnalysis?.color || "N/A"} with ${garmentAnalysis?.pattern || "N/A"}
 - Silhouette: ${garmentAnalysis?.silhouette || "N/A"}
