@@ -47,6 +47,8 @@ type ModelProfile = {
   hairColor?: string;
   generalStyle?: string;
   promptSeed?: string;
+  lora_url?: string;
+  lora_trigger_word?: string;
 };
 
 const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
