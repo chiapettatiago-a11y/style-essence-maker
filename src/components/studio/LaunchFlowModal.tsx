@@ -345,6 +345,51 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
               </div>
               <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
               <ModelGallery selectedModelId={selectedProfile?.id || null} onSelectModel={(m) => onSelectModel(m.id)} />
+
+              {/* LoRA / Guidance sliders — only when model has LoRA and fal engine selected */}
+              {selectedProfile?.lora_url && selectedEngine === "fal" && (
+                <Card className="border-amber-500/30 bg-amber-500/5">
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                      <h4 className="text-xs font-semibold">Parâmetros LoRA — {selectedProfile.name}</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">LoRA Scale</Label>
+                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.lora_scale ?? 1.0).toFixed(2)}</span>
+                        </div>
+                        <Slider
+                          value={[selectedProfile.lora_scale ?? 1.0]}
+                          min={0}
+                          max={2}
+                          step={0.05}
+                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, lora_scale: v })}
+                          className="w-full"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Intensidade da LoRA. 1.0 = padrão validado. Valores altos podem distorcer.</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">Guidance Scale</Label>
+                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.guidance_scale ?? 3.5).toFixed(1)}</span>
+                        </div>
+                        <Slider
+                          value={[selectedProfile.guidance_scale ?? 3.5]}
+                          min={1}
+                          max={20}
+                          step={0.5}
+                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, guidance_scale: v })}
+                          className="w-full"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Aderência ao prompt. 9 = validado para Thais. Valores altos = mais fiel ao prompt.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <StyleSection selectedPresets={selectedPresets} onPresetsChange={onPresetsChange} />
               <GenerateSection
                 manualPrompt={manualPrompt}
