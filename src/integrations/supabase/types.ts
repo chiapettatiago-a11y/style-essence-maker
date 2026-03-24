@@ -85,10 +85,12 @@ export type Database = {
           created_at: string
           display_name: string
           facial_features: string | null
+          guidance_scale: number | null
           hair_description: string | null
           height_cm: number | null
           hip_cm: number | null
           id: string
+          lora_scale: number | null
           lora_trigger_word: string | null
           lora_url: string | null
           prompt_seed: string
@@ -102,10 +104,12 @@ export type Database = {
           created_at?: string
           display_name: string
           facial_features?: string | null
+          guidance_scale?: number | null
           hair_description?: string | null
           height_cm?: number | null
           hip_cm?: number | null
           id?: string
+          lora_scale?: number | null
           lora_trigger_word?: string | null
           lora_url?: string | null
           prompt_seed: string
@@ -119,10 +123,12 @@ export type Database = {
           created_at?: string
           display_name?: string
           facial_features?: string | null
+          guidance_scale?: number | null
           hair_description?: string | null
           height_cm?: number | null
           hip_cm?: number | null
           id?: string
+          lora_scale?: number | null
           lora_trigger_word?: string | null
           lora_url?: string | null
           prompt_seed?: string
