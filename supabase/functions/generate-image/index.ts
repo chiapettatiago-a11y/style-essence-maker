@@ -326,8 +326,10 @@ PROPORTIONS (from ${toCm(mannequin?.height_cm)} reference mannequin):
 
   const blockC = angleType === "video-product"
     ? ""
-    : `Model: ${modelProfile?.promptSeed || modelProfile?.name || "Brazilian model"}
-Height: ${modelProfile?.height || "N/A"}m.
+    : `MODEL — CRITICAL IDENTITY:
+Brazilian latina woman, warm morena clara skin tone, dark brown wavy hair with natural movement, defined facial features with broad cheekbones, dark expressive eyes, full lips, natural bronze undertone.
+NOT Asian features. NOT straight black hair. NOT pale skin. Authentic Brazilian commercial beauty, age 26-30.
+Height: ${modelProfile?.height || "1.72"}m.
 Measurements: bust ${toCm(modelProfile?.bust)}, waist ${toCm(modelProfile?.waist)}, hips ${toCm(modelProfile?.hip)}.
 Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.`;
 
