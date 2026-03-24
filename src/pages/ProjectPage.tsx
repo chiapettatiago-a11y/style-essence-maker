@@ -1294,26 +1294,8 @@ const ProductPage = () => {
                     </div>
                     <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Clique em <strong>"Novo lançamento"</strong> para enviar as fotos da peça no cabide, configurar o manequim, escolher a modelo e gerar o lookbook completo.
+                      Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
                     </p>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setLaunchModalStep(1);
-                        setLaunchModalOpen(true);
-                      }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Iniciar primeiro lançamento
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-6 text-[11px] text-muted-foreground mt-2">
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">1</span> Upload</span>
-                    <ArrowRight className="h-3 w-3" />
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">2</span> Manequim</span>
-                    <ArrowRight className="h-3 w-3" />
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">3</span> Análise</span>
-                    <ArrowRight className="h-3 w-3" />
-                    <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded-full bg-accent/10 text-accent flex items-center justify-center text-[10px] font-bold">4</span> Gerar</span>
                   </div>
                 </div>
               )}
