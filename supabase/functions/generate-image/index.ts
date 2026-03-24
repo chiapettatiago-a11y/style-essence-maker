@@ -460,6 +460,45 @@ async function callGeminiGateway(params: {
   return { imageUrl, modelUsed };
 }
 
+async function ensurePublicUrl(imageUrl: string): Promise<string> {
+  // If already a public URL, return as-is
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+
+  // If base64, upload to storage and return public URL
+  if (imageUrl.startsWith("data:image/")) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error("Cannot convert base64 to public URL: missing Supabase credentials");
+    }
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    const match = imageUrl.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) throw new Error("Invalid base64 image format");
+
+    const ext = match[1] === "jpeg" ? "jpg" : match[1];
+    const bytes = Uint8Array.from(atob(match[2]), (c) => c.charCodeAt(0));
+    const objectPath = `temp-ref/${crypto.randomUUID()}.${ext}`;
+
+    const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+      contentType: `image/${match[1]}`,
+      cacheControl: "3600",
+      upsert: true,
+    });
+
+    if (error) throw new Error(`Failed to upload reference image: ${error.message}`);
+
+    return buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+  }
+
+  throw new Error("Unsupported image format for fal.ai reference");
+}
+
 async function callFalEngine(params: {
   promptUsed: string;
   imageUrl?: string;
@@ -470,13 +509,21 @@ async function callFalEngine(params: {
 
   fal.config({ credentials: FAL_API_KEY });
 
-  const useReference = !!params.imageUrl;
+  let publicImageUrl: string | undefined;
+  if (params.imageUrl) {
+    publicImageUrl = await ensurePublicUrl(params.imageUrl);
+  }
+
+  const useReference = !!publicImageUrl;
   const endpoint = useReference ? "fal-ai/flux-pro/kontext" : "fal-ai/flux-2-pro";
   const imageSize = getImageSize(params.angleType);
+
+  console.log(`[fal] endpoint=${endpoint}, hasRef=${useReference}, angleType=${params.angleType}`);
+
   const result = await fal.subscribe(endpoint, {
     input: {
       prompt: params.promptUsed,
-      ...(useReference ? { image_url: params.imageUrl } : {}),
+      ...(useReference ? { image_url: publicImageUrl } : {}),
       image_size: imageSize,
       num_inference_steps: 28,
       guidance_scale: 3.5,
