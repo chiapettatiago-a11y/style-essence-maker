@@ -362,8 +362,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
           <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1))} disabled={step === 1}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
-          {step < 4 && (
-            <Button onClick={() => setStep((s) => Math.min(4, s + 1))} disabled={!canGoNext}>
+          {step < 3 && (
+            <Button onClick={() => setStep((s) => Math.min(3, s + 1))} disabled={!canGoNext}>
               Próximo <ArrowRight className="h-4 w-4 ml-1" />
             </Button>
           )}
