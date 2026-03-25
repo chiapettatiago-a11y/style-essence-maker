@@ -21,6 +21,11 @@ export interface GarmentAnalysis {
   beltOrTie?: string;
   signatureDetails?: string;
   promptDescription?: string;
+  fabricTexture?: string;
+  sleeveDetail?: string;
+  hemDetail?: string;
+  trBadgeLocation?: string;
+  trBadgeDescription?: string;
 }
 
 export interface ModelProfile {
@@ -69,8 +74,8 @@ export interface GenerationRequest {
     | 'lookbook-back'
     | 'lookbook-left'
     | 'lookbook-three-quarter'
-    | 'close-tr-cuff'
-    | 'close-tr-label'
+    | 'close-tr-detail'
+    | 'movement-shot'
     | 'video-product'
     | 'video-model';
   label: string;
@@ -126,6 +131,8 @@ export interface ProductVariant {
   shoulderWidthCm?: number | null;
   proportionJson?: Record<string, unknown> | null;
   analysisRaw?: string | null;
+  trBadgeLocation?: string | null;
+  fabricTexture?: string | null;
 }
 
 export interface WizardState {

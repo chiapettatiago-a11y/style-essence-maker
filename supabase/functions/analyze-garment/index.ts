@@ -17,6 +17,7 @@ type Mannequin = {
 type AnalysisResult = {
   garment_type?: string;
   fabric?: string;
+  fabric_texture?: string;
   color?: string;
   color_hex_estimate?: string;
   pattern?: string;
@@ -24,22 +25,28 @@ type AnalysisResult = {
   silhouette?: string;
   neckline?: string;
   sleeve_type?: string;
-  sleeve_length?: string;
+  sleeve_detail?: string;
   hem_type?: string;
-  garment_length?: string;
-  length_description?: string;
+  hem_detail?: string;
+  length?: string;
   construction?: string;
-  closure?: string;
-  belt_or_tie?: string;
   details?: string;
-  signature_details?: string;
-  prompt_description?: string;
+  tr_badge_location?: string | null;
+  tr_badge_description?: string | null;
   proportions?: {
     garment_length_ratio?: number;
     waist_ratio?: number;
     sleeve_ratio?: number;
     shoulder_ratio?: number;
   };
+  // Legacy fields mapped for backward compat
+  garment_length?: string;
+  length_description?: string;
+  sleeve_length?: string;
+  closure?: string;
+  belt_or_tie?: string;
+  signature_details?: string;
+  prompt_description?: string;
 };
 
 class UpstreamAIError extends Error {
@@ -54,7 +61,7 @@ class UpstreamAIError extends Error {
   }
 }
 
-const SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand.
+const SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand called THAIS RODRIGUES (TR).
 Analyze the garment photos and return ONLY a valid JSON object with no text before or after.
 
 IMPORTANT: Photos may have dark backgrounds, hangers, wooden racks, or papers in front of the garment. Ignore all background elements. Focus ONLY on the garment itself.
@@ -62,54 +69,51 @@ IMPORTANT: Photos may have dark backgrounds, hangers, wooden racks, or papers in
 CRITICAL — TWO-PIECE SET DETECTION:
 If you see a cropped top/blouse AND a separate skirt/pants displayed together, identify as:
   garment_type: "two-piece set"
-Describe EACH piece separately in the "details" and "prompt_description" fields.
-For example: "Cropped blouse with ruffled neckline + straight midi skirt with tiered ruffles"
-Do NOT merge two separate pieces into a single "dress" classification.
+Describe EACH piece separately in the "details" field.
 
-TR SIGNATURE BUTTON/CHARM — ACCURACY RULE:
-Look carefully at the EXACT position of any TR metallic button/charm.
-Common positions: bottom hem of top/blouse (lateral), waistband, cuff of sleeve.
+TR SIGNATURE BADGE — ACCURACY RULE:
+Look carefully for a small round metallic button/charm engraved with "TR" monogram.
 Describe ONLY what you actually see and its exact position.
-If the TR button is not clearly visible in the reference photos, write: "TR button not clearly visible in reference photos"
-Do NOT assume or invent a position. Do NOT default to "right cuff" unless you see it there.
+If the TR badge is not clearly visible in the reference photos, set tr_badge_location to null.
 
+Return this exact JSON schema:
 {
-  "garment_type": "dress|blouse|pants|skirt|jacket|two-piece set",
-  "fabric": "detailed fabric description — if PATCHWORK, describe each panel's fabric separately",
-  "color": "precise color description — for patchwork list ALL panel colors e.g. navy blue, light blue, golden/caramel, white",
-  "color_hex_estimate": "#xxxxxx (dominant color)",
-  "pattern": "solid|paisley|floral|geometric|stripes|patchwork|etc",
-  "pattern_description": "detailed pattern description — for PATCHWORK: describe each panel separately including panel colors, arrangement (diagonal/square/triangular sections), pattern within each panel (paisley/floral/bandana/scroll), and how panels connect and transition",
-  "silhouette": "A-line|fitted|straight|wrap|tiered|etc",
-  "neckline": "precise collar/neckline description",
-  "sleeve_type": "sleeveless|short|3/4|long|balloon|etc — note exact length and any cuff detail with button/hardware closure",
-  "sleeve_length": "exact description of sleeve length and cuff construction",
-  "hem_type": "straight|asymmetric|ruffled|tiered|etc — for TIERED/RUFFLE: count number of tiers, describe each tier separately with its gather point",
-  "garment_length": "mini|knee|midi|maxi — with description e.g. midi, falls 15cm below knee. For tiered dresses: count ruffle tiers visible and classify as midi if tiers extend below knee",
-  "length_description": "precise description: where hem falls relative to knee",
-  "construction": "visible construction details — for PATCHWORK: describe panel arrangement, seaming, how different fabric sections are joined. For TWO-PIECE SET: describe construction of each piece separately",
-  "closure": "buttons|zipper|wrap|etc — describe in detail",
-  "belt_or_tie": "describe exactly: fabric self-tie sash / leather belt / none",
-  "details": "ALL details: buttons, cuffs, pockets, pleats, gathering, ruffle tiers, panel transitions. For TWO-PIECE SET: list details of each piece separately with clear labels (TOP: ... / BOTTOM: ...)",
-  "signature_details": "Look carefully for a round metallic button engraved 'TR' — describe exact position (e.g. bottom hem of blouse, lateral), size estimate, and metal tone (silver or gold). If NOT clearly visible write 'TR button not clearly visible in reference photos'. Also note brand label location if visible.",
+  "garment_type": "dress|blouse|pants|skirt|jacket|two-piece set|etc",
+  "fabric": "detailed fabric description — include if knit, woven, jersey, texture, specific stitch if visible",
+  "fabric_texture": "visual texture description — e.g. alternating horizontal knit bands, waffle stitch, pointelle lace, smooth jersey",
+  "color": "main color",
+  "color_hex_estimate": "#xxxxxx",
+  "pattern": "solid|stripes|floral|textured|patchwork|etc",
+  "pattern_description": "detailed pattern or texture description",
+  "silhouette": "fitted|A-line|straight|wrap|semi-fitted|etc",
+  "neckline": "complete neckline description including ruffles, volume, extension",
+  "sleeve_type": "sleeveless|short|3/4|long|balloon|etc",
+  "sleeve_detail": "sleeve finish description — e.g. gathered ruffle cuff, self-tie bow, ribbed, plain",
+  "hem_type": "straight|asymmetric|tiered ruffles|scalloped|etc",
+  "hem_detail": "detailed hem description — e.g. 5 to 6 horizontal ruffle tiers, each gathered at top seam cascading as flounce",
+  "length": "cropped|short|midi|maxi|ankle",
+  "construction": "visible construction details",
+  "details": "ALL details: buttons, bows, pleats, zippers, seams, ruffles, etc",
+  "tr_badge_location": "exact TR badge location — e.g. center front waist seam, left chest, right hip, center back — if not visible: null",
+  "tr_badge_description": "badge description — e.g. small round gold-tone metallic button/charm with TR monogram — if not visible: null",
   "proportions": {
-    "garment_length_ratio": 0.72,
-    "waist_ratio": 0.40,
-    "sleeve_ratio": 1.0,
-    "shoulder_ratio": 0.44
-  },
-  "prompt_description": "One extremely detailed paragraph for AI image generation. MUST include: 1) Whether this is a single garment or two-piece set — if two-piece, describe EACH piece separately with clear separation, 2) Each patchwork panel color and pattern described separately, 3) Number and size of ruffle/tiered tiers with gather points, 4) Exact sleeve length and cuff detail including any hardware, 5) TR button/hardware position ONLY if clearly visible — if not visible say so, 6) All construction and finishing details that must be preserved in generation. For two-piece sets: emphasize that top and bottom are SEPARATE pieces meeting at natural waist."
+    "garment_length_ratio": 0.0,
+    "waist_ratio": 0.0,
+    "sleeve_ratio": 0.0,
+    "shoulder_ratio": 0.0
+  }
 }
 
 Critical rules:
-- NEVER leave garment_length or length_description empty
-- If unsure of exact length, estimate based on visual proportions
-- Be extremely precise about belt/tie type — fabric sash vs leather belt are very different
-- For PATCHWORK garments: describe EACH panel separately with color, pattern, position
-- For TIERED/RUFFLE garments: count tiers, describe each tier's gathering
-- For signature details: describe ONLY what you actually see — do NOT invent positions
-- For TWO-PIECE SETS: never merge into a single garment description
-- The prompt_description field will be used directly in AI image generation prompts — be exhaustively detailed`;
+- NEVER leave length empty — estimate from visual proportions if unsure
+- Use the DETECTED length value — if it looks maxi, say "maxi". If midi, say "midi". Never default.
+- fabric_texture must describe the VISUAL texture pattern, not just fabric type
+- sleeve_detail must describe the FINISH of the sleeve (cuff, tie, ruffle, plain)
+- hem_detail must describe the FULL hem construction (tiers, gathers, finish)
+- tr_badge_location must be the EXACT position or null — do NOT guess
+- For PATCHWORK: describe each panel separately
+- For TIERED/RUFFLE: count tiers, describe each tier's gathering
+- For TWO-PIECE SETS: describe each piece separately in details`;
 
 function normalizeRatio(value: unknown, fallback: number): number {
   const n = Number(value);
@@ -129,7 +133,7 @@ function calculateProportions(analysis: AnalysisResult, mannequin: Mannequin) {
       sleeve_length_cm: null,
       shoulder_width_cm: null,
       hem_below_knee_cm: null,
-      garment_length: analysis.garment_length || null,
+      garment_length: analysis.length || analysis.garment_length || null,
     };
   }
 
@@ -163,7 +167,7 @@ function calculateProportions(analysis: AnalysisResult, mannequin: Mannequin) {
     sleeve_length_cm,
     shoulder_width_cm,
     hem_below_knee_cm,
-    garment_length: analysis.garment_length || computedLength,
+    garment_length: analysis.length || analysis.garment_length || computedLength,
   };
 }
 
@@ -183,8 +187,8 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
     construction: raw.construction || "",
     details: raw.details || "",
     style: "",
-    fullDescription: raw.prompt_description || "",
-    length: raw.garment_length || proportions.garment_length || "",
+    fullDescription: "",
+    length: raw.length || raw.garment_length || proportions.garment_length || "",
     silhouette: raw.silhouette || "",
     hemline: raw.hem_type || "",
     neckline: raw.neckline || "",
@@ -192,12 +196,17 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
     colorHexEstimate: raw.color_hex_estimate || "",
     patternDescription: raw.pattern_description || "",
     hemType: raw.hem_type || "",
+    hemDetail: raw.hem_detail || "",
     lengthDescription: raw.length_description || "",
-    sleeveLength: raw.sleeve_length || "",
+    sleeveLength: raw.sleeve_length || raw.sleeve_type || "",
+    sleeveDetail: raw.sleeve_detail || "",
     closure: raw.closure || "",
     beltOrTie: raw.belt_or_tie || "",
     signatureDetails: raw.signature_details || "",
     promptDescription: raw.prompt_description || "",
+    fabricTexture: raw.fabric_texture || "",
+    trBadgeLocation: raw.tr_badge_location || null,
+    trBadgeDescription: raw.tr_badge_description || null,
   };
 }
 
@@ -360,10 +369,9 @@ serve(async (req) => {
     const content = await callAI(images);
     const raw = JSON.parse(stripJsonWrapper(content)) as AnalysisResult;
 
-    if (!raw.garment_length || !raw.length_description) {
+    if (!raw.length && !raw.garment_length) {
       console.warn("AI response missing garment length fields, using defaults");
-      raw.garment_length = raw.garment_length || "midi";
-      raw.length_description = raw.length_description || "estimated from visual proportions";
+      raw.length = "midi";
     }
 
     const proportions = calculateProportions(raw, mannequin || {});

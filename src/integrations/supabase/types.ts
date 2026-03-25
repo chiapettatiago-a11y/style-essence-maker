@@ -144,6 +144,7 @@ export type Database = {
           analysis_raw: string | null
           color_name: string
           created_at: string
+          fabric_texture: string | null
           garment_analysis: Json | null
           garment_length: string | null
           garment_length_cm: number | null
@@ -156,6 +157,7 @@ export type Database = {
           sleeve_length_cm: number | null
           sleeve_type: string | null
           sort_order: number
+          tr_badge_location: string | null
           uploaded_images: string[] | null
           waist_position_cm: number | null
         }
@@ -163,6 +165,7 @@ export type Database = {
           analysis_raw?: string | null
           color_name?: string
           created_at?: string
+          fabric_texture?: string | null
           garment_analysis?: Json | null
           garment_length?: string | null
           garment_length_cm?: number | null
@@ -175,6 +178,7 @@ export type Database = {
           sleeve_length_cm?: number | null
           sleeve_type?: string | null
           sort_order?: number
+          tr_badge_location?: string | null
           uploaded_images?: string[] | null
           waist_position_cm?: number | null
         }
@@ -182,6 +186,7 @@ export type Database = {
           analysis_raw?: string | null
           color_name?: string
           created_at?: string
+          fabric_texture?: string | null
           garment_analysis?: Json | null
           garment_length?: string | null
           garment_length_cm?: number | null
@@ -194,6 +199,7 @@ export type Database = {
           sleeve_length_cm?: number | null
           sleeve_type?: string | null
           sort_order?: number
+          tr_badge_location?: string | null
           uploaded_images?: string[] | null
           waist_position_cm?: number | null
         }

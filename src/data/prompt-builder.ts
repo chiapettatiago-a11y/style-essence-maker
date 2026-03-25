@@ -7,25 +7,26 @@ const FULL_BODY_ANGLE_TYPES = new Set<GenerationRequest["type"]>([
   "lookbook-back",
   "lookbook-left",
   "lookbook-three-quarter",
+  "movement-shot",
 ]);
 
 const ANGLE_INSTRUCTIONS: Record<string, string> = {
-  "lookbook-front": "front_view: facing camera directly, full body, straight on.",
-  "lookbook-back": "back_view: back to camera, full body, slight head turn left.",
-  "lookbook-left": "left_side: left profile, full body, facing right.",
-  "lookbook-three-quarter": "right_side: right profile, full body, facing left.",
-  "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
-  "close-tr-label": "This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label \"THAIS RODRIGUES\" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.",
+  "lookbook-front": "Full body, facing camera, weight evenly distributed, arms relaxed, subtle natural posture. Full body framing, feet visible.",
+  "lookbook-back": "Back to camera, slight head turn over left shoulder, natural posture. Full body framing, feet visible.",
+  "lookbook-left": "Left profile, mid-stride feel, natural arm swing, candid editorial energy. Full body framing, feet visible.",
+  "lookbook-three-quarter": "Right profile, weight on back foot, slight hip shift, arm softly bent. Full body framing, feet visible.",
+  "close-tr-detail": "Half-body crop centered on the TR badge area of the garment. The TR badge must be clearly visible. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.",
+  "movement-shot": "Full body, loose editorial walking pose — mid-stride, natural arm swing, slight body rotation, relaxed energy. Candid fashion week backstage feel. Full body framing, feet visible.",
 };
 
 /** PT-BR labels for angle types (user-facing) */
 const ANGLE_LABELS_PT: Record<string, string> = {
-  "lookbook-front": "Vista frontal — modelo de frente para a câmera, corpo inteiro, reta.",
+  "lookbook-front": "Vista frontal — modelo de frente para a câmera, corpo inteiro, postura natural.",
   "lookbook-back": "Vista traseira — modelo de costas, corpo inteiro, leve giro da cabeça à esquerda.",
-  "lookbook-left": "Perfil lateral esquerdo — corpo inteiro, olhando para a direita.",
-  "lookbook-three-quarter": "Perfil lateral direito — corpo inteiro, olhando para a esquerda.",
-  "close-tr-cuff": "Close punho direito — foco fechado no punho direito com botão dourado TR centralizado.",
-  "close-tr-label": "Close gola/etiqueta — foco fechado na gola com etiqueta interna THAIS RODRIGUES visível.",
+  "lookbook-left": "Perfil lateral esquerdo — corpo inteiro, energia editorial, passo natural.",
+  "lookbook-three-quarter": "Perfil lateral direito — corpo inteiro, peso na perna de trás, quadril leve.",
+  "close-tr-detail": "Close detalhe TR — meio-corpo focando na área do badge TR com contexto da peça.",
+  "movement-shot": "Movimento editorial — corpo inteiro, pose de caminhada solta, energia backstage.",
 };
 
 const FULL_BODY_CRITICAL_BLOCK = `FRAMING — CRITICAL:
@@ -108,56 +109,56 @@ export function buildFullPrompt(
 ): string {
   const isVideo = angleType === "video-product" || angleType === "video-model";
   const isFullBody = FULL_BODY_ANGLE_TYPES.has(angleType);
+  const isCloseDetail = angleType === "close-tr-detail";
   const base = isVideo ? LAYER1_VIDEO_BASE : LAYER1_BASE;
 
   const parts: string[] = [base];
 
-  if (garment) {
-    const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garment.type || "");
-    const twoPieceBlock = isTwoPieceSet
-      ? `\nTWO-PIECE SET RULE — CRITICAL:\nThis garment is a TWO-PIECE SET (top + bottom sold together).\n- Show BOTH pieces worn together in all body shots.\n- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.\n- Do NOT merge into a single dress silhouette.\n- Maintain visible separation line between top and bottom at waist.`
-      : "";
-
-    const trPositionNotVisible = !garment.signatureDetails || /not clearly visible/i.test(garment.signatureDetails);
-    const trBlock = trPositionNotVisible
-      ? `\nTR SIGNATURE: Not clearly visible in reference — do NOT add TR button anywhere.`
-      : `\nTR SIGNATURE HARDWARE — STRICT RULE:\nInclude the TR button ONLY at this exact position: ${garment.signatureDetails}\nNEVER invent or relocate the TR button.`;
-
-    const garmentBlock = [
-      `GARMENT SPECIFICATION (do NOT deviate from this description):`,
+  // For close-tr-detail, use a simplified garment block
+  if (isCloseDetail && garment) {
+    const trLocation = garment.trBadgeLocation || garment.signatureDetails || "unknown position";
+    const closeGarmentBlock = [
+      `GARMENT CONTEXT:`,
       `Type: ${garment.type}`,
-      garment.promptDescription ? `Definitive fidelity description: ${garment.promptDescription}` : "",
-      twoPieceBlock,
-      garment.length ? `Length: ${garment.length} — THIS LENGTH IS MANDATORY, do not shorten or lengthen` : "",
-      garment.lengthDescription ? `Length note: ${garment.lengthDescription}` : "",
-      garment.silhouette ? `Silhouette: ${garment.silhouette}` : "",
-      garment.neckline ? `Neckline: ${garment.neckline}` : "",
-      garment.sleeves ? `Sleeves: ${garment.sleeves}` : "",
-      garment.sleeveLength ? `Sleeve length: ${garment.sleeveLength}` : "",
-      garment.hemline ? `Hemline: ${garment.hemline}` : "",
-      `Fabric: ${garment.fabric}`,
-      `Color: ${garment.color} — EXACT color match required, no shifts in tone or saturation`,
-      garment.pattern ? `Pattern: ${garment.pattern}` : "",
-      garment.closure ? `Closure: ${garment.closure}` : "",
-      garment.beltOrTie ? `Belt / tie: ${garment.beltOrTie}` : "",
-      garment.signatureDetails ? `Signature details: ${garment.signatureDetails}` : "",
-      trBlock,
-      `Construction: ${garment.construction}`,
-      `Details: ${garment.details}`,
-      garment.fullDescription ? `\nFull reference: ${garment.fullDescription}` : "",
+      `Color: ${garment.color}`,
+      `TR signature: ${garment.trBadgeDescription || "small round gold-tone metallic button with TR monogram"} positioned at ${trLocation}.`,
+      ``,
+      `ANGLE: Half-body crop centered on the ${trLocation} area of the garment. The TR badge must be clearly visible. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.`,
+    ].join("\n");
+    parts.push(closeGarmentBlock);
+  } else if (garment) {
+    const garmentBlock = [
+      `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
+      `Fabric: ${garment.fabric}. Texture: ${garment.fabricTexture || "N/A"}.`,
+      `Color: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — fully monochromatic, no color variation.`,
+      `Silhouette: ${garment.silhouette || "N/A"}.`,
+      `Length: ${garment.length || "N/A"} — hem reaches ${garment.lengthDescription || "as detected"}.`,
+      `Neckline: ${garment.neckline || "N/A"}`,
+      `Sleeves: ${garment.sleeves || "N/A"}. Cuff detail: ${garment.sleeveDetail || garment.sleeveLength || "N/A"}`,
+      `Hem/Skirt: ${garment.hemDetail || garment.hemline || "N/A"}`,
+      `Construction details: ${garment.details || "N/A"}`,
+      garment.trBadgeLocation && garment.trBadgeDescription
+        ? `TR signature: ${garment.trBadgeDescription} positioned at ${garment.trBadgeLocation}.`
+        : garment.signatureDetails
+          ? `TR signature: ${garment.signatureDetails}`
+          : `TR signature: not clearly visible in reference.`,
+      `Internal label "THAIS RODRIGUES" stitched below neckline.`,
     ].filter(Boolean).join("\n");
     parts.push(garmentBlock);
   }
 
   const angleInstruction = ANGLE_INSTRUCTIONS[angleType];
-  if (angleInstruction) {
+  if (angleInstruction && !isCloseDetail) {
     parts.push(angleInstruction);
   }
 
   if (isFullBody) {
     parts.push(FULL_BODY_CRITICAL_BLOCK);
     if (isDressLikeGarment(garment)) {
-      parts.push(MIDI_DRESS_CRITICAL_BLOCK);
+      // Use detected length, never override with fixed "midi"
+      const detectedLength = garment?.length || "";
+      const lengthDesc = garment?.lengthDescription || "";
+      parts.push(`SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`);
     }
   }
 
@@ -256,8 +257,8 @@ export function generateAllRequests(
     { type: "lookbook-back", label: "Lookbook — Costas" },
     { type: "lookbook-left", label: "Lookbook — Lateral Esquerda" },
     { type: "lookbook-three-quarter", label: "Lookbook — Lateral Direita" },
-    { type: "close-tr-cuff", label: "Close TR — Punho Direito" },
-    { type: "close-tr-label", label: "Close TR — Gola / Etiqueta" },
+    { type: "close-tr-detail", label: "Close — Detalhe TR" },
+    { type: "movement-shot", label: "Movimento Editorial" },
     { type: "video-product", label: "Vídeo 360° Produto (prompt)" },
     { type: "video-model", label: "Vídeo 360° com Modelo (prompt)" },
   ];

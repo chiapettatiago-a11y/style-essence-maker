@@ -24,8 +24,8 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-back": "back_view",
   "lookbook-left": "left_side",
   "lookbook-three-quarter": "right_side",
-  "close-tr-cuff": "close_tr_cuff",
-  "close-tr-label": "close_tr_label",
+  "close-tr-detail": "close_tr_detail",
+  "movement-shot": "movement_shot",
   "video-product": "video_product",
   "video-model": "video_model",
 };
@@ -604,6 +604,9 @@ const ProductPage = () => {
       const analysis = data.analysis as GarmentAnalysis;
       const proportions = (data.proportions || {}) as Record<string, unknown>;
 
+      // Save tr_badge_location to variant
+      const trBadgeLocation = analysis.trBadgeLocation || (data.raw?.tr_badge_location as string) || null;
+
       updateActiveVariant({
         garmentAnalysis: analysis,
         garmentType: analysis.type || null,
@@ -617,6 +620,11 @@ const ProductPage = () => {
         proportionJson: proportions,
         analysisRaw: data.raw ? JSON.stringify(data.raw) : null,
       });
+
+      // Save tr_badge_location to DB separately (new column)
+      if (activeVariant) {
+        supabase.from("product_variants").update({ tr_badge_location: trBadgeLocation }).eq("id", activeVariant.id).then();
+      }
 
       toast({ title: "Análise concluída", description: "Dados técnicos atualizados." });
     } catch (err: unknown) {
@@ -846,8 +854,9 @@ const ProductPage = () => {
 
     const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
     const frontImage = imageItems.find((img) => img.type === "lookbook-front");
-    const closeImages = imageItems.filter((img) => img.type === "close-tr-cuff" || img.type === "close-tr-label");
-    const standardImages = imageItems.filter((img) => img.type !== "lookbook-front" && img.type !== "close-tr-cuff" && img.type !== "close-tr-label");
+    const closeImages = imageItems.filter((img) => img.type === "close-tr-detail");
+    const movementImages = imageItems.filter((img) => img.type === "movement-shot");
+    const standardImages = imageItems.filter((img) => img.type !== "lookbook-front" && img.type !== "close-tr-detail" && img.type !== "movement-shot");
 
     // 1. Generate front_view first (anchor image for LoRA / reference)
     let frontReferenceUrl = "";
@@ -855,11 +864,14 @@ const ProductPage = () => {
       frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
     }
 
-    // 2. Generate sides/back using frontReferenceUrl for kontext consistency
+    // 2. Generate sides/back + movement using frontReferenceUrl for kontext consistency
     const sideBackRef = frontReferenceUrl || activeVariant.uploadedImages[0] || undefined;
-    await Promise.allSettled(standardImages.map((img) => runImageGeneration(img, sideBackRef)));
+    await Promise.allSettled([
+      ...standardImages.map((img) => runImageGeneration(img, sideBackRef)),
+      ...movementImages.map((img) => runImageGeneration(img, sideBackRef)),
+    ]);
 
-    // 3. Generate close-ups using frontReferenceUrl
+    // 3. Generate close-up detail using frontReferenceUrl
     if (!frontReferenceUrl && closeImages.length > 0) {
       closeImages.forEach((img) => {
         updateImageInState(img.id, { status: "error", error: "A front view precisa ser gerada primeiro para servir como referência dos closes." });
@@ -946,7 +958,7 @@ const ProductPage = () => {
     const engine = overrideEngine || sourceLaunch?.engineUsed || state.selectedEngine;
     const frontReference = sourceLaunch?.images.find((launchImg) => launchImg.type === "lookbook-front" && launchImg.status === "done");
     const frontReferenceUrl = frontReference?.originalUrl || frontReference?.previewUrl || frontReference?.imageUrl || "";
-    const isCloseDetail = img.type === "close-tr-cuff" || img.type === "close-tr-label";
+    const isCloseDetail = img.type === "close-tr-detail";
 
     if (isCloseDetail && !frontReferenceUrl) {
       updateImageInState(id, {
@@ -961,8 +973,8 @@ const ProductPage = () => {
 
     const startedAt = performance.now();
     try {
-      const isCloseDetail = img.type === "close-tr-cuff" || img.type === "close-tr-label";
-      const shouldUseReferenceImage = isCloseDetail || img.type === "lookbook-front";
+      const isCloseOrMovement = img.type === "close-tr-detail" || img.type === "movement-shot";
+      const shouldUseReferenceImage = isCloseDetail || img.type === "lookbook-front" || img.type === "movement-shot";
       const referenceImageUrl = shouldUseReferenceImage
         ? (isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0])
         : undefined;
