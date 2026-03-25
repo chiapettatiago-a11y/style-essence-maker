@@ -551,9 +551,9 @@ async function callFalEngine(params: {
 
   const useReference = !!publicImageUrl;
   const useLora = !!params.loraUrl;
-  const isCloseUp = params.angleType === "close-tr-cuff" || params.angleType === "close-tr-label";
+  const isCloseUp = params.angleType === "close-tr-detail";
   const isFrontView = params.angleType === "lookbook-front";
-  const isSideOrBack = ["lookbook-back", "lookbook-left", "lookbook-three-quarter"].includes(params.angleType);
+  const isSideOrBack = ["lookbook-back", "lookbook-left", "lookbook-three-quarter", "movement-shot"].includes(params.angleType);
 
   // Angle-specific endpoint selection:
   // - front_view + LoRA → fal-ai/flux-lora

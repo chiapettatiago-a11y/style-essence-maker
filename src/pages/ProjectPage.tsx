@@ -604,6 +604,9 @@ const ProductPage = () => {
       const analysis = data.analysis as GarmentAnalysis;
       const proportions = (data.proportions || {}) as Record<string, unknown>;
 
+      // Save tr_badge_location to variant
+      const trBadgeLocation = analysis.trBadgeLocation || (data.raw?.tr_badge_location as string) || null;
+
       updateActiveVariant({
         garmentAnalysis: analysis,
         garmentType: analysis.type || null,
@@ -617,6 +620,11 @@ const ProductPage = () => {
         proportionJson: proportions,
         analysisRaw: data.raw ? JSON.stringify(data.raw) : null,
       });
+
+      // Save tr_badge_location to DB separately (new column)
+      if (activeVariant) {
+        supabase.from("product_variants").update({ tr_badge_location: trBadgeLocation }).eq("id", activeVariant.id).then();
+      }
 
       toast({ title: "Análise concluída", description: "Dados técnicos atualizados." });
     } catch (err: unknown) {
