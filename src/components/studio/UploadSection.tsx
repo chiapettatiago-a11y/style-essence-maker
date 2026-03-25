@@ -85,6 +85,22 @@ const UploadSection: React.FC<UploadSectionProps> = ({
 
   return (
     <div className="space-y-5">
+      {/* Garment type selector */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold">Tipo de peça</Label>
+        <Select value={garmentType || ""} onValueChange={onGarmentTypeChange}>
+          <SelectTrigger className="w-full max-w-xs">
+            <SelectValue placeholder="Selecione o tipo de peça" />
+          </SelectTrigger>
+          <SelectContent>
+            {GARMENT_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] text-muted-foreground">Informar o tipo ajuda a IA a manter fidelidade na geração.</p>
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"
