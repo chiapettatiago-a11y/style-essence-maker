@@ -131,6 +131,8 @@ export interface ProductVariant {
   shoulderWidthCm?: number | null;
   proportionJson?: Record<string, unknown> | null;
   analysisRaw?: string | null;
+  trBadgeLocation?: string | null;
+  fabricTexture?: string | null;
 }
 
 export interface WizardState {
