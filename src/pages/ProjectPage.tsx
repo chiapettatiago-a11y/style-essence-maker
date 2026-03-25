@@ -697,8 +697,14 @@ const ProductPage = () => {
       }
 
       // Auto-calculate proportions from ratios + mannequin
-      if (proportions && mannequin.mannequin_height_cm) {
-        await calculateProportions(proportions, mannequin, activeVariant.id);
+      if (mannequin.mannequin_height_cm) {
+        // Build a temporary variant with the fresh analysisRaw for ratio extraction
+        const tempVariant: ProductVariant = {
+          ...activeVariant,
+          proportionJson: proportions,
+          analysisRaw: data.raw ? JSON.stringify(data.raw) : activeVariant.analysisRaw,
+        };
+        await calculateProportions(tempVariant, mannequin);
       }
 
       toast({ title: "Análise concluída", description: "Dados técnicos e proporções atualizados." });
