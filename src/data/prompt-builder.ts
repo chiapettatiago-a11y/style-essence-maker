@@ -7,6 +7,7 @@ const FULL_BODY_ANGLE_TYPES = new Set<GenerationRequest["type"]>([
   "lookbook-back",
   "lookbook-left",
   "lookbook-three-quarter",
+  "movement-shot",
 ]);
 
 const ANGLE_INSTRUCTIONS: Record<string, string> = {
