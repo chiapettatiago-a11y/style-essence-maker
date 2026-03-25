@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -223,39 +222,6 @@ function parseDataUrl(dataUrl: string) {
   };
 }
 
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024; // 4MB
-const MAX_DIMENSION = 1500;
-const JPEG_QUALITY = 85;
-
-async function compressImage(dataUrl: string): Promise<string> {
-  const parsed = parseDataUrl(dataUrl);
-  const rawBytes = Uint8Array.from(atob(parsed.data), (c) => c.charCodeAt(0));
-
-  // If already under limit, return as-is
-  if (rawBytes.length <= MAX_IMAGE_BYTES) {
-    return dataUrl;
-  }
-
-  console.log(`Compressing image: ${(rawBytes.length / 1024 / 1024).toFixed(1)}MB → target <4MB`);
-
-  let img = await Image.decode(rawBytes);
-
-  // Resize if larger than MAX_DIMENSION on either side
-  const { width, height } = img;
-  if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-    const scale = MAX_DIMENSION / Math.max(width, height);
-    const newW = Math.round(width * scale);
-    const newH = Math.round(height * scale);
-    img = img.resize(newW, newH);
-  }
-
-  // Encode as JPEG with target quality
-  const jpegBytes = await img.encodeJPEG(JPEG_QUALITY);
-  const b64 = btoa(String.fromCharCode(...jpegBytes));
-
-  console.log(`Compressed: ${(jpegBytes.length / 1024 / 1024).toFixed(1)}MB`);
-  return `data:image/jpeg;base64,${b64}`;
-}
 
 function mapProviderError(status: number, errText: string, providerLabel: string) {
   if (status === 402 || /payment_required|not enough credits|credit balance is too low|insufficient credits/i.test(errText)) {
@@ -324,10 +290,7 @@ async function callClaudeAI(images: string[]) {
     throw new UpstreamAIError("ANTHROPIC_API_KEY is not configured", 500, "missing_secret");
   }
 
-  // Compress all images to stay under Claude's 5MB limit
-  const compressed = await Promise.all(images.slice(0, 4).map(compressImage));
-
-  const contentParts: Array<Record<string, unknown>> = compressed.map((image) => {
+  const contentParts: Array<Record<string, unknown>> = images.slice(0, 4).map((image) => {
     const parsed = parseDataUrl(image);
     return {
       type: "image",

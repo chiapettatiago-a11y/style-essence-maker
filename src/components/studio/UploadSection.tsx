@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { GarmentAnalysis } from "@/types/fashion";
 import { Upload, X, ImageIcon, Sparkles, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { compressImage, blobToDataUrl } from "@/lib/image-compress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,15 +57,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({
   const handleFiles = useCallback((files: FileList) => {
     const selectedFiles = Array.from(files);
     Promise.all(
-      selectedFiles.map(
-        (file) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve((e.target?.result as string) || "");
-            reader.onerror = () => reject(new Error(`Falha ao ler ${file.name}`));
-            reader.readAsDataURL(file);
-          })
-      )
+      selectedFiles.map(async (file) => {
+        // Compress to JPEG ≤1200px before converting to data URL
+        const compressed = await compressImage(file);
+        return blobToDataUrl(compressed);
+      })
     )
       .then((results) => {
         const nextImages = results.filter(Boolean);
