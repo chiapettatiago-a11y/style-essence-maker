@@ -965,8 +965,8 @@ const ProductPage = () => {
 
     const startedAt = performance.now();
     try {
-      const isCloseDetail2 = img.type === "close-tr-detail";
-      const shouldUseReferenceImage = isCloseDetail || img.type === "lookbook-front";
+      const isCloseOrMovement = img.type === "close-tr-detail" || img.type === "movement-shot";
+      const shouldUseReferenceImage = isCloseDetail || img.type === "lookbook-front" || img.type === "movement-shot";
       const referenceImageUrl = shouldUseReferenceImage
         ? (isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0])
         : undefined;

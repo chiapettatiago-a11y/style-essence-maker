@@ -11,22 +11,22 @@ const FULL_BODY_ANGLE_TYPES = new Set<GenerationRequest["type"]>([
 ]);
 
 const ANGLE_INSTRUCTIONS: Record<string, string> = {
-  "lookbook-front": "front_view: facing camera directly, full body, straight on.",
-  "lookbook-back": "back_view: back to camera, full body, slight head turn left.",
-  "lookbook-left": "left_side: left profile, full body, facing right.",
-  "lookbook-three-quarter": "right_side: right profile, full body, facing left.",
-  "close-tr-cuff": "This is the same model from the reference image, wearing the same dress. Zoom into the RIGHT WRIST/CUFF area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of her right sleeve cuff as worn on her wrist. One golden metallic button engraved \"TR\" in interlocking monogram style must be SHARP and centered in frame. Her wrist and hand are naturally relaxed beneath the cuff. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to cuff area only.",
-  "close-tr-label": "This is the same model from the reference image, wearing the same dress. Zoom into the NECKLINE/COLLAR area of the dress she is wearing. The model is still wearing the garment — do NOT remove it from her body. Show a tight crop of the collar and upper chest area as worn. Black fabric label \"THAIS RODRIGUES\" visible inside the collar fold, sharp and legible. Same lighting and background as reference image. Cinematic close, macro detail, 100mm lens feel. DO NOT show full body. Crop tightly to neckline area only.",
+  "lookbook-front": "Full body, facing camera, weight evenly distributed, arms relaxed, subtle natural posture. Full body framing, feet visible.",
+  "lookbook-back": "Back to camera, slight head turn over left shoulder, natural posture. Full body framing, feet visible.",
+  "lookbook-left": "Left profile, mid-stride feel, natural arm swing, candid editorial energy. Full body framing, feet visible.",
+  "lookbook-three-quarter": "Right profile, weight on back foot, slight hip shift, arm softly bent. Full body framing, feet visible.",
+  "close-tr-detail": "Half-body crop centered on the TR badge area of the garment. The TR badge must be clearly visible. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.",
+  "movement-shot": "Full body, loose editorial walking pose — mid-stride, natural arm swing, slight body rotation, relaxed energy. Candid fashion week backstage feel. Full body framing, feet visible.",
 };
 
 /** PT-BR labels for angle types (user-facing) */
 const ANGLE_LABELS_PT: Record<string, string> = {
-  "lookbook-front": "Vista frontal — modelo de frente para a câmera, corpo inteiro, reta.",
+  "lookbook-front": "Vista frontal — modelo de frente para a câmera, corpo inteiro, postura natural.",
   "lookbook-back": "Vista traseira — modelo de costas, corpo inteiro, leve giro da cabeça à esquerda.",
-  "lookbook-left": "Perfil lateral esquerdo — corpo inteiro, olhando para a direita.",
-  "lookbook-three-quarter": "Perfil lateral direito — corpo inteiro, olhando para a esquerda.",
-  "close-tr-cuff": "Close punho direito — foco fechado no punho direito com botão dourado TR centralizado.",
-  "close-tr-label": "Close gola/etiqueta — foco fechado na gola com etiqueta interna THAIS RODRIGUES visível.",
+  "lookbook-left": "Perfil lateral esquerdo — corpo inteiro, energia editorial, passo natural.",
+  "lookbook-three-quarter": "Perfil lateral direito — corpo inteiro, peso na perna de trás, quadril leve.",
+  "close-tr-detail": "Close detalhe TR — meio-corpo focando na área do badge TR com contexto da peça.",
+  "movement-shot": "Movimento editorial — corpo inteiro, pose de caminhada solta, energia backstage.",
 };
 
 const FULL_BODY_CRITICAL_BLOCK = `FRAMING — CRITICAL:
