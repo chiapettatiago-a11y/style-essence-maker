@@ -409,6 +409,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                   onOpenChange(false);
                 }}
                 isGenerating={isGenerating}
+                garmentType={garmentType}
               />
             </div>
           )}
