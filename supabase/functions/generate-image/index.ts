@@ -13,7 +13,9 @@ type GenerationEngine = "gemini" | "fal";
 type GarmentAnalysis = {
   type?: string;
   fabric?: string;
+  fabricTexture?: string;
   color?: string;
+  colorHexEstimate?: string;
   pattern?: string;
   construction?: string;
   details?: string;
@@ -24,15 +26,18 @@ type GarmentAnalysis = {
   hemline?: string;
   neckline?: string;
   sleeves?: string;
-  colorHexEstimate?: string;
   patternDescription?: string;
   hemType?: string;
+  hemDetail?: string;
   lengthDescription?: string;
   sleeveLength?: string;
+  sleeveDetail?: string;
   closure?: string;
   beltOrTie?: string;
   signatureDetails?: string;
   promptDescription?: string;
+  trBadgeLocation?: string | null;
+  trBadgeDescription?: string | null;
 };
 
 type ModelProfile = {
