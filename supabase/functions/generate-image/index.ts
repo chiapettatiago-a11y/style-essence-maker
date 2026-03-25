@@ -162,6 +162,15 @@ function toCm(value: unknown): string {
   return `${value}cm`;
 }
 
+const DEFAULT_MANNEQUIN: Record<string, number> = {
+  height_cm: 175,
+  bust_cm: 88,
+  waist_cm: 64,
+  hip_cm: 96,
+  torso_cm: 42,
+  arm_cm: 60,
+};
+
 const STORAGE_BUCKET = "generated-assets";
 
 function getImageSize(angleType: AngleType) {
