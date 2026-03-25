@@ -846,8 +846,9 @@ const ProductPage = () => {
 
     const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
     const frontImage = imageItems.find((img) => img.type === "lookbook-front");
-    const closeImages = imageItems.filter((img) => img.type === "close-tr-cuff" || img.type === "close-tr-label");
-    const standardImages = imageItems.filter((img) => img.type !== "lookbook-front" && img.type !== "close-tr-cuff" && img.type !== "close-tr-label");
+    const closeImages = imageItems.filter((img) => img.type === "close-tr-detail");
+    const movementImages = imageItems.filter((img) => img.type === "movement-shot");
+    const standardImages = imageItems.filter((img) => img.type !== "lookbook-front" && img.type !== "close-tr-detail" && img.type !== "movement-shot");
 
     // 1. Generate front_view first (anchor image for LoRA / reference)
     let frontReferenceUrl = "";
@@ -855,11 +856,14 @@ const ProductPage = () => {
       frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
     }
 
-    // 2. Generate sides/back using frontReferenceUrl for kontext consistency
+    // 2. Generate sides/back + movement using frontReferenceUrl for kontext consistency
     const sideBackRef = frontReferenceUrl || activeVariant.uploadedImages[0] || undefined;
-    await Promise.allSettled(standardImages.map((img) => runImageGeneration(img, sideBackRef)));
+    await Promise.allSettled([
+      ...standardImages.map((img) => runImageGeneration(img, sideBackRef)),
+      ...movementImages.map((img) => runImageGeneration(img, sideBackRef)),
+    ]);
 
-    // 3. Generate close-ups using frontReferenceUrl
+    // 3. Generate close-up detail using frontReferenceUrl
     if (!frontReferenceUrl && closeImages.length > 0) {
       closeImages.forEach((img) => {
         updateImageInState(img.id, { status: "error", error: "A front view precisa ser gerada primeiro para servir como referência dos closes." });
