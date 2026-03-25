@@ -1929,6 +1929,8 @@ const ProductPage = () => {
         isGenerating={isGenerating}
         proportionSummary={proportionSummary}
         onProportionUpdate={updateActiveVariant}
+        garmentType={activeVariant?.garmentType || null}
+        onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
       />
 
       {/* Lightbox Modal */}
