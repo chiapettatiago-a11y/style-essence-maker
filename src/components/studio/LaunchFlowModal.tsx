@@ -70,6 +70,8 @@ interface LaunchFlowModalProps {
     shoulderWidthCm?: number | null;
     hemBelowKneeCm?: number | null;
   }) => void;
+  garmentType: string | null;
+  onGarmentTypeChange: (type: string) => void;
 }
 
 const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
@@ -97,6 +99,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   isGenerating,
   proportionSummary,
   onProportionUpdate,
+  garmentType,
+  onGarmentTypeChange,
 }) => {
   const [step, setStep] = useState(startStep);
 
@@ -175,6 +179,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
               onAnalyze={onAnalyze}
               garmentAnalysis={garmentAnalysis}
               onAnalysisUpdate={onAnalysisUpdate}
+              garmentType={garmentType}
+              onGarmentTypeChange={onGarmentTypeChange}
             />
           )}
 
@@ -403,6 +409,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                   onOpenChange(false);
                 }}
                 isGenerating={isGenerating}
+                garmentType={garmentType}
               />
             </div>
           )}

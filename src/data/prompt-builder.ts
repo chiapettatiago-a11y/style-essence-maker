@@ -145,7 +145,8 @@ export function buildFullPrompt(
   garment: GarmentAnalysis | null,
   angleType: GenerationRequest["type"],
   modelProfile?: ModelProfile | null,
-  selectedPresets?: Record<string, string>
+  selectedPresets?: Record<string, string>,
+  userGarmentType?: string | null,
 ): string {
   const isVideo = angleType === "video-product" || angleType === "video-model";
   const isFullBody = FULL_BODY_ANGLE_TYPES.has(angleType);
@@ -168,7 +169,8 @@ export function buildFullPrompt(
     ].join("\n");
     parts.push(closeGarmentBlock);
   } else if (garment) {
-    const isTwoPiece = /two-piece|two piece|conjunto/i.test(garment.type || "");
+    // Two-piece detection: user-declared garment type takes precedence over AI analysis
+    const isTwoPiece = userGarmentType === "conjunto" || /two-piece|two piece|conjunto/i.test(garment.type || "");
     const lengthDesc = lengthDescriptionEN(garment.length, garment.lengthDescription);
     const garmentBlock = [
       `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
@@ -338,7 +340,8 @@ export function generateAllRequests(
   layers: PromptLayers,
   garment: GarmentAnalysis | null,
   modelProfile?: ModelProfile | null,
-  selectedPresets?: Record<string, string>
+  selectedPresets?: Record<string, string>,
+  userGarmentType?: string | null,
 ): GenerationRequest[] {
   const types: { type: GenerationRequest["type"]; label: string }[] = [
     { type: "lookbook-front", label: "Lookbook — Frente" },
@@ -354,6 +357,6 @@ export function generateAllRequests(
   return types.map(t => ({
     type: t.type,
     label: t.label,
-    prompt: buildFullPrompt(layers, garment, t.type, modelProfile, selectedPresets),
+    prompt: buildFullPrompt(layers, garment, t.type, modelProfile, selectedPresets, userGarmentType),
   }));
 }

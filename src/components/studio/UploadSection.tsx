@@ -6,6 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+export const GARMENT_TYPE_OPTIONS = [
+  { value: "vestido-longo", label: "Vestido Longo" },
+  { value: "vestido-curto", label: "Vestido Curto" },
+  { value: "vestido-midi", label: "Vestido Midi" },
+  { value: "conjunto", label: "Conjunto (2 peças)" },
+  { value: "blusa", label: "Blusa" },
+  { value: "saia", label: "Saia" },
+  { value: "calca", label: "Calça" },
+  { value: "macacao", label: "Macacão" },
+  { value: "outro", label: "Outro" },
+] as const;
+
+export type GarmentTypeValue = typeof GARMENT_TYPE_OPTIONS[number]["value"];
 
 interface UploadSectionProps {
   uploadedImages: string[];
@@ -14,6 +29,8 @@ interface UploadSectionProps {
   onAnalyze: () => void;
   garmentAnalysis: GarmentAnalysis | null;
   onAnalysisUpdate: (a: GarmentAnalysis) => void;
+  garmentType: string | null;
+  onGarmentTypeChange: (type: string) => void;
 }
 
 const analysisFields: { key: keyof GarmentAnalysis; label: string }[] = [
@@ -31,7 +48,7 @@ const analysisFields: { key: keyof GarmentAnalysis; label: string }[] = [
 ];
 
 const UploadSection: React.FC<UploadSectionProps> = ({
-  uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate,
+  uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate, garmentType, onGarmentTypeChange,
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +85,22 @@ const UploadSection: React.FC<UploadSectionProps> = ({
 
   return (
     <div className="space-y-5">
+      {/* Garment type selector */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold">Tipo de peça</Label>
+        <Select value={garmentType || ""} onValueChange={onGarmentTypeChange}>
+          <SelectTrigger className="w-full max-w-xs">
+            <SelectValue placeholder="Selecione o tipo de peça" />
+          </SelectTrigger>
+          <SelectContent>
+            {GARMENT_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] text-muted-foreground">Informar o tipo ajuda a IA a manter fidelidade na geração.</p>
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"

@@ -17,6 +17,7 @@ interface GenerateSectionProps {
   selectedEngine: GenerationEngine;
   onGenerate: (requests: GenerationRequest[]) => void;
   isGenerating: boolean;
+  garmentType?: string | null;
 }
 
 const ENGINE_LABELS: Record<GenerationEngine, string> = {
@@ -33,6 +34,7 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
   selectedEngine,
   onGenerate,
   isGenerating,
+  garmentType,
 }) => {
   const layer2Text = assembleLayer2(selectedPresets);
   const [showEnglish, setShowEnglish] = useState(false);
@@ -40,7 +42,8 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
     { layer1: LAYER1_BASE, layer2: layer2Text, layer3: manualPrompt },
     garmentAnalysis,
     selectedProfile,
-    selectedPresets
+    selectedPresets,
+    garmentType
   );
 
   const imageRequests = requests.filter(r => r.type !== "video-product" && r.type !== "video-model");
