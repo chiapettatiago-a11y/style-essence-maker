@@ -99,6 +99,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   isGenerating,
   proportionSummary,
   onProportionUpdate,
+  garmentType,
+  onGarmentTypeChange,
 }) => {
   const [step, setStep] = useState(startStep);
 
