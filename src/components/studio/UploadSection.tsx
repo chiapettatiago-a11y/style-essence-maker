@@ -52,21 +52,31 @@ const UploadSection: React.FC<UploadSectionProps> = ({
   uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate, garmentType, onGarmentTypeChange,
 }) => {
   const [dragOver, setDragOver] = useState(false);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback((files: FileList) => {
     const selectedFiles = Array.from(files);
     Promise.all(
       selectedFiles.map(async (file) => {
-        // Compress to JPEG ≤1200px before converting to data URL
-        const compressed = await compressImage(file);
-        return blobToDataUrl(compressed);
+        const [compressed, thumb] = await Promise.all([
+          compressImage(file),
+          createThumbnail(file),
+        ]);
+        const [fullUrl, thumbUrl] = await Promise.all([
+          blobToDataUrl(compressed),
+          blobToDataUrl(thumb),
+        ]);
+        return { fullUrl, thumbUrl };
       })
     )
       .then((results) => {
-        const nextImages = results.filter(Boolean);
-        if (nextImages.length > 0) {
-          onImagesChange([...uploadedImages, ...nextImages]);
+        const validResults = results.filter((r) => r.fullUrl);
+        if (validResults.length > 0) {
+          const newThumbs: Record<string, string> = {};
+          validResults.forEach((r) => { newThumbs[r.fullUrl] = r.thumbUrl; });
+          setThumbnails((prev) => ({ ...prev, ...newThumbs }));
+          onImagesChange([...uploadedImages, ...validResults.map((r) => r.fullUrl)]);
         }
       })
       .catch(() => {});
