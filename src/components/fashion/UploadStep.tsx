@@ -20,18 +20,29 @@ const UploadStep: React.FC<UploadStepProps> = ({
   analysisComplete,
 }) => {
   const [dragOver, setDragOver] = useState(false);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
 
   const handleFiles = useCallback(
     (files: FileList) => {
       const toProcess = Array.from(files);
-      toProcess.forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const dataUrl = e.target?.result as string;
-          onImagesChange([...images, dataUrl]);
-        };
-        reader.readAsDataURL(file);
-      });
+      Promise.all(
+        toProcess.map(async (file) => {
+          const [compressed, thumb] = await Promise.all([
+            compressImage(file),
+            createThumbnail(file),
+          ]);
+          const [fullUrl, thumbUrl] = await Promise.all([
+            blobToDataUrl(compressed),
+            blobToDataUrl(thumb),
+          ]);
+          return { fullUrl, thumbUrl };
+        })
+      ).then((results) => {
+        const newThumbs: Record<string, string> = {};
+        results.forEach((r) => { newThumbs[r.fullUrl] = r.thumbUrl; });
+        setThumbnails((prev) => ({ ...prev, ...newThumbs }));
+        onImagesChange([...images, ...results.map((r) => r.fullUrl)]);
+      }).catch(() => {});
     },
     [images, onImagesChange]
   );
