@@ -109,56 +109,56 @@ export function buildFullPrompt(
 ): string {
   const isVideo = angleType === "video-product" || angleType === "video-model";
   const isFullBody = FULL_BODY_ANGLE_TYPES.has(angleType);
+  const isCloseDetail = angleType === "close-tr-detail";
   const base = isVideo ? LAYER1_VIDEO_BASE : LAYER1_BASE;
 
   const parts: string[] = [base];
 
-  if (garment) {
-    const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garment.type || "");
-    const twoPieceBlock = isTwoPieceSet
-      ? `\nTWO-PIECE SET RULE — CRITICAL:\nThis garment is a TWO-PIECE SET (top + bottom sold together).\n- Show BOTH pieces worn together in all body shots.\n- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.\n- Do NOT merge into a single dress silhouette.\n- Maintain visible separation line between top and bottom at waist.`
-      : "";
-
-    const trPositionNotVisible = !garment.signatureDetails || /not clearly visible/i.test(garment.signatureDetails);
-    const trBlock = trPositionNotVisible
-      ? `\nTR SIGNATURE: Not clearly visible in reference — do NOT add TR button anywhere.`
-      : `\nTR SIGNATURE HARDWARE — STRICT RULE:\nInclude the TR button ONLY at this exact position: ${garment.signatureDetails}\nNEVER invent or relocate the TR button.`;
-
-    const garmentBlock = [
-      `GARMENT SPECIFICATION (do NOT deviate from this description):`,
+  // For close-tr-detail, use a simplified garment block
+  if (isCloseDetail && garment) {
+    const trLocation = garment.trBadgeLocation || garment.signatureDetails || "unknown position";
+    const closeGarmentBlock = [
+      `GARMENT CONTEXT:`,
       `Type: ${garment.type}`,
-      garment.promptDescription ? `Definitive fidelity description: ${garment.promptDescription}` : "",
-      twoPieceBlock,
-      garment.length ? `Length: ${garment.length} — THIS LENGTH IS MANDATORY, do not shorten or lengthen` : "",
-      garment.lengthDescription ? `Length note: ${garment.lengthDescription}` : "",
-      garment.silhouette ? `Silhouette: ${garment.silhouette}` : "",
-      garment.neckline ? `Neckline: ${garment.neckline}` : "",
-      garment.sleeves ? `Sleeves: ${garment.sleeves}` : "",
-      garment.sleeveLength ? `Sleeve length: ${garment.sleeveLength}` : "",
-      garment.hemline ? `Hemline: ${garment.hemline}` : "",
-      `Fabric: ${garment.fabric}`,
-      `Color: ${garment.color} — EXACT color match required, no shifts in tone or saturation`,
-      garment.pattern ? `Pattern: ${garment.pattern}` : "",
-      garment.closure ? `Closure: ${garment.closure}` : "",
-      garment.beltOrTie ? `Belt / tie: ${garment.beltOrTie}` : "",
-      garment.signatureDetails ? `Signature details: ${garment.signatureDetails}` : "",
-      trBlock,
-      `Construction: ${garment.construction}`,
-      `Details: ${garment.details}`,
-      garment.fullDescription ? `\nFull reference: ${garment.fullDescription}` : "",
+      `Color: ${garment.color}`,
+      `TR signature: ${garment.trBadgeDescription || "small round gold-tone metallic button with TR monogram"} positioned at ${trLocation}.`,
+      ``,
+      `ANGLE: Half-body crop centered on the ${trLocation} area of the garment. The TR badge must be clearly visible. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.`,
+    ].join("\n");
+    parts.push(closeGarmentBlock);
+  } else if (garment) {
+    const garmentBlock = [
+      `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
+      `Fabric: ${garment.fabric}. Texture: ${garment.fabricTexture || "N/A"}.`,
+      `Color: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — fully monochromatic, no color variation.`,
+      `Silhouette: ${garment.silhouette || "N/A"}.`,
+      `Length: ${garment.length || "N/A"} — hem reaches ${garment.lengthDescription || "as detected"}.`,
+      `Neckline: ${garment.neckline || "N/A"}`,
+      `Sleeves: ${garment.sleeves || "N/A"}. Cuff detail: ${garment.sleeveDetail || garment.sleeveLength || "N/A"}`,
+      `Hem/Skirt: ${garment.hemDetail || garment.hemline || "N/A"}`,
+      `Construction details: ${garment.details || "N/A"}`,
+      garment.trBadgeLocation && garment.trBadgeDescription
+        ? `TR signature: ${garment.trBadgeDescription} positioned at ${garment.trBadgeLocation}.`
+        : garment.signatureDetails
+          ? `TR signature: ${garment.signatureDetails}`
+          : `TR signature: not clearly visible in reference.`,
+      `Internal label "THAIS RODRIGUES" stitched below neckline.`,
     ].filter(Boolean).join("\n");
     parts.push(garmentBlock);
   }
 
   const angleInstruction = ANGLE_INSTRUCTIONS[angleType];
-  if (angleInstruction) {
+  if (angleInstruction && !isCloseDetail) {
     parts.push(angleInstruction);
   }
 
   if (isFullBody) {
     parts.push(FULL_BODY_CRITICAL_BLOCK);
     if (isDressLikeGarment(garment)) {
-      parts.push(MIDI_DRESS_CRITICAL_BLOCK);
+      // Use detected length, never override with fixed "midi"
+      const detectedLength = garment?.length || "";
+      const lengthDesc = garment?.lengthDescription || "";
+      parts.push(`SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`);
     }
   }
 
