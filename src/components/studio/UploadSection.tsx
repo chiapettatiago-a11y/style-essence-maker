@@ -6,6 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+export const GARMENT_TYPE_OPTIONS = [
+  { value: "vestido-longo", label: "Vestido Longo" },
+  { value: "vestido-curto", label: "Vestido Curto" },
+  { value: "vestido-midi", label: "Vestido Midi" },
+  { value: "conjunto", label: "Conjunto (2 peças)" },
+  { value: "blusa", label: "Blusa" },
+  { value: "saia", label: "Saia" },
+  { value: "calca", label: "Calça" },
+  { value: "macacao", label: "Macacão" },
+  { value: "outro", label: "Outro" },
+] as const;
+
+export type GarmentTypeValue = typeof GARMENT_TYPE_OPTIONS[number]["value"];
 
 interface UploadSectionProps {
   uploadedImages: string[];
@@ -14,6 +29,8 @@ interface UploadSectionProps {
   onAnalyze: () => void;
   garmentAnalysis: GarmentAnalysis | null;
   onAnalysisUpdate: (a: GarmentAnalysis) => void;
+  garmentType: string | null;
+  onGarmentTypeChange: (type: string) => void;
 }
 
 const analysisFields: { key: keyof GarmentAnalysis; label: string }[] = [
