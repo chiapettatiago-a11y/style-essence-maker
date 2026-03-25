@@ -74,8 +74,8 @@ export interface GenerationRequest {
     | 'lookbook-back'
     | 'lookbook-left'
     | 'lookbook-three-quarter'
-    | 'close-tr-cuff'
-    | 'close-tr-label'
+    | 'close-tr-detail'
+    | 'movement-shot'
     | 'video-product'
     | 'video-model';
   label: string;
