@@ -70,6 +70,8 @@ interface LaunchFlowModalProps {
     shoulderWidthCm?: number | null;
     hemBelowKneeCm?: number | null;
   }) => void;
+  garmentType: string | null;
+  onGarmentTypeChange: (type: string) => void;
 }
 
 const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
