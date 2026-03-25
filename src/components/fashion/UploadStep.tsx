@@ -113,9 +113,10 @@ const UploadStep: React.FC<UploadStepProps> = ({
               className="relative group aspect-square rounded-lg overflow-hidden bg-muted border border-border"
             >
               <img
-                src={img}
+                src={thumbnails[img] || img}
                 alt={`Produto ${i + 1}`}
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
               <button
                 onClick={(e) => {
