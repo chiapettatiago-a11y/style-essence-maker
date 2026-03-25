@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { GarmentAnalysis } from "@/types/fashion";
 import { Upload, X, ImageIcon, Sparkles, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { compressImage, blobToDataUrl } from "@/lib/image-compress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
