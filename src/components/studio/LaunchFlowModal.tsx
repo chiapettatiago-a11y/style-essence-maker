@@ -17,9 +17,9 @@ import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 
 const STEPS = [
   { id: 1, title: "Upload da peça" },
-  { id: 2, title: "Configurar manequim" },
+  { id: 2, title: "Escolher modelo" },
   { id: 3, title: "Análise e proporções" },
-  { id: 4, title: "Modelo e geração" },
+  { id: 4, title: "Estilos e geração" },
 ] as const;
 
 type MannequinData = {
@@ -108,31 +108,6 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
     if (open) setStep(startStep);
   }, [open, startStep]);
 
-  const torsoRatio = useMemo(() => {
-    if (!mannequin.mannequin_height_cm || !mannequin.mannequin_torso_cm) return null;
-    return Math.round((mannequin.mannequin_torso_cm / mannequin.mannequin_height_cm) * 100);
-  }, [mannequin.mannequin_height_cm, mannequin.mannequin_torso_cm]);
-
-  const legRatio = useMemo(() => {
-    if (!mannequin.mannequin_height_cm || !mannequin.mannequin_torso_cm) return null;
-    const legs = mannequin.mannequin_height_cm - mannequin.mannequin_torso_cm;
-    return Math.round((legs / mannequin.mannequin_height_cm) * 100);
-  }, [mannequin.mannequin_height_cm, mannequin.mannequin_torso_cm]);
-
-  const canGoNext =
-    step === 1
-      ? uploadedImages.length > 0 && !!garmentAnalysis
-      : step === 2
-        ? !!mannequin.mannequin_height_cm
-        : true;
-
-  const updateNumber = (key: keyof MannequinData, value: string) => {
-    onMannequinChange({
-      ...mannequin,
-      [key]: value === "" ? null : Number(value),
-    });
-  };
-
   const updateProportionNumber = (
     key: "garmentLengthCm" | "waistPositionCm" | "sleeveLengthCm" | "shoulderWidthCm" | "hemBelowKneeCm",
     value: string,
@@ -141,6 +116,13 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
       [key]: value === "" ? null : Number(value),
     });
   };
+
+  const canGoNext =
+    step === 1
+      ? uploadedImages.length > 0 && !!garmentAnalysis
+      : step === 2
+        ? !!selectedProfile
+        : true;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -171,6 +153,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* Step 1: Upload */}
           {step === 1 && (
             <UploadSection
               uploadedImages={uploadedImages}
@@ -184,49 +167,60 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
             />
           )}
 
+          {/* Step 2: Choose Model */}
           {step === 2 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Medidas do manequim de referência</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Altura total (cm)</Label>
-                  <Input
-                    type="number"
-                    value={mannequin.mannequin_height_cm ?? ""}
-                    onChange={(e) => updateNumber("mannequin_height_cm", e.target.value)}
-                    className="border-accent/60"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Busto (cm)</Label>
-                  <Input type="number" value={mannequin.mannequin_bust_cm ?? ""} onChange={(e) => updateNumber("mannequin_bust_cm", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Cintura (cm)</Label>
-                  <Input type="number" value={mannequin.mannequin_waist_cm ?? ""} onChange={(e) => updateNumber("mannequin_waist_cm", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Quadril (cm)</Label>
-                  <Input type="number" value={mannequin.mannequin_hip_cm ?? ""} onChange={(e) => updateNumber("mannequin_hip_cm", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Torso (cm)</Label>
-                  <Input type="number" value={mannequin.mannequin_torso_cm ?? ""} onChange={(e) => updateNumber("mannequin_torso_cm", e.target.value)} />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Braço (cm)</Label>
-                  <Input type="number" value={mannequin.mannequin_arm_cm ?? ""} onChange={(e) => updateNumber("mannequin_arm_cm", e.target.value)} />
-                </div>
-              </div>
-              <Card>
-                <CardContent className="pt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="secondary">Razão torso/altura: {torsoRatio !== null ? `${torsoRatio}%` : "—"}</Badge>
-                  <Badge variant="secondary">Razão perna/altura: {legRatio !== null ? `${legRatio}%` : "—"}</Badge>
-                </CardContent>
-              </Card>
+            <div className="space-y-5">
+              <ModelGallery selectedModelId={selectedProfile?.id || null} onSelectModel={(m) => onSelectModel(m.id)} />
+
+              {/* LoRA / Guidance sliders — only when model has LoRA and fal engine selected */}
+              {selectedProfile?.lora_url && selectedEngine === "fal" && (
+                <Card className="border-accent/30 bg-accent/5">
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-accent" />
+                      <h4 className="text-xs font-semibold">Parâmetros LoRA — {selectedProfile.name}</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">LoRA Scale</Label>
+                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.lora_scale ?? 1.0).toFixed(2)}</span>
+                        </div>
+                        <Slider
+                          value={[selectedProfile.lora_scale ?? 1.0]}
+                          min={0}
+                          max={2}
+                          step={0.05}
+                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, lora_scale: v })}
+                          className="w-full"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Intensidade da LoRA. 1.0 = padrão validado.</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">Guidance Scale</Label>
+                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.guidance_scale ?? 3.5).toFixed(1)}</span>
+                        </div>
+                        <Slider
+                          value={[selectedProfile.guidance_scale ?? 3.5]}
+                          min={1}
+                          max={20}
+                          step={0.5}
+                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, guidance_scale: v })}
+                          className="w-full"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Aderência ao prompt. 9 = validado para Thais.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
             </div>
           )}
 
+          {/* Step 3: Analysis & Proportions */}
           {step === 3 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -343,58 +337,13 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
             </div>
           )}
 
+          {/* Step 4: Styles & Generate */}
           {step === 4 && (
             <div className="space-y-5">
               <div>
-                <h3 className="text-sm font-semibold">Escolher modelo e configurações</h3>
+                <h3 className="text-sm font-semibold">Estilos e geração</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">5 imagens + 2 prompts de vídeo serão gerados.</p>
               </div>
-              <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
-              <ModelGallery selectedModelId={selectedProfile?.id || null} onSelectModel={(m) => onSelectModel(m.id)} />
-
-              {/* LoRA / Guidance sliders — only when model has LoRA and fal engine selected */}
-              {selectedProfile?.lora_url && selectedEngine === "fal" && (
-                <Card className="border-accent/30 bg-accent/5">
-                  <CardContent className="pt-4 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-accent" />
-                      <h4 className="text-xs font-semibold">Parâmetros LoRA — {selectedProfile.name}</h4>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] text-muted-foreground">LoRA Scale</Label>
-                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.lora_scale ?? 1.0).toFixed(2)}</span>
-                        </div>
-                        <Slider
-                          value={[selectedProfile.lora_scale ?? 1.0]}
-                          min={0}
-                          max={2}
-                          step={0.05}
-                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, lora_scale: v })}
-                          className="w-full"
-                        />
-                        <p className="text-[10px] text-muted-foreground">Intensidade da LoRA. 1.0 = padrão validado. Valores altos podem distorcer.</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] text-muted-foreground">Guidance Scale</Label>
-                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.guidance_scale ?? 3.5).toFixed(1)}</span>
-                        </div>
-                        <Slider
-                          value={[selectedProfile.guidance_scale ?? 3.5]}
-                          min={1}
-                          max={20}
-                          step={0.5}
-                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, guidance_scale: v })}
-                          className="w-full"
-                        />
-                        <p className="text-[10px] text-muted-foreground">Aderência ao prompt. 9 = validado para Thais. Valores altos = mais fiel ao prompt.</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               <StyleSection selectedPresets={selectedPresets} onPresetsChange={onPresetsChange} />
               <GenerateSection
