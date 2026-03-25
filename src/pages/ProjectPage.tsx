@@ -1708,6 +1708,67 @@ const ProductPage = () => {
                     </CardContent>
                   </Card>
                   </div>
+
+                  {/* Prompts utilizados */}
+                  {activeLaunch && activeLaunch.images.length > 0 && (
+                    <Card className="mt-4">
+                      <CardContent className="pt-4 space-y-3">
+                        <h3 className="text-sm font-semibold">Prompts utilizados — {activeLaunch.label}</h3>
+                        <p className="text-[10px] text-muted-foreground">Prompt completo enviado ao modelo de geração para cada ângulo deste lançamento.</p>
+                        <div className="space-y-3">
+                          {activeLaunch.images
+                            .filter((img) => img.type !== "video-product" && img.type !== "video-model")
+                            .map((img) => {
+                              const angleLabels: Record<string, string> = {
+                                "lookbook-front": "Frente",
+                                "lookbook-back": "Costas",
+                                "lookbook-left": "Lateral Esq.",
+                                "lookbook-three-quarter": "Lateral Dir.",
+                                "close-tr-detail": "Close TR",
+                                "movement-shot": "Movimento",
+                              };
+                              const label = angleLabels[img.type] || img.label;
+                              const hasPrompt = !!img.promptUsed;
+
+                              return (
+                                <div key={img.id} className="space-y-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-xs font-medium">{label}</span>
+                                    {hasPrompt && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-[10px] gap-1 shrink-0"
+                                        onClick={() => copyPrompt(img.id, img.promptUsed!)}
+                                      >
+                                        {copiedPromptId === img.id ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                        {copiedPromptId === img.id ? "Copiado" : "Copiar"}
+                                      </Button>
+                                    )}
+                                  </div>
+                                  {hasPrompt ? (
+                                    <textarea
+                                      readOnly
+                                      value={img.promptUsed!}
+                                      className="w-full h-[120px] rounded-md border border-input bg-muted/30 px-3 py-2 text-[10px] font-mono text-muted-foreground resize-none overflow-y-auto ring-offset-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                    />
+                                  ) : (
+                                    <p className="text-[10px] text-muted-foreground italic px-1">
+                                      Prompt não disponível — regenere este lançamento.
+                                    </p>
+                                  )}
+                                  <p className="text-[10px] text-muted-foreground px-1">
+                                    {img.modelUsed ? `Modelo: ${img.modelUsed}` : ""}
+                                    {img.generationMs ? ` · ${img.generationMs}ms` : ""}
+                                    {img.attemptNumber ? ` · tentativa ${img.attemptNumber}` : ""}
+                                  </p>
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               ) : (
                 <div className="py-16 text-center text-muted-foreground text-sm">Faça a análise da peça para visualizar os campos técnicos.</div>
