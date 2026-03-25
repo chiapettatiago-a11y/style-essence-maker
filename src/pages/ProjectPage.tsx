@@ -950,7 +950,7 @@ const ProductPage = () => {
     const engine = overrideEngine || sourceLaunch?.engineUsed || state.selectedEngine;
     const frontReference = sourceLaunch?.images.find((launchImg) => launchImg.type === "lookbook-front" && launchImg.status === "done");
     const frontReferenceUrl = frontReference?.originalUrl || frontReference?.previewUrl || frontReference?.imageUrl || "";
-    const isCloseDetail = img.type === "close-tr-cuff" || img.type === "close-tr-label";
+    const isCloseDetail = img.type === "close-tr-detail";
 
     if (isCloseDetail && !frontReferenceUrl) {
       updateImageInState(id, {
