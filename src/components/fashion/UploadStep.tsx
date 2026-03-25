@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { Upload, X, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { compressImage, createThumbnail, blobToDataUrl } from "@/lib/image-compress";
 
 interface UploadStepProps {
   images: string[];
