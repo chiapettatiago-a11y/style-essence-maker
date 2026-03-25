@@ -84,6 +84,7 @@ export type Database = {
           bust_cm: number | null
           created_at: string
           display_name: string
+          face_image_url: string | null
           facial_features: string | null
           guidance_scale: number | null
           hair_description: string | null
@@ -103,6 +104,7 @@ export type Database = {
           bust_cm?: number | null
           created_at?: string
           display_name: string
+          face_image_url?: string | null
           facial_features?: string | null
           guidance_scale?: number | null
           hair_description?: string | null
@@ -122,6 +124,7 @@ export type Database = {
           bust_cm?: number | null
           created_at?: string
           display_name?: string
+          face_image_url?: string | null
           facial_features?: string | null
           guidance_scale?: number | null
           hair_description?: string | null
