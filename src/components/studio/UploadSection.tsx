@@ -48,7 +48,7 @@ const analysisFields: { key: keyof GarmentAnalysis; label: string }[] = [
 ];
 
 const UploadSection: React.FC<UploadSectionProps> = ({
-  uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate,
+  uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate, garmentType, onGarmentTypeChange,
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
