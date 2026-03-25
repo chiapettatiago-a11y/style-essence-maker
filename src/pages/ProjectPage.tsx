@@ -731,11 +731,15 @@ const ProductPage = () => {
         .select("lora_url, lora_trigger_word, lora_scale, guidance_scale, face_image_url")
         .eq("slug", modelId)
         .maybeSingle();
+      let faceImageUrl: string | undefined;
       if (data?.lora_url) {
         loraUrl = data.lora_url;
         loraTriggerWord = data.lora_trigger_word || undefined;
         loraScale = data.lora_scale != null ? Number(data.lora_scale) : undefined;
         guidanceScale = data.guidance_scale != null ? Number(data.guidance_scale) : undefined;
+      }
+      if (data?.face_image_url) {
+        faceImageUrl = data.face_image_url;
       }
     } catch (e) {
       console.warn("Could not fetch LoRA data for model:", e);
@@ -757,6 +761,7 @@ const ProductPage = () => {
       lora_trigger_word: loraTriggerWord,
       lora_scale: loraScale,
       guidance_scale: guidanceScale,
+      face_image_url: faceImageUrl,
     };
 
     update("selectedProfile", profile);
