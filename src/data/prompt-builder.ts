@@ -29,7 +29,62 @@ const ANGLE_LABELS_PT: Record<string, string> = {
   "movement-shot": "Movimento editorial — corpo inteiro, pose de caminhada solta, energia backstage.",
 };
 
-const FULL_BODY_CRITICAL_BLOCK = `FRAMING — CRITICAL:
+/** Map detected garment length to EN description */
+function lengthDescriptionEN(length: string | undefined, desc: string | undefined): string {
+  if (desc) return desc;
+  const l = (length || "").toLowerCase();
+  if (l.includes("maxi")) return "ankle/floor level";
+  if (l.includes("midi")) return "mid-calf, 10-15cm below the knee";
+  if (l.includes("short") || l.includes("mini")) return "above the knee";
+  if (l.includes("cropped")) return "cropped above waist";
+  return "as detected";
+}
+
+/** Map detected garment length to PT description */
+function lengthDescriptionPT(length: string | undefined, desc: string | undefined): string {
+  const l = (length || "").toLowerCase();
+  if (l.includes("maxi")) return "maxi — barra chega ao tornozelo/chão";
+  if (l.includes("midi")) return "midi — barra 10-15cm abaixo do joelho";
+  if (l.includes("short") || l.includes("mini")) return "curto — barra acima do joelho";
+  if (l.includes("cropped")) return "cropped — acima da cintura";
+  if (desc) return desc;
+  return length || "conforme detectado";
+}
+
+/** Extract scenario background instructions from selectedPresets */
+function getScenarioBackground(selectedPresets: Record<string, string>): { en: string; pt: string } {
+  const scenarioId = selectedPresets["scenario"];
+  switch (scenarioId) {
+    case "estudio-neutro-bege":
+      return {
+        en: "Background: seamless infinite beige backdrop #C8A882, NO exceptions.\nSoft even studio light, same temperature in all photos.",
+        pt: "🖼️ Enquadramento/Fundo: corpo inteiro com respiro, pés visíveis, fundo infinito bege #C8A882.",
+      };
+    case "estudio-branco":
+      return {
+        en: "Background: pure seamless white backdrop #F8F8F6, NO exceptions.\nHigh-key lighting, clean commercial backdrop.\nNOT beige. NOT cream. NOT warm gray.\nSoft even studio light, same temperature in all photos.",
+        pt: "🖼️ Enquadramento/Fundo: corpo inteiro com respiro, pés visíveis, fundo infinito branco puro #F8F8F6.",
+      };
+    case "urbano-contemporaneo":
+      return {
+        en: "Background: contemporary urban exterior setting with modern architecture — clean concrete walls, glass surfaces, muted city tones.\nShallow depth of field keeping focus on the garment.\nConsistent lighting across all photos.",
+        pt: "🖼️ Enquadramento/Fundo: corpo inteiro com respiro, pés visíveis, cenário urbano contemporâneo exterior.",
+      };
+    case "natureza-suave":
+      return {
+        en: "Background: soft natural outdoor setting — lush green garden or open field, golden hour warm light, gentle bokeh.\nNatural environment that complements without competing with the garment.\nConsistent lighting across all photos.",
+        pt: "🖼️ Enquadramento/Fundo: corpo inteiro com respiro, pés visíveis, exterior com luz dourada natural.",
+      };
+    default:
+      // Fallback to white studio
+      return {
+        en: "Background: pure seamless white backdrop #F8F8F6, NO exceptions.\nSoft even studio light, same temperature in all photos.",
+        pt: "🖼️ Enquadramento/Fundo: corpo inteiro com respiro, pés visíveis, fundo infinito branco puro #F8F8F6.",
+      };
+  }
+}
+
+const FULL_BODY_FRAMING_BLOCK = `FRAMING — CRITICAL:
 Full body shot, head to toe with breathing room.
 Model occupies 70% of frame height maximum.
 Minimum 10% empty space above head.
@@ -37,23 +92,7 @@ Minimum 15% empty space below feet.
 Feet fully visible, ankles visible, NO cropping of legs.
 Wide enough to show both arms with space around them.
 Editorial fashion campaign framing — NOT e-commerce product zoom.
-NOT portrait crop. NOT tight crop. FULL BODY with air around.
-
-SCENE ANCHOR — ABSOLUTE RULE — apply to 100% of photos in this set:
-Background: pure seamless white #FFFFFF, NO exceptions.
-This instruction overrides any other background suggestion.
-If you generate a non-white background, the image is REJECTED.
-NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
-NO texture. NO shadow on background. NO vignette.
-Lighting: soft even studio light, same temperature in all photos.`;
-
-const MIDI_DRESS_CRITICAL_BLOCK = `SKIRT LENGTH CRITICAL: maxi length, falls to ankle/floor level. The skirt hem must reach the ankle. NOT knee length. NOT midi. MAXI — ankle to floor.
-
-DRESS LENGTH — CRITICAL:
-Hem falls at mid-calf, 15cm below the knee.
-Full midi silhouette visible in frame.
-NOT mini. NOT knee-length. NOT above knee.
-The full skirt must be visible — do NOT crop the hem.`;
+NOT portrait crop. NOT tight crop. FULL BODY with air around.`;
 
 function isDressLikeGarment(garment: GarmentAnalysis | null): boolean {
   const text = [garment?.type, garment?.fullDescription, garment?.style].filter(Boolean).join(" ").toLowerCase();
@@ -105,12 +144,14 @@ export function buildFullPrompt(
   layers: PromptLayers,
   garment: GarmentAnalysis | null,
   angleType: GenerationRequest["type"],
-  modelProfile?: ModelProfile | null
+  modelProfile?: ModelProfile | null,
+  selectedPresets?: Record<string, string>
 ): string {
   const isVideo = angleType === "video-product" || angleType === "video-model";
   const isFullBody = FULL_BODY_ANGLE_TYPES.has(angleType);
   const isCloseDetail = angleType === "close-tr-detail";
   const base = isVideo ? LAYER1_VIDEO_BASE : LAYER1_BASE;
+  const presets = selectedPresets || {};
 
   const parts: string[] = [base];
 
@@ -127,12 +168,13 @@ export function buildFullPrompt(
     ].join("\n");
     parts.push(closeGarmentBlock);
   } else if (garment) {
+    const lengthDesc = lengthDescriptionEN(garment.length, garment.lengthDescription);
     const garmentBlock = [
       `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
       `Fabric: ${garment.fabric}. Texture: ${garment.fabricTexture || "N/A"}.`,
       `Color: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — fully monochromatic, no color variation.`,
       `Silhouette: ${garment.silhouette || "N/A"}.`,
-      `Length: ${garment.length || "N/A"} — hem reaches ${garment.lengthDescription || "as detected"}.`,
+      `Length: ${garment.length || "N/A"} — hem reaches ${lengthDesc}.`,
       `Neckline: ${garment.neckline || "N/A"}`,
       `Sleeves: ${garment.sleeves || "N/A"}. Cuff detail: ${garment.sleeveDetail || garment.sleeveLength || "N/A"}`,
       `Hem/Skirt: ${garment.hemDetail || garment.hemline || "N/A"}`,
@@ -153,12 +195,16 @@ export function buildFullPrompt(
   }
 
   if (isFullBody) {
-    parts.push(FULL_BODY_CRITICAL_BLOCK);
+    parts.push(FULL_BODY_FRAMING_BLOCK);
+
+    // Dynamic background from scenario selection
+    const scenarioBg = getScenarioBackground(presets);
+    parts.push(`SCENE ANCHOR — ABSOLUTE RULE — apply to 100% of photos in this set:\n${scenarioBg.en}`);
+
     if (isDressLikeGarment(garment)) {
-      // Use detected length, never override with fixed "midi"
       const detectedLength = garment?.length || "";
-      const lengthDesc = garment?.lengthDescription || "";
-      parts.push(`SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`);
+      const lengthDesc = lengthDescriptionEN(detectedLength, garment?.lengthDescription);
+      parts.push(`SKIRT LENGTH CRITICAL: ${detectedLength} length, hem reaches ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`);
     }
   }
 
@@ -211,11 +257,30 @@ export function buildPromptPreviewPT(
   manualPrompt?: string,
 ): string {
   const parts: string[] = [];
+  const presets = selectedPresets || {};
 
   parts.push("🔒 Base técnica (resolução 1080x1920, fidelidade absoluta da peça)");
 
   if (garment) {
-    parts.push(`👗 Peça: ${garment.type} | ${garment.color} | ${garment.fabric} | ${garment.silhouette || ""}`);
+    const lengthPT = lengthDescriptionPT(garment.length, garment.lengthDescription);
+    parts.push([
+      `👗 Peça — fidelidade absoluta obrigatória. Não redesenhar, simplificar ou alterar nenhum detalhe.`,
+      `Tipo: ${garment.type}`,
+      `Tecido: ${garment.fabric}. Textura: ${garment.fabricTexture || "N/A"}`,
+      `Cor: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — monocromático, sem variação de cor`,
+      `Silhueta: ${garment.silhouette || "N/A"}`,
+      `Comprimento: ${lengthPT}`,
+      `Decote/Gola: ${garment.neckline || "N/A"}`,
+      `Mangas: ${garment.sleeves || "N/A"}. Detalhe do punho: ${garment.sleeveDetail || garment.sleeveLength || "N/A"}`,
+      `Barra/Saia: ${garment.hemDetail || garment.hemline || "N/A"}`,
+      `Detalhes: ${garment.details || "N/A"}`,
+      garment.trBadgeLocation && garment.trBadgeDescription
+        ? `Chapinha TR: ${garment.trBadgeDescription} posicionada em ${garment.trBadgeLocation}`
+        : garment.signatureDetails
+          ? `Chapinha TR: ${garment.signatureDetails}`
+          : `Chapinha TR: não visível claramente na referência`,
+      `Etiqueta interna "THAIS RODRIGUES" costurada abaixo do decote.`,
+    ].join("\n"));
   }
 
   const anglePT = ANGLE_LABELS_PT[angleType];
@@ -224,9 +289,11 @@ export function buildPromptPreviewPT(
   }
 
   if (FULL_BODY_ANGLE_TYPES.has(angleType)) {
-    parts.push("🖼️ Enquadramento/Fundo: corpo inteiro com respiro, pés visíveis, fundo infinito branco puro #FFFFFF.");
+    const scenarioBg = getScenarioBackground(presets);
+    parts.push(scenarioBg.pt);
     if (isDressLikeGarment(garment)) {
-      parts.push("📏 Comprimento: midi obrigatório, barra 15cm abaixo do joelho.");
+      const lengthPT = lengthDescriptionPT(garment?.length, garment?.lengthDescription);
+      parts.push(`📏 Comprimento: ${lengthPT}. Barra completa visível.`);
     }
   }
 
@@ -250,7 +317,8 @@ export function buildPromptPreviewPT(
 export function generateAllRequests(
   layers: PromptLayers,
   garment: GarmentAnalysis | null,
-  modelProfile?: ModelProfile | null
+  modelProfile?: ModelProfile | null,
+  selectedPresets?: Record<string, string>
 ): GenerationRequest[] {
   const types: { type: GenerationRequest["type"]; label: string }[] = [
     { type: "lookbook-front", label: "Lookbook — Frente" },
@@ -266,6 +334,6 @@ export function generateAllRequests(
   return types.map(t => ({
     type: t.type,
     label: t.label,
-    prompt: buildFullPrompt(layers, garment, t.type, modelProfile),
+    prompt: buildFullPrompt(layers, garment, t.type, modelProfile, selectedPresets),
   }));
 }
