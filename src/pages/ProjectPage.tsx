@@ -639,9 +639,9 @@ const ProductPage = () => {
       queryClient.invalidateQueries({ queryKey: ["product", projectId] });
       toast({ title: "Salvo", description: "Configurações atualizadas." });
 
-      // Auto-calculate proportions if variant has proportion_json
-      if (activeVariant?.proportionJson) {
-        await calculateProportions(activeVariant.proportionJson, normalizedMannequin, activeVariant.id);
+      // Auto-calculate proportions if variant has analysis data
+      if (activeVariant) {
+        await calculateProportions(activeVariant, normalizedMannequin);
         toast({ title: "Proporções calculadas", description: "Campos de proporções atualizados automaticamente." });
       }
     } catch (err: unknown) {
