@@ -21,6 +21,11 @@ export interface GarmentAnalysis {
   beltOrTie?: string;
   signatureDetails?: string;
   promptDescription?: string;
+  fabricTexture?: string;
+  sleeveDetail?: string;
+  hemDetail?: string;
+  trBadgeLocation?: string;
+  trBadgeDescription?: string;
 }
 
 export interface ModelProfile {
