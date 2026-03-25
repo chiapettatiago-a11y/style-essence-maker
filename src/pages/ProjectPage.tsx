@@ -567,6 +567,48 @@ const ProductPage = () => {
     });
   };
 
+  const calculateProportions = useCallback(async (
+    proportionJson: Record<string, unknown> | null | undefined,
+    mannequinData: MannequinData,
+    variantId: string,
+  ) => {
+    if (!proportionJson) return;
+    const heightCm = mannequinData.mannequin_height_cm;
+    const bustCm = mannequinData.mannequin_bust_cm;
+    const armCm = mannequinData.mannequin_arm_cm;
+    if (!heightCm) return;
+
+    const garmentLengthRatio = Number(proportionJson.garment_length_ratio) || 0;
+    const waistRatio = Number(proportionJson.waist_ratio) || 0;
+    const sleeveRatio = Number(proportionJson.sleeve_ratio) || 0;
+    const shoulderRatio = Number(proportionJson.shoulder_ratio) || 0;
+
+    const garmentLengthCm = garmentLengthRatio > 0 ? Math.round(garmentLengthRatio * heightCm) : null;
+    const waistPositionCm = waistRatio > 0 ? Math.round(waistRatio * heightCm) : null;
+    const sleeveLengthCm = sleeveRatio > 0 && armCm ? Math.round(sleeveRatio * armCm) : null;
+    const shoulderWidthCm = shoulderRatio > 0 && bustCm ? Math.round(shoulderRatio * bustCm) : null;
+    const hemBelowKneeCm = garmentLengthCm != null ? Math.round(garmentLengthCm - (0.61 * heightCm)) : null;
+
+    const updates: Partial<ProductVariant> = {
+      garmentLengthCm,
+      waistPositionCm,
+      sleeveLengthCm,
+      shoulderWidthCm,
+      hemBelowKneeCm,
+    };
+
+    // Update local state
+    setState((s) => ({
+      ...s,
+      variants: s.variants.map((v) => v.id === variantId ? { ...v, ...updates } : v),
+    }));
+
+    // Persist to DB
+    await saveVariant(variantId, updates);
+
+    console.log("[calculateProportions]", { garmentLengthCm, waistPositionCm, sleeveLengthCm, shoulderWidthCm, hemBelowKneeCm });
+  }, [saveVariant]);
+
   const saveMannequin = async () => {
     try {
       const normalizedMannequin = normalizeMannequinData(mannequin);
@@ -574,6 +616,12 @@ const ProductPage = () => {
       await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
       queryClient.invalidateQueries({ queryKey: ["product", projectId] });
       toast({ title: "Salvo", description: "Configurações atualizadas." });
+
+      // Auto-calculate proportions if variant has proportion_json
+      if (activeVariant?.proportionJson) {
+        await calculateProportions(activeVariant.proportionJson, normalizedMannequin, activeVariant.id);
+        toast({ title: "Proporções calculadas", description: "Campos de proporções atualizados automaticamente." });
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao salvar";
       toast({ title: "Erro", description: message, variant: "destructive" });
@@ -626,14 +674,19 @@ const ProductPage = () => {
         supabase.from("product_variants").update({ tr_badge_location: trBadgeLocation }).eq("id", activeVariant.id).then();
       }
 
-      toast({ title: "Análise concluída", description: "Dados técnicos atualizados." });
+      // Auto-calculate proportions from ratios + mannequin
+      if (proportions && mannequin.mannequin_height_cm) {
+        await calculateProportions(proportions, mannequin, activeVariant.id);
+      }
+
+      toast({ title: "Análise concluída", description: "Dados técnicos e proporções atualizados." });
     } catch (err: unknown) {
       const message = getAnalysisErrorMessage(err);
       toast({ title: "Erro", description: message, variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
     }
-  }, [activeVariant, mannequin]);
+  }, [activeVariant, mannequin, calculateProportions]);
 
   const handleSelectModelById = useCallback(async (modelId: string) => {
     const model = MODEL_GALLERY.find((m) => m.id === modelId);
