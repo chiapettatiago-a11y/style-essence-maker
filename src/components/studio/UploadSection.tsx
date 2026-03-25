@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import { GarmentAnalysis } from "@/types/fashion";
 import { Upload, X, ImageIcon, Sparkles, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { compressImage, blobToDataUrl } from "@/lib/image-compress";
+import { compressImage, createThumbnail, blobToDataUrl } from "@/lib/image-compress";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,21 +52,31 @@ const UploadSection: React.FC<UploadSectionProps> = ({
   uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate, garmentType, onGarmentTypeChange,
 }) => {
   const [dragOver, setDragOver] = useState(false);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback((files: FileList) => {
     const selectedFiles = Array.from(files);
     Promise.all(
       selectedFiles.map(async (file) => {
-        // Compress to JPEG ≤1200px before converting to data URL
-        const compressed = await compressImage(file);
-        return blobToDataUrl(compressed);
+        const [compressed, thumb] = await Promise.all([
+          compressImage(file),
+          createThumbnail(file),
+        ]);
+        const [fullUrl, thumbUrl] = await Promise.all([
+          blobToDataUrl(compressed),
+          blobToDataUrl(thumb),
+        ]);
+        return { fullUrl, thumbUrl };
       })
     )
       .then((results) => {
-        const nextImages = results.filter(Boolean);
-        if (nextImages.length > 0) {
-          onImagesChange([...uploadedImages, ...nextImages]);
+        const validResults = results.filter((r) => r.fullUrl);
+        if (validResults.length > 0) {
+          const newThumbs: Record<string, string> = {};
+          validResults.forEach((r) => { newThumbs[r.fullUrl] = r.thumbUrl; });
+          setThumbnails((prev) => ({ ...prev, ...newThumbs }));
+          onImagesChange([...uploadedImages, ...validResults.map((r) => r.fullUrl)]);
         }
       })
       .catch(() => {});
@@ -150,7 +160,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
           >
             {uploadedImages.map((img, i) => (
               <div key={i} className="relative group aspect-[3/4] rounded-lg overflow-hidden border border-border bg-card shadow-sm">
-                <img src={img} alt={`Ref ${i + 1}`} className="w-full h-full object-cover" />
+                <img src={thumbnails[img] || img} alt={`Ref ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
                 <button
                   onClick={() => removeImage(i)}

@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { Upload, X, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { compressImage, createThumbnail, blobToDataUrl } from "@/lib/image-compress";
 
 interface UploadStepProps {
   images: string[];
@@ -19,18 +20,29 @@ const UploadStep: React.FC<UploadStepProps> = ({
   analysisComplete,
 }) => {
   const [dragOver, setDragOver] = useState(false);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
 
   const handleFiles = useCallback(
     (files: FileList) => {
       const toProcess = Array.from(files);
-      toProcess.forEach((file) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const dataUrl = e.target?.result as string;
-          onImagesChange([...images, dataUrl]);
-        };
-        reader.readAsDataURL(file);
-      });
+      Promise.all(
+        toProcess.map(async (file) => {
+          const [compressed, thumb] = await Promise.all([
+            compressImage(file),
+            createThumbnail(file),
+          ]);
+          const [fullUrl, thumbUrl] = await Promise.all([
+            blobToDataUrl(compressed),
+            blobToDataUrl(thumb),
+          ]);
+          return { fullUrl, thumbUrl };
+        })
+      ).then((results) => {
+        const newThumbs: Record<string, string> = {};
+        results.forEach((r) => { newThumbs[r.fullUrl] = r.thumbUrl; });
+        setThumbnails((prev) => ({ ...prev, ...newThumbs }));
+        onImagesChange([...images, ...results.map((r) => r.fullUrl)]);
+      }).catch(() => {});
     },
     [images, onImagesChange]
   );
@@ -101,9 +113,10 @@ const UploadStep: React.FC<UploadStepProps> = ({
               className="relative group aspect-square rounded-lg overflow-hidden bg-muted border border-border"
             >
               <img
-                src={img}
+                src={thumbnails[img] || img}
                 alt={`Produto ${i + 1}`}
                 className="w-full h-full object-cover"
+                loading="lazy"
               />
               <button
                 onClick={(e) => {
