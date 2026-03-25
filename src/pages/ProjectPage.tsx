@@ -568,20 +568,42 @@ const ProductPage = () => {
   };
 
   const calculateProportions = useCallback(async (
-    proportionJson: Record<string, unknown> | null | undefined,
+    variant: ProductVariant,
     mannequinData: MannequinData,
-    variantId: string,
   ) => {
-    if (!proportionJson) return;
+    // Try to get ratios from proportionJson or analysisRaw
+    let ratios: { garment_length_ratio?: number; waist_ratio?: number; sleeve_ratio?: number; shoulder_ratio?: number } | null = null;
+
+    // First check if proportionJson has ratios directly
+    const pj = variant.proportionJson;
+    if (pj && typeof pj.garment_length_ratio === "number") {
+      ratios = pj as typeof ratios;
+    }
+
+    // Otherwise try to extract from analysisRaw
+    if (!ratios && variant.analysisRaw) {
+      try {
+        const raw = JSON.parse(variant.analysisRaw);
+        if (raw.proportions?.garment_length_ratio != null) {
+          ratios = raw.proportions;
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (!ratios) {
+      console.log("[calculateProportions] No ratios available");
+      return;
+    }
+
     const heightCm = mannequinData.mannequin_height_cm;
     const bustCm = mannequinData.mannequin_bust_cm;
     const armCm = mannequinData.mannequin_arm_cm;
     if (!heightCm) return;
 
-    const garmentLengthRatio = Number(proportionJson.garment_length_ratio) || 0;
-    const waistRatio = Number(proportionJson.waist_ratio) || 0;
-    const sleeveRatio = Number(proportionJson.sleeve_ratio) || 0;
-    const shoulderRatio = Number(proportionJson.shoulder_ratio) || 0;
+    const garmentLengthRatio = Number(ratios.garment_length_ratio) || 0;
+    const waistRatio = Number(ratios.waist_ratio) || 0;
+    const sleeveRatio = Number(ratios.sleeve_ratio) || 0;
+    const shoulderRatio = Number(ratios.shoulder_ratio) || 0;
 
     const garmentLengthCm = garmentLengthRatio > 0 ? Math.round(garmentLengthRatio * heightCm) : null;
     const waistPositionCm = waistRatio > 0 ? Math.round(waistRatio * heightCm) : null;
@@ -600,11 +622,11 @@ const ProductPage = () => {
     // Update local state
     setState((s) => ({
       ...s,
-      variants: s.variants.map((v) => v.id === variantId ? { ...v, ...updates } : v),
+      variants: s.variants.map((v) => v.id === variant.id ? { ...v, ...updates } : v),
     }));
 
     // Persist to DB
-    await saveVariant(variantId, updates);
+    await saveVariant(variant.id, updates);
 
     console.log("[calculateProportions]", { garmentLengthCm, waistPositionCm, sleeveLengthCm, shoulderWidthCm, hemBelowKneeCm });
   }, [saveVariant]);
