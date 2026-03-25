@@ -166,61 +166,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
             />
           )}
 
-          {/* Step 2: Choose Model */}
+          {/* Step 2: Analysis & Proportions */}
           {step === 2 && (
-            <div className="space-y-5">
-              <ModelGallery selectedModelId={selectedProfile?.id || null} onSelectModel={(m) => onSelectModel(m.id)} />
-
-              {/* LoRA / Guidance sliders — only when model has LoRA and fal engine selected */}
-              {selectedProfile?.lora_url && selectedEngine === "fal" && (
-                <Card className="border-accent/30 bg-accent/5">
-                  <CardContent className="pt-4 space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-accent" />
-                      <h4 className="text-xs font-semibold">Parâmetros LoRA — {selectedProfile.name}</h4>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] text-muted-foreground">LoRA Scale</Label>
-                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.lora_scale ?? 1.0).toFixed(2)}</span>
-                        </div>
-                        <Slider
-                          value={[selectedProfile.lora_scale ?? 1.0]}
-                          min={0}
-                          max={2}
-                          step={0.05}
-                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, lora_scale: v })}
-                          className="w-full"
-                        />
-                        <p className="text-[10px] text-muted-foreground">Intensidade da LoRA. 1.0 = padrão validado.</p>
-                      </div>
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[11px] text-muted-foreground">Guidance Scale</Label>
-                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.guidance_scale ?? 3.5).toFixed(1)}</span>
-                        </div>
-                        <Slider
-                          value={[selectedProfile.guidance_scale ?? 3.5]}
-                          min={1}
-                          max={20}
-                          step={0.5}
-                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, guidance_scale: v })}
-                          className="w-full"
-                        />
-                        <p className="text-[10px] text-muted-foreground">Aderência ao prompt. 9 = validado para Thais.</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
-            </div>
-          )}
-
-          {/* Step 3: Analysis & Proportions */}
-          {step === 3 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Análise técnica e proporções</h3>
@@ -336,9 +283,57 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
             </div>
           )}
 
-          {/* Step 4: Styles & Generate */}
-          {step === 4 && (
+          {/* Step 3: Model + Styles + Generate */}
+          {step === 3 && (
             <div className="space-y-5">
+              <ModelGallery selectedModelId={selectedProfile?.id || null} onSelectModel={(m) => onSelectModel(m.id)} />
+
+              {/* LoRA / Guidance sliders — only when model has LoRA and fal engine selected */}
+              {selectedProfile?.lora_url && selectedEngine === "fal" && (
+                <Card className="border-accent/30 bg-accent/5">
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-accent" />
+                      <h4 className="text-xs font-semibold">Parâmetros LoRA — {selectedProfile.name}</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">LoRA Scale</Label>
+                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.lora_scale ?? 1.0).toFixed(2)}</span>
+                        </div>
+                        <Slider
+                          value={[selectedProfile.lora_scale ?? 1.0]}
+                          min={0}
+                          max={2}
+                          step={0.05}
+                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, lora_scale: v })}
+                          className="w-full"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Intensidade da LoRA. 1.0 = padrão validado.</p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[11px] text-muted-foreground">Guidance Scale</Label>
+                          <span className="text-[11px] font-mono text-accent">{(selectedProfile.guidance_scale ?? 3.5).toFixed(1)}</span>
+                        </div>
+                        <Slider
+                          value={[selectedProfile.guidance_scale ?? 3.5]}
+                          min={1}
+                          max={20}
+                          step={0.5}
+                          onValueChange={([v]) => onProfileUpdate({ ...selectedProfile, guidance_scale: v })}
+                          className="w-full"
+                        />
+                        <p className="text-[10px] text-muted-foreground">Aderência ao prompt. 9 = validado para Thais.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
+
               <div>
                 <h3 className="text-sm font-semibold">Estilos e geração</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">5 imagens + 2 prompts de vídeo serão gerados.</p>
