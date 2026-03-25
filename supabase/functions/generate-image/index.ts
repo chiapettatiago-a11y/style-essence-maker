@@ -164,8 +164,8 @@ function toCm(value: unknown): string {
 const STORAGE_BUCKET = "generated-assets";
 
 function getImageSize(angleType: AngleType) {
-  const isMacroClose = angleType === "close-tr-cuff" || angleType === "close-tr-label";
-  return isMacroClose
+  const isCloseDetail = angleType === "close-tr-detail";
+  return isCloseDetail
     ? { width: 2048, height: 2048 }
     : { width: 1365, height: 2048 };
 }
