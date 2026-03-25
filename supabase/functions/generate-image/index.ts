@@ -647,6 +647,50 @@ async function callFalEngine(params: {
   }
 }
 
+async function callFaceSwap(params: {
+  generatedImageUrl: string;
+  faceReferenceUrl: string;
+}): Promise<string> {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured for face swap");
+
+  fal.config({ credentials: FAL_API_KEY });
+
+  const publicGenUrl = await ensurePublicUrl(params.generatedImageUrl);
+  const publicFaceUrl = await ensurePublicUrl(params.faceReferenceUrl);
+
+  console.log(`[face-swap] Swapping face. Generated: ${publicGenUrl.substring(0, 80)}... Face ref: ${publicFaceUrl.substring(0, 80)}...`);
+
+  try {
+    const result = await fal.subscribe("fal-ai/face-swap", {
+      input: {
+        base_image_url: publicGenUrl,
+        swap_image_url: publicFaceUrl,
+      },
+    });
+
+    const swappedUrl = (result as any)?.image?.url
+      || (result as any)?.data?.image?.url
+      || (result as any)?.output_image_url
+      || (result as any)?.data?.output_image_url
+      || "";
+
+    if (!swappedUrl) {
+      console.error(`[face-swap] No swapped image in response:`, JSON.stringify(result).substring(0, 500));
+      throw new Error("No swapped image found in face-swap response");
+    }
+
+    console.log(`[face-swap] Success: ${swappedUrl.substring(0, 80)}...`);
+    return swappedUrl;
+  } catch (swapErr: unknown) {
+    const errMsg = swapErr instanceof Error ? swapErr.message : String(swapErr);
+    console.error(`[face-swap] ERROR:`, errMsg);
+    // Return original image if face swap fails — don't block the pipeline
+    console.warn(`[face-swap] Falling back to original generated image`);
+    return publicGenUrl;
+  }
+}
+
 async function callFalVideoEngine(params: {
   promptUsed: string;
   imageUrl: string;
