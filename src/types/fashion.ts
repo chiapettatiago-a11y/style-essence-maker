@@ -44,6 +44,7 @@ export interface ModelProfile {
   lora_trigger_word?: string;
   lora_scale?: number;
   guidance_scale?: number;
+  face_image_url?: string;
 }
 
 export interface StylePreset {
