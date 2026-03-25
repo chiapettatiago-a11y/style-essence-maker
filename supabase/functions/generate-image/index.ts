@@ -886,6 +886,23 @@ serve(async (req) => {
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
 
+    // PIPELINE DUPLO: Face swap para fixar identidade da modelo
+    // Aplica após geração Gemini (que respeita a peça mas não a modelo)
+    // Pula para close-tr-detail (sem rosto) e video-product (sem modelo)
+    const isCloseDetailAngle = parsedAngle === "close-tr-detail";
+    const faceImageUrl = modelProfile?.face_image_url;
+    const shouldFaceSwap = !!faceImageUrl && !isCloseDetailAngle && parsedAngle !== "video-product";
+
+    if (shouldFaceSwap) {
+      console.log(`[generate-image] Applying face swap for angle=${parsedAngle}, model=${modelProfile?.name || "unknown"}`);
+      const swappedUrl = await callFaceSwap({
+        generatedImageUrl: result.imageUrl,
+        faceReferenceUrl: faceImageUrl!,
+      });
+      result.imageUrl = swappedUrl;
+      result.modelUsed = `${result.modelUsed} + face-swap`;
+    }
+
     const storedAsset = await uploadGeneratedAsset({
       sourceUrl: result.imageUrl,
       launchId,
