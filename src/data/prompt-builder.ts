@@ -257,8 +257,8 @@ export function generateAllRequests(
     { type: "lookbook-back", label: "Lookbook — Costas" },
     { type: "lookbook-left", label: "Lookbook — Lateral Esquerda" },
     { type: "lookbook-three-quarter", label: "Lookbook — Lateral Direita" },
-    { type: "close-tr-cuff", label: "Close TR — Punho Direito" },
-    { type: "close-tr-label", label: "Close TR — Gola / Etiqueta" },
+    { type: "close-tr-detail", label: "Close — Detalhe TR" },
+    { type: "movement-shot", label: "Movimento Editorial" },
     { type: "video-product", label: "Vídeo 360° Produto (prompt)" },
     { type: "video-model", label: "Vídeo 360° com Modelo (prompt)" },
   ];
