@@ -324,7 +324,10 @@ async function callClaudeAI(images: string[]) {
     throw new UpstreamAIError("ANTHROPIC_API_KEY is not configured", 500, "missing_secret");
   }
 
-  const contentParts: Array<Record<string, unknown>> = images.slice(0, 4).map((image) => {
+  // Compress all images to stay under Claude's 5MB limit
+  const compressed = await Promise.all(images.slice(0, 4).map(compressImage));
+
+  const contentParts: Array<Record<string, unknown>> = compressed.map((image) => {
     const parsed = parseDataUrl(image);
     return {
       type: "image",
