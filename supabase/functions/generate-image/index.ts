@@ -107,7 +107,7 @@ Internal label: Black woven fabric label reading "THAIS RODRIGUES" stitched insi
   "lookbook-back": "Back to camera, slight head turn over left shoulder, natural posture. Full body framing, feet visible.",
   "lookbook-left": "Left profile, mid-stride feel, natural arm swing, candid editorial energy. Full body framing, feet visible.",
   "lookbook-three-quarter": "Right profile, weight on back foot, slight hip shift, arm softly bent. Full body framing, feet visible.",
-  "close-tr-detail": "Half-body crop centered on the TR badge area. The TR badge must be clearly visible. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.",
+  "close-tr-detail": "Half-body crop centered on the waist/midsection area. Show fabric texture, construction details, and any decorative elements. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context.",
   "movement-shot": "Full body, loose editorial walking pose — mid-stride, natural arm swing, slight body rotation, relaxed energy. Candid fashion week backstage feel. Full body framing, feet visible.",
   "video-product": "Slow 360-degree rotation of the garment on an invisible mannequin. Pure white background. Smooth continuous rotation showing all angles of the garment. The fabric moves naturally with the rotation, revealing construction details, seams, and texture. No model, just the garment floating and rotating. Professional product video for e-commerce.",
   "video-model": "The model takes a slow, elegant step forward, then gracefully turns 180 degrees showing the back of the outfit, pauses briefly, then turns back to face the camera. Natural hair and fabric movement. Confident, editorial walk. Same white studio background. Subtle wind effect on hair and dress hem. Professional fashion lookbook video.",
@@ -161,6 +161,15 @@ function toCm(value: unknown): string {
   if (value === null || value === undefined || value === "") return "N/A";
   return `${value}cm`;
 }
+
+const DEFAULT_MANNEQUIN: Record<string, number> = {
+  height_cm: 175,
+  bust_cm: 88,
+  waist_cm: 64,
+  hip_cm: 96,
+  torso_cm: 42,
+  arm_cm: 60,
+};
 
 const STORAGE_BUCKET = "generated-assets";
 
@@ -312,40 +321,48 @@ This garment is a TWO-PIECE SET (top + bottom sold together).
 - Each piece must maintain its own construction and proportions.`
     : "";
 
-  // For close-tr-detail, use simplified garment block
+  // Resolve mannequin with fallback to defaults
+  const resolvedMannequin = (mannequin && mannequin.height_cm) ? mannequin : DEFAULT_MANNEQUIN;
+
+  // For close-tr-detail, use simplified garment block focused on waist area
   let blockB: string;
   if (isCloseDetail && garmentAnalysis) {
-    const trLocation = garmentAnalysis.trBadgeLocation || garmentAnalysis.signatureDetails || "unknown position";
     blockB = `GARMENT CONTEXT:
 Type: ${garmentAnalysis.type || "N/A"}
 Color: ${garmentAnalysis.color || "N/A"}
-TR signature: ${garmentAnalysis.trBadgeDescription || "small round gold-tone metallic button with TR monogram"} positioned at ${trLocation}.
+Fabric: ${garmentAnalysis.fabric || "N/A"}. Texture: ${garmentAnalysis.fabricTexture || "N/A"}.
 
-ANGLE: Half-body crop centered on the ${trLocation} area of the garment. The TR badge must be clearly visible. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.`;
+ANGLE: Half-body crop centered on the waist/midsection area of the garment. Show construction details, fabric texture, and any decorative elements around the waist. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context.`;
   } else {
+    // Length description with smart fallback
+    const lengthDesc = garmentAnalysis?.lengthDescription
+      || (garmentAnalysis?.length === "maxi" ? "ankle/floor"
+        : garmentAnalysis?.length === "midi" ? "10-15cm below knee"
+        : garmentAnalysis?.length === "short" ? "above knee"
+        : "full length visible");
+
+    // Proportions block — only include if we have real data
+    const hasProportions = proportionJson?.garment_length_cm && resolvedMannequin?.height_cm;
+    const proportionsBlock = hasProportions
+      ? `\nPROPORTIONS (from ${toCm(resolvedMannequin.height_cm)} reference mannequin):
+- Total garment length: ${toCm(proportionJson.garment_length_cm)}
+- Waist position: ${toCm(proportionJson.waist_position_cm)} from shoulder`
+      : "";
+
     blockB = `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.
 ${twoPieceBlock}
 Fabric: ${garmentAnalysis?.fabric || "N/A"}. Texture: ${garmentAnalysis?.fabricTexture || "N/A"}.
 Color: ${garmentAnalysis?.color || "N/A"} (${garmentAnalysis?.colorHexEstimate || "N/A"}) — fully monochromatic, no color variation.
 Silhouette: ${garmentAnalysis?.silhouette || "N/A"}.
-Length: ${garmentAnalysis?.length || "N/A"} — hem reaches ${garmentAnalysis?.lengthDescription || `${toCm(proportionJson?.hem_below_knee_cm)} from knee reference`}.
+Length: ${garmentAnalysis?.length || "N/A"} — hem reaches ${lengthDesc}.
 Neckline: ${garmentAnalysis?.neckline || "N/A"}
 Sleeves: ${garmentAnalysis?.sleeves || "N/A"}. Cuff detail: ${garmentAnalysis?.sleeveDetail || garmentAnalysis?.sleeveLength || toCm(proportionJson?.sleeve_length_cm)}
 Hem/Skirt: ${garmentAnalysis?.hemDetail || garmentAnalysis?.hemline || "N/A"}
-Construction details: ${garmentAnalysis?.details || "N/A"}
-${garmentAnalysis?.trBadgeLocation && garmentAnalysis?.trBadgeDescription
-  ? `TR signature: ${garmentAnalysis.trBadgeDescription} positioned at ${garmentAnalysis.trBadgeLocation}.`
-  : garmentAnalysis?.signatureDetails
-    ? `TR signature: ${garmentAnalysis.signatureDetails}`
-    : `TR signature: not clearly visible in reference.`}
-Internal label "THAIS RODRIGUES" stitched below neckline.
-
-PROPORTIONS (from ${toCm(mannequin?.height_cm)} reference mannequin):
-- Total garment length: ${toCm(proportionJson?.garment_length_cm)}
-- Waist position: ${toCm(proportionJson?.waist_position_cm)} from shoulder`;
+Construction details: ${garmentAnalysis?.details || "N/A"}${proportionsBlock}`;
   }
 
-  const trBadgeBlock = isCloseDetail ? "" : TR_BADGE_DETAILED_BLOCK_FN(garmentAnalysis?.signatureDetails);
+  // TR badge block removed from prompt — badge will be added in post-production
+  const trBadgeBlock = "";
 
   const blockC = angleType === "video-product"
     ? ""
@@ -361,11 +378,15 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
     ? (isFal ? FULL_BODY_CRITICAL_BLOCK_FAL : FULL_BODY_CRITICAL_BLOCK)
     : "";
 
-  // Use detected length, never override with fixed value
+  // Skirt length block with smart fallback for null hem_below_knee_cm
   let skirtLengthBlock = "";
   if (FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis)) {
-    const detectedLength = garmentAnalysis?.length || "";
-    const lengthDesc = garmentAnalysis?.lengthDescription || "";
+    const detectedLength = garmentAnalysis?.length || "maxi";
+    const lengthDesc = garmentAnalysis?.lengthDescription
+      || (detectedLength === "maxi" ? "ankle/floor. Full length visible"
+        : detectedLength === "midi" ? "mid-calf, 10-15cm below knee"
+        : detectedLength === "short" ? "above knee"
+        : "full length visible");
     skirtLengthBlock = `SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`;
   }
 
