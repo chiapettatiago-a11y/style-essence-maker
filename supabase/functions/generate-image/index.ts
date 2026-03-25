@@ -361,7 +361,8 @@ Hem/Skirt: ${garmentAnalysis?.hemDetail || garmentAnalysis?.hemline || "N/A"}
 Construction details: ${garmentAnalysis?.details || "N/A"}${proportionsBlock}`;
   }
 
-  const trBadgeBlock = isCloseDetail ? "" : TR_BADGE_DETAILED_BLOCK_FN(garmentAnalysis?.signatureDetails);
+  // TR badge block removed from prompt — badge will be added in post-production
+  const trBadgeBlock = "";
 
   const blockC = angleType === "video-product"
     ? ""
