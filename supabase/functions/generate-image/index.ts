@@ -63,6 +63,7 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
   "lookbook-back",
   "lookbook-left",
   "lookbook-three-quarter",
+  "movement-shot",
 ]);
 
  const FOOTWEAR_BLOCK = `FOOTWEAR — CRITICAL:
