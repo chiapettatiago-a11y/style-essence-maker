@@ -160,7 +160,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
           >
             {uploadedImages.map((img, i) => (
               <div key={i} className="relative group aspect-[3/4] rounded-lg overflow-hidden border border-border bg-card shadow-sm">
-                <img src={img} alt={`Ref ${i + 1}`} className="w-full h-full object-cover" />
+                <img src={thumbnails[img] || img} alt={`Ref ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
                 <button
                   onClick={() => removeImage(i)}
