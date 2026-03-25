@@ -39,7 +39,8 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
   const requests = generateAllRequests(
     { layer1: LAYER1_BASE, layer2: layer2Text, layer3: manualPrompt },
     garmentAnalysis,
-    selectedProfile
+    selectedProfile,
+    selectedPresets
   );
 
   const imageRequests = requests.filter(r => r.type !== "video-product" && r.type !== "video-model");
