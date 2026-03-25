@@ -56,6 +56,7 @@ type ModelProfile = {
   lora_trigger_word?: string;
   lora_scale?: number;
   guidance_scale?: number;
+  face_image_url?: string;
 };
 
 const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
