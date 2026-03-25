@@ -168,9 +168,13 @@ export function buildFullPrompt(
     ].join("\n");
     parts.push(closeGarmentBlock);
   } else if (garment) {
+    const isTwoPiece = /two-piece|two piece|conjunto/i.test(garment.type || "");
     const lengthDesc = lengthDescriptionEN(garment.length, garment.lengthDescription);
     const garmentBlock = [
       `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
+      isTwoPiece
+        ? `Type: TWO-PIECE SET (separate top + separate bottom). This is NOT a dress. These are TWO DISTINCT GARMENTS worn together.`
+        : `Type: ${garment.type}.`,
       `Fabric: ${garment.fabric}. Texture: ${garment.fabricTexture || "N/A"}.`,
       `Color: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — fully monochromatic, no color variation.`,
       `Silhouette: ${garment.silhouette || "N/A"}.`,
@@ -187,6 +191,18 @@ export function buildFullPrompt(
       `Internal label "THAIS RODRIGUES" stitched below neckline.`,
     ].filter(Boolean).join("\n");
     parts.push(garmentBlock);
+
+    // Two-piece set: add explicit separation enforcement
+    if (isTwoPiece) {
+      parts.push(`TWO-PIECE SEPARATION — CRITICAL RULE:
+This outfit consists of TWO SEPARATE GARMENTS: a cropped top/blouse AND a separate skirt/pants.
+There MUST be a visible gap or waist seam between the top and the bottom piece.
+Do NOT merge, fuse, or blend them into a single dress or jumpsuit.
+The top ends at the waist. The bottom starts at the waist. They are SEPARATE pieces.
+If you generate a single continuous garment, the image is REJECTED.
+Maintain the exact proportions of each piece: the top's cropped length, the bottom's full length.
+Ruffle/detail volume must match the reference EXACTLY — do not exaggerate or reduce.`);
+    }
   }
 
   const angleInstruction = ANGLE_INSTRUCTIONS[angleType];
@@ -262,10 +278,14 @@ export function buildPromptPreviewPT(
   parts.push("🔒 Base técnica (resolução 1080x1920, fidelidade absoluta da peça)");
 
   if (garment) {
+    const isTwoPiece = /two-piece|two piece|conjunto/i.test(garment.type || "");
     const lengthPT = lengthDescriptionPT(garment.length, garment.lengthDescription);
+    const typeLabel = isTwoPiece
+      ? "CONJUNTO DE DUAS PEÇAS (top + bottom separados) — NÃO é vestido"
+      : garment.type;
     parts.push([
       `👗 Peça — fidelidade absoluta obrigatória. Não redesenhar, simplificar ou alterar nenhum detalhe.`,
-      `Tipo: ${garment.type}`,
+      `Tipo: ${typeLabel}`,
       `Tecido: ${garment.fabric}. Textura: ${garment.fabricTexture || "N/A"}`,
       `Cor: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — monocromático, sem variação de cor`,
       `Silhueta: ${garment.silhouette || "N/A"}`,
