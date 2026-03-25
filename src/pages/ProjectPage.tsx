@@ -567,6 +567,70 @@ const ProductPage = () => {
     });
   };
 
+  const calculateProportions = useCallback(async (
+    variant: ProductVariant,
+    mannequinData: MannequinData,
+  ) => {
+    // Try to get ratios from proportionJson or analysisRaw
+    let ratios: { garment_length_ratio?: number; waist_ratio?: number; sleeve_ratio?: number; shoulder_ratio?: number } | null = null;
+
+    // First check if proportionJson has ratios directly
+    const pj = variant.proportionJson;
+    if (pj && typeof pj.garment_length_ratio === "number") {
+      ratios = pj as typeof ratios;
+    }
+
+    // Otherwise try to extract from analysisRaw
+    if (!ratios && variant.analysisRaw) {
+      try {
+        const raw = JSON.parse(variant.analysisRaw);
+        if (raw.proportions?.garment_length_ratio != null) {
+          ratios = raw.proportions;
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (!ratios) {
+      console.log("[calculateProportions] No ratios available");
+      return;
+    }
+
+    const heightCm = mannequinData.mannequin_height_cm;
+    const bustCm = mannequinData.mannequin_bust_cm;
+    const armCm = mannequinData.mannequin_arm_cm;
+    if (!heightCm) return;
+
+    const garmentLengthRatio = Number(ratios.garment_length_ratio) || 0;
+    const waistRatio = Number(ratios.waist_ratio) || 0;
+    const sleeveRatio = Number(ratios.sleeve_ratio) || 0;
+    const shoulderRatio = Number(ratios.shoulder_ratio) || 0;
+
+    const garmentLengthCm = garmentLengthRatio > 0 ? Math.round(garmentLengthRatio * heightCm) : null;
+    const waistPositionCm = waistRatio > 0 ? Math.round(waistRatio * heightCm) : null;
+    const sleeveLengthCm = sleeveRatio > 0 && armCm ? Math.round(sleeveRatio * armCm) : null;
+    const shoulderWidthCm = shoulderRatio > 0 && bustCm ? Math.round(shoulderRatio * bustCm) : null;
+    const hemBelowKneeCm = garmentLengthCm != null ? Math.round(garmentLengthCm - (0.61 * heightCm)) : null;
+
+    const updates: Partial<ProductVariant> = {
+      garmentLengthCm,
+      waistPositionCm,
+      sleeveLengthCm,
+      shoulderWidthCm,
+      hemBelowKneeCm,
+    };
+
+    // Update local state
+    setState((s) => ({
+      ...s,
+      variants: s.variants.map((v) => v.id === variant.id ? { ...v, ...updates } : v),
+    }));
+
+    // Persist to DB
+    await saveVariant(variant.id, updates);
+
+    console.log("[calculateProportions]", { garmentLengthCm, waistPositionCm, sleeveLengthCm, shoulderWidthCm, hemBelowKneeCm });
+  }, [saveVariant]);
+
   const saveMannequin = async () => {
     try {
       const normalizedMannequin = normalizeMannequinData(mannequin);
@@ -574,6 +638,12 @@ const ProductPage = () => {
       await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
       queryClient.invalidateQueries({ queryKey: ["product", projectId] });
       toast({ title: "Salvo", description: "Configurações atualizadas." });
+
+      // Auto-calculate proportions if variant has analysis data
+      if (activeVariant) {
+        await calculateProportions(activeVariant, normalizedMannequin);
+        toast({ title: "Proporções calculadas", description: "Campos de proporções atualizados automaticamente." });
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao salvar";
       toast({ title: "Erro", description: message, variant: "destructive" });
@@ -626,14 +696,25 @@ const ProductPage = () => {
         supabase.from("product_variants").update({ tr_badge_location: trBadgeLocation }).eq("id", activeVariant.id).then();
       }
 
-      toast({ title: "Análise concluída", description: "Dados técnicos atualizados." });
+      // Auto-calculate proportions from ratios + mannequin
+      if (mannequin.mannequin_height_cm) {
+        // Build a temporary variant with the fresh analysisRaw for ratio extraction
+        const tempVariant: ProductVariant = {
+          ...activeVariant,
+          proportionJson: proportions,
+          analysisRaw: data.raw ? JSON.stringify(data.raw) : activeVariant.analysisRaw,
+        };
+        await calculateProportions(tempVariant, mannequin);
+      }
+
+      toast({ title: "Análise concluída", description: "Dados técnicos e proporções atualizados." });
     } catch (err: unknown) {
       const message = getAnalysisErrorMessage(err);
       toast({ title: "Erro", description: message, variant: "destructive" });
     } finally {
       setIsAnalyzing(false);
     }
-  }, [activeVariant, mannequin]);
+  }, [activeVariant, mannequin, calculateProportions]);
 
   const handleSelectModelById = useCallback(async (modelId: string) => {
     const model = MODEL_GALLERY.find((m) => m.id === modelId);
