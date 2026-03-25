@@ -156,16 +156,36 @@ export function buildFullPrompt(
 
   const parts: string[] = [base];
 
-  // For close-tr-detail, use a simplified garment block
+  // For close-tr-detail, use a simplified garment block with precise framing
   if (isCloseDetail && garment) {
     const trLocation = garment.trBadgeLocation || garment.signatureDetails || "unknown position";
+    const trDesc = garment.trBadgeDescription || "small round gold-tone metallic button with TR monogram";
+
+    // Determine body-zone framing based on badge position
+    const locLower = trLocation.toLowerCase();
+    let framingInstruction: string;
+    if (/hip|waist|cintura|quadril|lateral|side seam|ilhós/i.test(locLower)) {
+      framingInstruction = `Crop from mid-torso to upper thigh, centering the frame on the ${trLocation} area. The camera must point at hip/waist level, NOT at the bust or face.`;
+    } else if (/hem|barra|skirt|saia|lower/i.test(locLower)) {
+      framingInstruction = `Crop from waist to below the knee, centering the frame on the ${trLocation} area. The camera must point at the lower garment, NOT at the bust.`;
+    } else if (/back|costas|traseira/i.test(locLower)) {
+      framingInstruction = `Model turned showing back. Crop centered on the ${trLocation} area. The TR badge must be the focal point.`;
+    } else {
+      // Default: chest/collar area
+      framingInstruction = `Half-body crop centered on the ${trLocation} area of the garment.`;
+    }
+
     const closeGarmentBlock = [
       `GARMENT CONTEXT:`,
       `Type: ${garment.type}`,
       `Color: ${garment.color}`,
-      `TR signature: ${garment.trBadgeDescription || "small round gold-tone metallic button with TR monogram"} positioned at ${trLocation}.`,
+      `TR signature: ${trDesc} positioned at ${trLocation}.`,
       ``,
-      `ANGLE: Half-body crop centered on the ${trLocation} area of the garment. The TR badge must be clearly visible. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.`,
+      `ANGLE — CRITICAL FRAMING:`,
+      framingInstruction,
+      `The TR badge (${trDesc}) MUST be clearly visible and in sharp focus at the center of the frame.`,
+      `Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context around the badge.`,
+      `Do NOT default to a bust/face portrait. The camera must aim at the EXACT body zone where the badge sits.`,
     ].join("\n");
     parts.push(closeGarmentBlock);
   } else if (garment) {
