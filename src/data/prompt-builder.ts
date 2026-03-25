@@ -169,7 +169,8 @@ export function buildFullPrompt(
     ].join("\n");
     parts.push(closeGarmentBlock);
   } else if (garment) {
-    const isTwoPiece = /two-piece|two piece|conjunto/i.test(garment.type || "");
+    // Two-piece detection: user-declared garment type takes precedence over AI analysis
+    const isTwoPiece = userGarmentType === "conjunto" || /two-piece|two piece|conjunto/i.test(garment.type || "");
     const lengthDesc = lengthDescriptionEN(garment.length, garment.lengthDescription);
     const garmentBlock = [
       `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
