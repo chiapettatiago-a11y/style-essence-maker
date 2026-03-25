@@ -120,7 +120,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
     step === 1
       ? uploadedImages.length > 0 && !!garmentAnalysis
       : step === 2
-        ? !!selectedProfile
+        ? true
         : true;
 
   return (
