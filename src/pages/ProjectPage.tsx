@@ -728,7 +728,7 @@ const ProductPage = () => {
     try {
       const { data } = await supabase
         .from("model_profiles")
-        .select("lora_url, lora_trigger_word, lora_scale, guidance_scale")
+        .select("lora_url, lora_trigger_word, lora_scale, guidance_scale, face_image_url")
         .eq("slug", modelId)
         .maybeSingle();
       if (data?.lora_url) {
