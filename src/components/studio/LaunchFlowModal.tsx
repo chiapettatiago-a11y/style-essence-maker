@@ -17,9 +17,8 @@ import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 
 const STEPS = [
   { id: 1, title: "Upload da peça" },
-  { id: 2, title: "Escolher modelo" },
-  { id: 3, title: "Análise e proporções" },
-  { id: 4, title: "Estilos e geração" },
+  { id: 2, title: "Análise e proporções" },
+  { id: 3, title: "Modelo e geração" },
 ] as const;
 
 type MannequinData = {
