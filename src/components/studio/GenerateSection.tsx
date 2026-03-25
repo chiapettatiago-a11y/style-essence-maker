@@ -17,6 +17,7 @@ interface GenerateSectionProps {
   selectedEngine: GenerationEngine;
   onGenerate: (requests: GenerationRequest[]) => void;
   isGenerating: boolean;
+  garmentType?: string | null;
 }
 
 const ENGINE_LABELS: Record<GenerationEngine, string> = {
