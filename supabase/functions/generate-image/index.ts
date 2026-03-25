@@ -378,11 +378,15 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
     ? (isFal ? FULL_BODY_CRITICAL_BLOCK_FAL : FULL_BODY_CRITICAL_BLOCK)
     : "";
 
-  // Use detected length, never override with fixed value
+  // Skirt length block with smart fallback for null hem_below_knee_cm
   let skirtLengthBlock = "";
   if (FULL_BODY_ANGLE_TYPES.has(angleType) && isDressLikeGarment(garmentAnalysis)) {
-    const detectedLength = garmentAnalysis?.length || "";
-    const lengthDesc = garmentAnalysis?.lengthDescription || "";
+    const detectedLength = garmentAnalysis?.length || "maxi";
+    const lengthDesc = garmentAnalysis?.lengthDescription
+      || (detectedLength === "maxi" ? "ankle/floor. Full length visible"
+        : detectedLength === "midi" ? "mid-calf, 10-15cm below knee"
+        : detectedLength === "short" ? "above knee"
+        : "full length visible");
     skirtLengthBlock = `SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`;
   }
 
