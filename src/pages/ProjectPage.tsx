@@ -725,13 +725,13 @@ const ProductPage = () => {
     let loraTriggerWord: string | undefined;
     let loraScale: number | undefined;
     let guidanceScale: number | undefined;
+    let faceImageUrl: string | undefined;
     try {
       const { data } = await supabase
         .from("model_profiles")
         .select("lora_url, lora_trigger_word, lora_scale, guidance_scale, face_image_url")
         .eq("slug", modelId)
         .maybeSingle();
-      let faceImageUrl: string | undefined;
       if (data?.lora_url) {
         loraUrl = data.lora_url;
         loraTriggerWord = data.lora_trigger_word || undefined;
