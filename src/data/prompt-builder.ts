@@ -278,10 +278,14 @@ export function buildPromptPreviewPT(
   parts.push("🔒 Base técnica (resolução 1080x1920, fidelidade absoluta da peça)");
 
   if (garment) {
+    const isTwoPiece = /two-piece|two piece|conjunto/i.test(garment.type || "");
     const lengthPT = lengthDescriptionPT(garment.length, garment.lengthDescription);
+    const typeLabel = isTwoPiece
+      ? "CONJUNTO DE DUAS PEÇAS (top + bottom separados) — NÃO é vestido"
+      : garment.type;
     parts.push([
       `👗 Peça — fidelidade absoluta obrigatória. Não redesenhar, simplificar ou alterar nenhum detalhe.`,
-      `Tipo: ${garment.type}`,
+      `Tipo: ${typeLabel}`,
       `Tecido: ${garment.fabric}. Textura: ${garment.fabricTexture || "N/A"}`,
       `Cor: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — monocromático, sem variação de cor`,
       `Silhueta: ${garment.silhouette || "N/A"}`,
