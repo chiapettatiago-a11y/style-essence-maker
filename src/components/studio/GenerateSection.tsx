@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
+import { AccessorySelection, GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
 import { Sparkles, PenLine, ChevronRight, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,7 @@ interface GenerateSectionProps {
   onGenerate: (requests: GenerationRequest[]) => void;
   isGenerating: boolean;
   garmentType?: string | null;
+  accessories?: AccessorySelection;
 }
 
 const ENGINE_LABELS: Record<GenerationEngine, string> = {
