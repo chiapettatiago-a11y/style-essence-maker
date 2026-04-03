@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound } from "lucide-react";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
@@ -123,6 +123,7 @@ const ProductPage = () => {
     generatedImages: [],
     weeklyLaunches: [],
     activeWeek: "",
+    accessories: { shoeType: null, shoeColor: null },
   });
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -331,6 +332,7 @@ const ProductPage = () => {
       generatedImages: [],
       weeklyLaunches,
       activeWeek: hydratedActiveWeek?.id || "",
+      accessories: { shoeType: null, shoeColor: null },
     });
 
     setProductName(product.name || "");
@@ -1027,7 +1029,7 @@ const ProductPage = () => {
     variantWeeklyLaunches,
   ]);
 
-  const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine) => {
+  const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine, modelOverride?: ModelProfile | null) => {
     let img: GeneratedImage | undefined;
     let sourceLaunch: WeeklyLaunch | undefined;
     for (const w of state.weeklyLaunches) {
@@ -1076,7 +1078,7 @@ const ProductPage = () => {
           selectedPresets: state.selectedPresets,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
-          modelProfile: state.selectedProfile,
+          modelProfile: modelOverride !== undefined ? modelOverride : state.selectedProfile,
           mannequin: {
             height_cm: mannequin.mannequin_height_cm,
             bust_cm: mannequin.mannequin_bust_cm,
@@ -1429,21 +1431,44 @@ const ProductPage = () => {
                           <div className="px-2.5 py-2 flex items-center justify-between">
                             <span className="text-xs font-medium truncate">{img.label}</span>
                             {img.status === "done" && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7">
-                                    <RefreshCw className="h-3.5 w-3.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                  <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
-                                    <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
-                                    <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="flex items-center gap-0.5">
+                                {/* Swap model for this angle */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Trocar modelo">
+                                      <UserRound className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    {MODEL_GALLERY.map((m) => (
+                                      <DropdownMenuItem
+                                        key={m.id}
+                                        onClick={() => handleRegenerate(img.id, undefined, m)}
+                                        className="gap-2 text-xs"
+                                      >
+                                        <img src={m.faceImage} alt={m.name} className="h-5 w-5 rounded-full object-cover" />
+                                        {m.name}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                {/* Regenerate with engine */}
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
+                                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
+                                      <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1452,6 +1477,20 @@ const ProductPage = () => {
                   </div>
                 );
               })}
+              {/* Generate more button */}
+              {variantWeeklyLaunches.some((w) => w.images.some((img) => img.status === "done")) && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => { setLaunchModalStep(3); setLaunchModalOpen(true); }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Gerar mais fotos
+                  </Button>
+                </div>
+              )}
               {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type !== "video-product" && img.type !== "video-model").length === 0) && (
                 <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
                   <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
@@ -1936,6 +1975,8 @@ const ProductPage = () => {
         onProportionUpdate={updateActiveVariant}
         garmentType={activeVariant?.garmentType || null}
         onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
+        accessories={state.accessories}
+        onAccessoriesChange={(a) => update("accessories", a)}
       />
 
       {/* Lightbox Modal */}
@@ -1983,6 +2024,25 @@ const ProductPage = () => {
                     <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "fal"); setLightboxImage(null); }} className="gap-2 text-xs">
                       <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
                     </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="secondary" className="h-8 gap-1.5">
+                      <UserRound className="h-3.5 w-3.5" /> Trocar modelo
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-48">
+                    {MODEL_GALLERY.map((m) => (
+                      <DropdownMenuItem
+                        key={m.id}
+                        onClick={() => { handleRegenerate(lightboxImage.id, undefined, m); setLightboxImage(null); }}
+                        className="gap-2 text-xs"
+                      >
+                        <img src={m.faceImage} alt={m.name} className="h-5 w-5 rounded-full object-cover" />
+                        {m.name}
+                      </DropdownMenuItem>
+                    ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

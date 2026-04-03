@@ -136,6 +136,11 @@ export interface ProductVariant {
   fabricTexture?: string | null;
 }
 
+export interface AccessorySelection {
+  shoeType: string | null;
+  shoeColor: string | null;
+}
+
 export interface WizardState {
   step: number;
   variants: ProductVariant[];
@@ -149,4 +154,5 @@ export interface WizardState {
   activeWeek: string;
   uploadedImages: string[];
   garmentAnalysis: GarmentAnalysis | null;
+  accessories: AccessorySelection;
 }

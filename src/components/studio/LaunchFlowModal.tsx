@@ -9,10 +9,11 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import UploadSection from "@/components/studio/UploadSection";
 import ModelGallery from "@/components/studio/ModelGallery";
+import AccessoriesSelector from "@/components/studio/AccessoriesSelector";
 import StyleSection from "@/components/studio/StyleSection";
 import GenerateSection from "@/components/studio/GenerateSection";
 import EngineSelector from "@/components/studio/EngineSelector";
-import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
+import { AccessorySelection, GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
 import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 
 const STEPS = [
@@ -71,6 +72,8 @@ interface LaunchFlowModalProps {
   }) => void;
   garmentType: string | null;
   onGarmentTypeChange: (type: string) => void;
+  accessories: AccessorySelection;
+  onAccessoriesChange: (a: AccessorySelection) => void;
 }
 
 const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
@@ -100,6 +103,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onProportionUpdate,
   garmentType,
   onGarmentTypeChange,
+  accessories,
+  onAccessoriesChange,
 }) => {
   const [step, setStep] = useState(startStep);
 
@@ -332,6 +337,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                 </Card>
               )}
 
+              <AccessoriesSelector value={accessories} onChange={onAccessoriesChange} />
+
               <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
 
               <div>
@@ -353,6 +360,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                 }}
                 isGenerating={isGenerating}
                 garmentType={garmentType}
+                accessories={accessories}
               />
             </div>
           )}

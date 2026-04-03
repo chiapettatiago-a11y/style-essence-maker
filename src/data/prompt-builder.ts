@@ -1,4 +1,5 @@
-import { GarmentAnalysis, GenerationRequest, ModelProfile, PromptLayers } from "@/types/fashion";
+import { AccessorySelection, GarmentAnalysis, GenerationRequest, ModelProfile, PromptLayers } from "@/types/fashion";
+import { SHOE_PROMPT_MAP, COLOR_PROMPT_MAP } from "@/components/studio/AccessoriesSelector";
 import { LAYER1_BASE, LAYER1_VIDEO_BASE, STYLE_CATEGORIES } from "./prompt-layers";
 import { MODEL_GALLERY } from "./model-gallery";
 
@@ -147,6 +148,7 @@ export function buildFullPrompt(
   modelProfile?: ModelProfile | null,
   selectedPresets?: Record<string, string>,
   userGarmentType?: string | null,
+  accessories?: AccessorySelection | null,
 ): string {
   const isVideo = angleType === "video-product" || angleType === "video-model";
   const isFullBody = FULL_BODY_ANGLE_TYPES.has(angleType);
@@ -279,6 +281,13 @@ Ruffle/detail volume must match the reference EXACTLY — do not exaggerate or r
     parts.push(layers.layer2);
   }
 
+  // Accessories (shoes)
+  if (accessories?.shoeType && FULL_BODY_ANGLE_TYPES.has(angleType)) {
+    const shoeEN = SHOE_PROMPT_MAP[accessories.shoeType] || accessories.shoeType;
+    const colorEN = accessories.shoeColor ? COLOR_PROMPT_MAP[accessories.shoeColor] || accessories.shoeColor : "";
+    parts.push(`FOOTWEAR — REQUIRED:\nModel is wearing ${colorEN ? colorEN + " " : ""}${shoeEN}.\nShoes must be fully visible in every full-body shot.`);
+  }
+
   if (layers.layer3.trim()) {
     parts.push(layers.layer3);
   }
@@ -362,6 +371,7 @@ export function generateAllRequests(
   modelProfile?: ModelProfile | null,
   selectedPresets?: Record<string, string>,
   userGarmentType?: string | null,
+  accessories?: AccessorySelection | null,
 ): GenerationRequest[] {
   const types: { type: GenerationRequest["type"]; label: string }[] = [
     { type: "lookbook-front", label: "Lookbook — Frente" },
@@ -377,6 +387,6 @@ export function generateAllRequests(
   return types.map(t => ({
     type: t.type,
     label: t.label,
-    prompt: buildFullPrompt(layers, garment, t.type, modelProfile, selectedPresets, userGarmentType),
+    prompt: buildFullPrompt(layers, garment, t.type, modelProfile, selectedPresets, userGarmentType, accessories),
   }));
 }

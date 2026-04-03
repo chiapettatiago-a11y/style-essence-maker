@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
+import { AccessorySelection, GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
 import { Sparkles, PenLine, ChevronRight, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,7 @@ interface GenerateSectionProps {
   onGenerate: (requests: GenerationRequest[]) => void;
   isGenerating: boolean;
   garmentType?: string | null;
+  accessories?: AccessorySelection;
 }
 
 const ENGINE_LABELS: Record<GenerationEngine, string> = {
@@ -35,6 +36,7 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
   onGenerate,
   isGenerating,
   garmentType,
+  accessories,
 }) => {
   const layer2Text = assembleLayer2(selectedPresets);
   const [showEnglish, setShowEnglish] = useState(false);
@@ -43,7 +45,8 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
     garmentAnalysis,
     selectedProfile,
     selectedPresets,
-    garmentType
+    garmentType,
+    accessories
   );
 
   const imageRequests = requests.filter(r => r.type !== "video-product" && r.type !== "video-model");
