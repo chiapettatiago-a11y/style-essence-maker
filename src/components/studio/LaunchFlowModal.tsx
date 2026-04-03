@@ -72,6 +72,8 @@ interface LaunchFlowModalProps {
   }) => void;
   garmentType: string | null;
   onGarmentTypeChange: (type: string) => void;
+  accessories: AccessorySelection;
+  onAccessoriesChange: (a: AccessorySelection) => void;
 }
 
 const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
