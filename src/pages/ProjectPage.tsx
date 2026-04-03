@@ -2026,6 +2026,25 @@ const ProductPage = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="secondary" className="h-8 gap-1.5">
+                      <UserRound className="h-3.5 w-3.5" /> Trocar modelo
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-48">
+                    {MODEL_GALLERY.map((m) => (
+                      <DropdownMenuItem
+                        key={m.id}
+                        onClick={() => { handleRegenerate(lightboxImage.id, undefined, m); setLightboxImage(null); }}
+                        className="gap-2 text-xs"
+                      >
+                        <img src={m.faceImage} alt={m.name} className="h-5 w-5 rounded-full object-cover" />
+                        {m.name}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
             {/* Image with hover zoom */}
