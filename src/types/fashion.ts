@@ -156,16 +156,3 @@ export interface WizardState {
   garmentAnalysis: GarmentAnalysis | null;
   accessories: AccessorySelection;
 }
-  step: number;
-  variants: ProductVariant[];
-  activeVariantId: string;
-  selectedProfile: ModelProfile | null;
-  selectedPresets: Record<string, string>;
-  selectedEngine: GenerationEngine;
-  manualPrompt: string;
-  generatedImages: GeneratedImage[];
-  weeklyLaunches: WeeklyLaunch[];
-  activeWeek: string;
-  uploadedImages: string[];
-  garmentAnalysis: GarmentAnalysis | null;
-}
