@@ -337,6 +337,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                 </Card>
               )}
 
+              <AccessoriesSelector value={accessories} onChange={onAccessoriesChange} />
+
               <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
 
               <div>
@@ -358,6 +360,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                 }}
                 isGenerating={isGenerating}
                 garmentType={garmentType}
+                accessories={accessories}
               />
             </div>
           )}
