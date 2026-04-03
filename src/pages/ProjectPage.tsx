@@ -1029,7 +1029,7 @@ const ProductPage = () => {
     variantWeeklyLaunches,
   ]);
 
-  const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine) => {
+  const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine, modelOverride?: ModelProfile | null) => {
     let img: GeneratedImage | undefined;
     let sourceLaunch: WeeklyLaunch | undefined;
     for (const w of state.weeklyLaunches) {
