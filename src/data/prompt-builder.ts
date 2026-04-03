@@ -148,6 +148,7 @@ export function buildFullPrompt(
   modelProfile?: ModelProfile | null,
   selectedPresets?: Record<string, string>,
   userGarmentType?: string | null,
+  accessories?: AccessorySelection | null,
 ): string {
   const isVideo = angleType === "video-product" || angleType === "video-model";
   const isFullBody = FULL_BODY_ANGLE_TYPES.has(angleType);
