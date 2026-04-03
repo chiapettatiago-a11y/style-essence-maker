@@ -1078,7 +1078,7 @@ const ProductPage = () => {
           selectedPresets: state.selectedPresets,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
-          modelProfile: state.selectedProfile,
+          modelProfile: modelOverride !== undefined ? modelOverride : state.selectedProfile,
           mannequin: {
             height_cm: mannequin.mannequin_height_cm,
             bust_cm: mannequin.mannequin_bust_cm,
