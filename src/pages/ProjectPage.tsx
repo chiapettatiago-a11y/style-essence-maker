@@ -123,6 +123,7 @@ const ProductPage = () => {
     generatedImages: [],
     weeklyLaunches: [],
     activeWeek: "",
+    accessories: { shoeType: null, shoeColor: null },
   });
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
