@@ -371,6 +371,7 @@ export function generateAllRequests(
   modelProfile?: ModelProfile | null,
   selectedPresets?: Record<string, string>,
   userGarmentType?: string | null,
+  accessories?: AccessorySelection | null,
 ): GenerationRequest[] {
   const types: { type: GenerationRequest["type"]; label: string }[] = [
     { type: "lookbook-front", label: "Lookbook — Frente" },
@@ -386,6 +387,6 @@ export function generateAllRequests(
   return types.map(t => ({
     type: t.type,
     label: t.label,
-    prompt: buildFullPrompt(layers, garment, t.type, modelProfile, selectedPresets, userGarmentType),
+    prompt: buildFullPrompt(layers, garment, t.type, modelProfile, selectedPresets, userGarmentType, accessories),
   }));
 }
