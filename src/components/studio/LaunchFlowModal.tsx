@@ -9,10 +9,11 @@ import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import UploadSection from "@/components/studio/UploadSection";
 import ModelGallery from "@/components/studio/ModelGallery";
+import AccessoriesSelector from "@/components/studio/AccessoriesSelector";
 import StyleSection from "@/components/studio/StyleSection";
 import GenerateSection from "@/components/studio/GenerateSection";
 import EngineSelector from "@/components/studio/EngineSelector";
-import { GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
+import { AccessorySelection, GarmentAnalysis, GenerationEngine, GenerationRequest, ModelProfile } from "@/types/fashion";
 import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react";
 
 const STEPS = [
