@@ -332,6 +332,7 @@ const ProductPage = () => {
       generatedImages: [],
       weeklyLaunches,
       activeWeek: hydratedActiveWeek?.id || "",
+      accessories: { shoeType: null, shoeColor: null },
     });
 
     setProductName(product.name || "");
