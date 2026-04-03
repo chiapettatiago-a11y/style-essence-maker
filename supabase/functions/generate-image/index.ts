@@ -445,31 +445,9 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGateway(params: {
-  promptUsed: string;
-  referenceImages: string[];
-  attemptNumber: number;
-}) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-  const imageUrlParts: any[] = [];
-  if (params.referenceImages.length > 0) {
-    const validImages = params.referenceImages.slice(0, 3);
-    for (const img of validImages) {
-      const base64Match = img.match(/^data:image\/(.*?);base64,(.*)$/);
-      if (base64Match) {
-        imageUrlParts.push({
-          type: "image_url",
-          image_url: {
-            url: `data:image/${base64Match[1]};base64,${base64Match[2]}`,
-          },
-        });
-      }
-    }
-  }
-
-  const modelUsed = params.attemptNumber > 1 ? "google/gemini-2.5-flash-image" : "google/gemini-3-pro-image-preview";
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -478,13 +456,13 @@ async function callGeminiGateway(params: {
       "Authorization": `Bearer ${LOVABLE_API_KEY}`,
     },
     body: JSON.stringify({
-      model: modelUsed,
+      model,
       modalities: ["image", "text"],
       messages: [
         {
           role: "user",
           content: [
-            { type: "text", text: params.promptUsed },
+            { type: "text", text: prompt },
             ...imageUrlParts,
           ],
         },
@@ -494,23 +472,59 @@ async function callGeminiGateway(params: {
 
   if (!response.ok) {
     const errText = await response.text();
-
-    if (response.status === 429) {
-      throw new Error("Rate limits exceeded, tente novamente em instantes.");
-    }
-
-    if (response.status === 402) {
-      throw new Error("Créditos de IA insuficientes no workspace.");
-    }
-
+    if (response.status === 429) throw new Error("Rate limits exceeded, tente novamente em instantes.");
+    if (response.status === 402) throw new Error("Créditos de IA insuficientes no workspace.");
     throw new Error(`AI image generation failed [${response.status}]: ${errText}`);
   }
 
   const data = await response.json();
-  const imageUrl = extractGeminiImageUrl(data);
-  if (!imageUrl) throw new Error("No image found in AI response");
 
-  return { imageUrl, modelUsed };
+  // Log text response for diagnostics when no image is found
+  const imageUrl = extractGeminiImageUrl(data);
+  if (!imageUrl) {
+    const textContent = data?.choices?.[0]?.message?.content;
+    const textPreview = typeof textContent === "string"
+      ? textContent.substring(0, 500)
+      : JSON.stringify(textContent)?.substring(0, 500);
+    console.error(`[generate-image] Gemini returned no image. Model: ${model}. Text response: ${textPreview}`);
+  }
+
+  return { imageUrl, modelUsed: model, rawData: data };
+}
+
+async function callGeminiGateway(params: {
+  promptUsed: string;
+  referenceImages: string[];
+  attemptNumber: number;
+}) {
+  const imageUrlParts: any[] = [];
+  if (params.referenceImages.length > 0) {
+    for (const img of params.referenceImages.slice(0, 3)) {
+      const base64Match = img.match(/^data:image\/(.*?);base64,(.*)$/);
+      if (base64Match) {
+        imageUrlParts.push({
+          type: "image_url",
+          image_url: { url: `data:image/${base64Match[1]};base64,${base64Match[2]}` },
+        });
+      }
+    }
+  }
+
+  const modelUsed = params.attemptNumber > 1
+    ? "google/gemini-2.5-flash-image"
+    : "google/gemini-3-pro-image-preview";
+
+  // Attempt 1: full prompt
+  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, modelUsed);
+  if (result1.imageUrl) return { imageUrl: result1.imageUrl, modelUsed: result1.modelUsed };
+
+  // Attempt 2: retry with simplified prompt (remove verbose blocks, keep essentials)
+  console.warn(`[generate-image] Retry with simplified prompt (model: google/gemini-2.5-flash-image)`);
+  const simplifiedPrompt = `Generate a professional fashion photograph based on this description. White studio background, full body shot, editorial quality.\n\n${params.promptUsed.substring(0, 1500)}`;
+  const result2 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, "google/gemini-2.5-flash-image");
+  if (result2.imageUrl) return { imageUrl: result2.imageUrl, modelUsed: result2.modelUsed };
+
+  throw new Error("Gemini returned no image after 2 attempts. Possible content policy block or prompt too complex.");
 }
 
 async function ensurePublicUrl(imageUrl: string): Promise<string> {
