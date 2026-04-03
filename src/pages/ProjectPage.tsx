@@ -1938,6 +1938,8 @@ const ProductPage = () => {
         onProportionUpdate={updateActiveVariant}
         garmentType={activeVariant?.garmentType || null}
         onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
+        accessories={state.accessories}
+        onAccessoriesChange={(a) => update("accessories", a)}
       />
 
       {/* Lightbox Modal */}
