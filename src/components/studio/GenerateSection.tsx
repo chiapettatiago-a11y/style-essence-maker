@@ -36,6 +36,7 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
   onGenerate,
   isGenerating,
   garmentType,
+  accessories,
 }) => {
   const layer2Text = assembleLayer2(selectedPresets);
   const [showEnglish, setShowEnglish] = useState(false);
@@ -44,7 +45,8 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
     garmentAnalysis,
     selectedProfile,
     selectedPresets,
-    garmentType
+    garmentType,
+    accessories
   );
 
   const imageRequests = requests.filter(r => r.type !== "video-product" && r.type !== "video-model");
