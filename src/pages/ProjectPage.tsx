@@ -1477,6 +1477,20 @@ const ProductPage = () => {
                   </div>
                 );
               })}
+              {/* Generate more button */}
+              {variantWeeklyLaunches.some((w) => w.images.some((img) => img.status === "done")) && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => { setLaunchModalStep(3); setLaunchModalOpen(true); }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Gerar mais fotos
+                  </Button>
+                </div>
+              )}
               {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type !== "video-product" && img.type !== "video-model").length === 0) && (
                 <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
                   <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
