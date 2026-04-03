@@ -281,6 +281,13 @@ Ruffle/detail volume must match the reference EXACTLY — do not exaggerate or r
     parts.push(layers.layer2);
   }
 
+  // Accessories (shoes)
+  if (accessories?.shoeType && FULL_BODY_ANGLE_TYPES.has(angleType)) {
+    const shoeEN = SHOE_PROMPT_MAP[accessories.shoeType] || accessories.shoeType;
+    const colorEN = accessories.shoeColor ? COLOR_PROMPT_MAP[accessories.shoeColor] || accessories.shoeColor : "";
+    parts.push(`FOOTWEAR — REQUIRED:\nModel is wearing ${colorEN ? colorEN + " " : ""}${shoeEN}.\nShoes must be fully visible in every full-body shot.`);
+  }
+
   if (layers.layer3.trim()) {
     parts.push(layers.layer3);
   }
