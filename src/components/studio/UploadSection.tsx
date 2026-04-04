@@ -32,6 +32,10 @@ interface UploadSectionProps {
   onAnalysisUpdate: (a: GarmentAnalysis) => void;
   garmentType: string | null;
   onGarmentTypeChange: (type: string) => void;
+  isCombo: boolean;
+  onIsComboChange: (v: boolean) => void;
+  featuredPiece: string | null;
+  onFeaturedPieceChange: (v: string) => void;
 }
 
 const analysisFields: { key: keyof GarmentAnalysis; label: string }[] = [
@@ -49,7 +53,8 @@ const analysisFields: { key: keyof GarmentAnalysis; label: string }[] = [
 ];
 
 const UploadSection: React.FC<UploadSectionProps> = ({
-  uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate, garmentType, onGarmentTypeChange,
+  uploadedImages, onImagesChange, isAnalyzing, onAnalyze, garmentAnalysis, onAnalysisUpdate,
+  garmentType, onGarmentTypeChange, isCombo, onIsComboChange, featuredPiece, onFeaturedPieceChange,
 }) => {
   const [dragOver, setDragOver] = useState(false);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
@@ -108,6 +113,70 @@ const UploadSection: React.FC<UploadSectionProps> = ({
         <p className="text-[10px] text-muted-foreground">Informar o tipo ajuda a IA a manter fidelidade na geração.</p>
       </div>
 
+      {/* Product type: single vs combo */}
+      <div className="space-y-2">
+        <Label className="text-xs font-semibold">Tipo de produto</Label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { onIsComboChange(false); onFeaturedPieceChange(""); }}
+            className={cn(
+              "flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors",
+              !isCombo
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-accent/50"
+            )}
+          >
+            Peça única
+          </button>
+          <button
+            type="button"
+            onClick={() => { onIsComboChange(true); if (!featuredPiece) onFeaturedPieceChange("top"); }}
+            className={cn(
+              "flex-1 px-3 py-2 rounded-lg border text-xs font-medium transition-colors",
+              isCombo
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-border text-muted-foreground hover:text-foreground hover:border-accent/50"
+            )}
+          >
+            Conjunto / combinação
+          </button>
+        </div>
+
+        {isCombo && (
+          <div className="space-y-1.5 pl-1">
+            <Label className="text-[10px] text-muted-foreground">Peça em destaque neste lançamento:</Label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onFeaturedPieceChange("top")}
+                className={cn(
+                  "px-3 py-1.5 rounded-md border text-xs transition-colors",
+                  featuredPiece === "top"
+                    ? "border-accent bg-accent/10 text-accent font-medium"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Parte de cima
+              </button>
+              <button
+                type="button"
+                onClick={() => onFeaturedPieceChange("bottom")}
+                className={cn(
+                  "px-3 py-1.5 rounded-md border text-xs transition-colors",
+                  featuredPiece === "bottom"
+                    ? "border-accent bg-accent/10 text-accent font-medium"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Parte de baixo
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Marque qual peça é o foco das fotos geradas</p>
+          </div>
+        )}
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"
@@ -117,7 +186,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
         onChange={(e) => { if (e.target.files) handleFiles(e.target.files); e.target.value = ""; }}
       />
 
-      {/* Main upload area - MAGION style */}
+      {/* Main upload area */}
       {!hasImages ? (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -148,7 +217,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({
             </Button>
           </div>
 
-          {/* Image grid with larger previews */}
           <div
             onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
             onDragLeave={() => setDragOver(false)}
@@ -174,7 +242,6 @@ const UploadSection: React.FC<UploadSectionProps> = ({
               </div>
             ))}
 
-            {/* Add more card */}
             <button
               onClick={openFilePicker}
               className="aspect-[3/4] rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-primary transition-colors bg-muted/20"
