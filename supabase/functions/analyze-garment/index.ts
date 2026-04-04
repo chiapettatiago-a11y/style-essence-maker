@@ -407,16 +407,17 @@ async function callClaudeAI(images: string[]) {
   return textBlock?.text || "";
 }
 
-async function callAI(images: string[]) {
+async function callAI(images: string[], isCombo = false) {
   const hasClaude = Boolean(Deno.env.get("ANTHROPIC_API_KEY"));
   const hasLovableAI = Boolean(Deno.env.get("LOVABLE_API_KEY"));
+  const systemPrompt = isCombo ? COMBO_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
   if (hasClaude) {
-    return await callClaudeAI(images);
+    return await callClaudeAI(images, systemPrompt);
   }
 
   if (hasLovableAI) {
-    return await callLovableAI(images);
+    return await callLovableAI(images, systemPrompt);
   }
 
   throw new UpstreamAIError("Nenhum provedor de IA configurado para análise técnica.", 500, "missing_secret");
