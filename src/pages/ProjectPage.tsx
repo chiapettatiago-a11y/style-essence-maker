@@ -672,6 +672,8 @@ const ProductPage = () => {
             torso_cm: mannequin.mannequin_torso_cm,
             arm_cm: mannequin.mannequin_arm_cm,
           },
+          isCombo: state.isCombo,
+          featuredPiece: state.featuredPiece,
         },
       });
 
