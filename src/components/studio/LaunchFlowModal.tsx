@@ -176,6 +176,10 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
               onAnalysisUpdate={onAnalysisUpdate}
               garmentType={garmentType}
               onGarmentTypeChange={onGarmentTypeChange}
+              isCombo={isCombo}
+              onIsComboChange={onIsComboChange}
+              featuredPiece={featuredPiece}
+              onFeaturedPieceChange={onFeaturedPieceChange}
             />
           )}
 

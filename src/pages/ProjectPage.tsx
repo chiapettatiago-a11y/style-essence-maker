@@ -124,7 +124,8 @@ const ProductPage = () => {
     weeklyLaunches: [],
     activeWeek: "",
     accessories: { shoeType: null, shoeColor: null },
-  });
+    isCombo: false,
+    featuredPiece: null,
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
