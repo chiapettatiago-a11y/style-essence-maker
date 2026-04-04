@@ -164,7 +164,7 @@ const ProductPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, updated_at")
+        .select("id, name, updated_at, is_combo, featured_piece")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
