@@ -28,6 +28,13 @@ export interface GarmentAnalysis {
   trBadgeDescription?: string;
 }
 
+export interface ComboAnalysis {
+  top: GarmentAnalysis;
+  bottom: GarmentAnalysis;
+  featuredPiece: 'top' | 'bottom';
+  comboDescription: string;
+}
+
 export interface ModelProfile {
   id: string;
   name: string;
