@@ -42,6 +42,8 @@ const Index = () => {
     weeklyLaunches: [{ id: defaultWeekId, label: "Semana 1", images: [] }],
     activeWeek: defaultWeekId,
     accessories: { shoeType: null, shoeColor: null },
+    isCombo: false,
+    featuredPiece: null,
   });
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);

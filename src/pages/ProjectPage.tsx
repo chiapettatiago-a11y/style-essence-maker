@@ -335,6 +335,8 @@ const ProductPage = () => {
       weeklyLaunches,
       activeWeek: hydratedActiveWeek?.id || "",
       accessories: { shoeType: null, shoeColor: null },
+      isCombo: (product as any).is_combo || false,
+      featuredPiece: (product as any).featured_piece || null,
     });
 
     setProductName(product.name || "");
