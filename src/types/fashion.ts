@@ -162,4 +162,6 @@ export interface WizardState {
   uploadedImages: string[];
   garmentAnalysis: GarmentAnalysis | null;
   accessories: AccessorySelection;
+  isCombo: boolean;
+  featuredPiece: string | null;
 }
