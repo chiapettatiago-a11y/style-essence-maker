@@ -109,6 +109,10 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onGarmentTypeChange,
   accessories,
   onAccessoriesChange,
+  isCombo,
+  onIsComboChange,
+  featuredPiece,
+  onFeaturedPieceChange,
 }) => {
   const [step, setStep] = useState(startStep);
 
