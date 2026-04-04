@@ -313,7 +313,7 @@ function mapProviderError(status: number, errText: string, providerLabel: string
   return new UpstreamAIError(`${providerLabel} failed [${status}]: ${errText}`, status, "ai_error");
 }
 
-async function callLovableAI(images: string[]) {
+async function callLovableAI(images: string[], systemPrompt: string = SYSTEM_PROMPT) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     throw new UpstreamAIError("LOVABLE_API_KEY is not configured", 500, "missing_secret");
