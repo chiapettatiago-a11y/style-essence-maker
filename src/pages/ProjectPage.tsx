@@ -1210,6 +1210,8 @@ const ProductPage = () => {
           {(products || []).map((p) => {
             const active = p.id === projectId;
             const count = sidebarPhotoCounts.get(p.id) || 0;
+            const pIsCombo = (p as any).is_combo;
+            const pFeatured = (p as any).featured_piece;
             return (
               <button
                 key={p.id}
@@ -1223,7 +1225,14 @@ const ProductPage = () => {
                   <FolderOpen className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{p.name}</span>
                 </span>
-                <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+                <span className="flex items-center gap-1 shrink-0">
+                  {pIsCombo && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1">
+                      Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+                </span>
               </button>
             );
           })}
