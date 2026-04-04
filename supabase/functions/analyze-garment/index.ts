@@ -354,7 +354,7 @@ async function callLovableAI(images: string[], systemPrompt: string = SYSTEM_PRO
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function callClaudeAI(images: string[]) {
+async function callClaudeAI(images: string[], systemPrompt: string = SYSTEM_PROMPT) {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) {
     throw new UpstreamAIError("ANTHROPIC_API_KEY is not configured", 500, "missing_secret");
