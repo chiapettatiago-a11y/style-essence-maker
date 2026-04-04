@@ -386,7 +386,7 @@ async function callClaudeAI(images: string[], systemPrompt: string = SYSTEM_PROM
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       max_tokens: 2000,
       temperature: 0.1,
       messages: [
