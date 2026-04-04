@@ -146,6 +146,7 @@ export type Database = {
         Row: {
           analysis_raw: string | null
           color_name: string
+          combo_piece_role: string | null
           created_at: string
           fabric_texture: string | null
           garment_analysis: Json | null
@@ -167,6 +168,7 @@ export type Database = {
         Insert: {
           analysis_raw?: string | null
           color_name?: string
+          combo_piece_role?: string | null
           created_at?: string
           fabric_texture?: string | null
           garment_analysis?: Json | null
@@ -188,6 +190,7 @@ export type Database = {
         Update: {
           analysis_raw?: string | null
           color_name?: string
+          combo_piece_role?: string | null
           created_at?: string
           fabric_texture?: string | null
           garment_analysis?: Json | null
@@ -219,8 +222,10 @@ export type Database = {
       products: {
         Row: {
           created_at: string
+          featured_piece: string | null
           garment_analysis: Json | null
           id: string
+          is_combo: boolean
           mannequin_arm_cm: number | null
           mannequin_bust_cm: number | null
           mannequin_height_cm: number | null
@@ -238,8 +243,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          featured_piece?: string | null
           garment_analysis?: Json | null
           id?: string
+          is_combo?: boolean
           mannequin_arm_cm?: number | null
           mannequin_bust_cm?: number | null
           mannequin_height_cm?: number | null
@@ -257,8 +264,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          featured_piece?: string | null
           garment_analysis?: Json | null
           id?: string
+          is_combo?: boolean
           mannequin_arm_cm?: number | null
           mannequin_bust_cm?: number | null
           mannequin_height_cm?: number | null
