@@ -428,7 +428,7 @@ serve(async (req) => {
   }
 
   try {
-    const { images, mannequin } = await req.json();
+    const { images, mannequin, isCombo, featuredPiece } = await req.json();
 
     if (!Array.isArray(images) || images.length === 0) {
       return new Response(JSON.stringify({ error: "No images provided" }), {
@@ -437,7 +437,39 @@ serve(async (req) => {
       });
     }
 
-    const content = await callAI(images);
+    const content = await callAI(images, isCombo === true);
+
+    if (isCombo) {
+      // Parse combo response
+      const comboRaw = JSON.parse(stripJsonWrapper(content));
+      const topRaw = comboRaw.top as AnalysisResult;
+      const bottomRaw = comboRaw.bottom as AnalysisResult;
+
+      const topProportions = calculateProportions(topRaw, mannequin || {});
+      const bottomProportions = calculateProportions(bottomRaw, mannequin || {});
+
+      const topAnalysis = mapAnalysis(topRaw, topProportions);
+      const bottomAnalysis = mapAnalysis(bottomRaw, bottomProportions);
+
+      // Use the featured piece as the main analysis
+      const featured = (featuredPiece || comboRaw.featured_piece || "top") as string;
+      const mainAnalysis = featured === "bottom" ? bottomAnalysis : topAnalysis;
+      const mainProportions = featured === "bottom" ? bottomProportions : topProportions;
+
+      return new Response(JSON.stringify({
+        analysis: mainAnalysis,
+        proportions: mainProportions,
+        raw: comboRaw,
+        isCombo: true,
+        topAnalysis,
+        bottomAnalysis,
+        comboDescription: comboRaw.combo_description || "",
+        featuredPiece: featured,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const raw = JSON.parse(stripJsonWrapper(content)) as AnalysisResult;
 
     if (!raw.length && !raw.garment_length) {
