@@ -28,6 +28,13 @@ export interface GarmentAnalysis {
   trBadgeDescription?: string;
 }
 
+export interface ComboAnalysis {
+  top: GarmentAnalysis;
+  bottom: GarmentAnalysis;
+  featuredPiece: 'top' | 'bottom';
+  comboDescription: string;
+}
+
 export interface ModelProfile {
   id: string;
   name: string;
@@ -155,4 +162,6 @@ export interface WizardState {
   uploadedImages: string[];
   garmentAnalysis: GarmentAnalysis | null;
   accessories: AccessorySelection;
+  isCombo: boolean;
+  featuredPiece: string | null;
 }

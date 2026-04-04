@@ -74,6 +74,10 @@ interface LaunchFlowModalProps {
   onGarmentTypeChange: (type: string) => void;
   accessories: AccessorySelection;
   onAccessoriesChange: (a: AccessorySelection) => void;
+  isCombo: boolean;
+  onIsComboChange: (v: boolean) => void;
+  featuredPiece: string | null;
+  onFeaturedPieceChange: (v: string) => void;
 }
 
 const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
@@ -105,6 +109,10 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onGarmentTypeChange,
   accessories,
   onAccessoriesChange,
+  isCombo,
+  onIsComboChange,
+  featuredPiece,
+  onFeaturedPieceChange,
 }) => {
   const [step, setStep] = useState(startStep);
 
@@ -168,6 +176,10 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
               onAnalysisUpdate={onAnalysisUpdate}
               garmentType={garmentType}
               onGarmentTypeChange={onGarmentTypeChange}
+              isCombo={isCombo}
+              onIsComboChange={onIsComboChange}
+              featuredPiece={featuredPiece}
+              onFeaturedPieceChange={onFeaturedPieceChange}
             />
           )}
 

@@ -115,6 +115,76 @@ Critical rules:
 - For TIERED/RUFFLE: count tiers, describe each tier's gathering
 - For TWO-PIECE SETS: describe each piece separately in details`;
 
+const COMBO_SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand called THAIS RODRIGUES (TR).
+You are analyzing a COMBINATION LOOK — two separate garments worn together, not a single piece.
+
+Identify and analyze each garment independently.
+
+GARMENT 1 (TOP — the upper piece):
+Return a JSON object for the top piece with all fields (garment_type, fabric, color, sleeve_type, neckline, etc.)
+
+GARMENT 2 (BOTTOM — the lower piece):
+Return a JSON object for the bottom piece with all fields (garment_type, fabric, color, hem_type, length, etc.)
+
+Also return:
+- featured_piece: 'top' | 'bottom' (which is the star of this shoot)
+- combo_description: brief description of how the two pieces work together
+
+Return ONLY valid JSON in this structure:
+{
+  "top": {
+    "garment_type": "...",
+    "fabric": "...",
+    "fabric_texture": "...",
+    "color": "...",
+    "color_hex_estimate": "#xxxxxx",
+    "pattern": "...",
+    "pattern_description": "...",
+    "silhouette": "...",
+    "neckline": "...",
+    "sleeve_type": "...",
+    "sleeve_detail": "...",
+    "hem_type": "...",
+    "hem_detail": "...",
+    "length": "...",
+    "construction": "...",
+    "details": "...",
+    "tr_badge_location": null,
+    "tr_badge_description": null,
+    "proportions": { "garment_length_ratio": 0.0, "waist_ratio": 0.0, "sleeve_ratio": 0.0, "shoulder_ratio": 0.0 }
+  },
+  "bottom": {
+    "garment_type": "...",
+    "fabric": "...",
+    "fabric_texture": "...",
+    "color": "...",
+    "color_hex_estimate": "#xxxxxx",
+    "pattern": "...",
+    "pattern_description": "...",
+    "silhouette": "...",
+    "neckline": "N/A",
+    "sleeve_type": "N/A",
+    "sleeve_detail": "N/A",
+    "hem_type": "...",
+    "hem_detail": "...",
+    "length": "...",
+    "construction": "...",
+    "details": "...",
+    "tr_badge_location": null,
+    "tr_badge_description": null,
+    "proportions": { "garment_length_ratio": 0.0, "waist_ratio": 0.0, "sleeve_ratio": 0.0, "shoulder_ratio": 0.0 }
+  },
+  "featured_piece": "top",
+  "combo_description": "..."
+}
+
+DO NOT merge the two garments into one description.
+Critical rules:
+- NEVER leave length empty — estimate from visual proportions if unsure
+- fabric_texture must describe the VISUAL texture pattern
+- For each piece, describe construction details independently`;
+
+
 function normalizeRatio(value: unknown, fallback: number): number {
   const n = Number(value);
   if (Number.isNaN(n)) return fallback;
@@ -243,7 +313,7 @@ function mapProviderError(status: number, errText: string, providerLabel: string
   return new UpstreamAIError(`${providerLabel} failed [${status}]: ${errText}`, status, "ai_error");
 }
 
-async function callLovableAI(images: string[]) {
+async function callLovableAI(images: string[], systemPrompt: string = SYSTEM_PROMPT) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     throw new UpstreamAIError("LOVABLE_API_KEY is not configured", 500, "missing_secret");
@@ -268,7 +338,7 @@ async function callLovableAI(images: string[]) {
     body: JSON.stringify({
       model: "google/gemini-2.5-pro",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: contentParts },
       ],
       max_tokens: 2000,
@@ -284,7 +354,7 @@ async function callLovableAI(images: string[]) {
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function callClaudeAI(images: string[]) {
+async function callClaudeAI(images: string[], systemPrompt: string = SYSTEM_PROMPT) {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) {
     throw new UpstreamAIError("ANTHROPIC_API_KEY is not configured", 500, "missing_secret");
@@ -316,7 +386,7 @@ async function callClaudeAI(images: string[]) {
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       max_tokens: 2000,
       temperature: 0.1,
       messages: [
@@ -337,16 +407,17 @@ async function callClaudeAI(images: string[]) {
   return textBlock?.text || "";
 }
 
-async function callAI(images: string[]) {
+async function callAI(images: string[], isCombo = false) {
   const hasClaude = Boolean(Deno.env.get("ANTHROPIC_API_KEY"));
   const hasLovableAI = Boolean(Deno.env.get("LOVABLE_API_KEY"));
+  const systemPrompt = isCombo ? COMBO_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
   if (hasClaude) {
-    return await callClaudeAI(images);
+    return await callClaudeAI(images, systemPrompt);
   }
 
   if (hasLovableAI) {
-    return await callLovableAI(images);
+    return await callLovableAI(images, systemPrompt);
   }
 
   throw new UpstreamAIError("Nenhum provedor de IA configurado para análise técnica.", 500, "missing_secret");
@@ -358,7 +429,7 @@ serve(async (req) => {
   }
 
   try {
-    const { images, mannequin } = await req.json();
+    const { images, mannequin, isCombo, featuredPiece } = await req.json();
 
     if (!Array.isArray(images) || images.length === 0) {
       return new Response(JSON.stringify({ error: "No images provided" }), {
@@ -367,7 +438,39 @@ serve(async (req) => {
       });
     }
 
-    const content = await callAI(images);
+    const content = await callAI(images, isCombo === true);
+
+    if (isCombo) {
+      // Parse combo response
+      const comboRaw = JSON.parse(stripJsonWrapper(content));
+      const topRaw = comboRaw.top as AnalysisResult;
+      const bottomRaw = comboRaw.bottom as AnalysisResult;
+
+      const topProportions = calculateProportions(topRaw, mannequin || {});
+      const bottomProportions = calculateProportions(bottomRaw, mannequin || {});
+
+      const topAnalysis = mapAnalysis(topRaw, topProportions);
+      const bottomAnalysis = mapAnalysis(bottomRaw, bottomProportions);
+
+      // Use the featured piece as the main analysis
+      const featured = (featuredPiece || comboRaw.featured_piece || "top") as string;
+      const mainAnalysis = featured === "bottom" ? bottomAnalysis : topAnalysis;
+      const mainProportions = featured === "bottom" ? bottomProportions : topProportions;
+
+      return new Response(JSON.stringify({
+        analysis: mainAnalysis,
+        proportions: mainProportions,
+        raw: comboRaw,
+        isCombo: true,
+        topAnalysis,
+        bottomAnalysis,
+        comboDescription: comboRaw.combo_description || "",
+        featuredPiece: featured,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const raw = JSON.parse(stripJsonWrapper(content)) as AnalysisResult;
 
     if (!raw.length && !raw.garment_length) {

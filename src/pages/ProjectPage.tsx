@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import ReferencePhotosSection from "@/components/studio/ReferencePhotosSection";
 import { useParams, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -124,6 +125,8 @@ const ProductPage = () => {
     weeklyLaunches: [],
     activeWeek: "",
     accessories: { shoeType: null, shoeColor: null },
+    isCombo: false,
+    featuredPiece: null,
   });
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -162,7 +165,7 @@ const ProductPage = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, updated_at")
+        .select("id, name, updated_at, is_combo, featured_piece")
         .order("updated_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -333,6 +336,8 @@ const ProductPage = () => {
       weeklyLaunches,
       activeWeek: hydratedActiveWeek?.id || "",
       accessories: { shoeType: null, shoeColor: null },
+      isCombo: (product as any).is_combo || false,
+      featuredPiece: (product as any).featured_piece || null,
     });
 
     setProductName(product.name || "");
@@ -668,6 +673,8 @@ const ProductPage = () => {
             torso_cm: mannequin.mannequin_torso_cm,
             arm_cm: mannequin.mannequin_arm_cm,
           },
+          isCombo: state.isCombo,
+          featuredPiece: state.featuredPiece,
         },
       });
 
@@ -1206,6 +1213,8 @@ const ProductPage = () => {
           {(products || []).map((p) => {
             const active = p.id === projectId;
             const count = sidebarPhotoCounts.get(p.id) || 0;
+            const pIsCombo = (p as any).is_combo;
+            const pFeatured = (p as any).featured_piece;
             return (
               <button
                 key={p.id}
@@ -1219,7 +1228,14 @@ const ProductPage = () => {
                   <FolderOpen className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{p.name}</span>
                 </span>
-                <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+                <span className="flex items-center gap-1 shrink-0">
+                  {pIsCombo && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1">
+                      Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+                </span>
               </button>
             );
           })}
@@ -1943,6 +1959,25 @@ const ProductPage = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Reference Photos */}
+              <Card>
+                <CardContent className="pt-4 space-y-4">
+                  <h3 className="text-sm font-semibold">Fotos de referência</h3>
+                  <p className="text-[10px] text-muted-foreground">
+                    Fotos usadas como referência para análise e geração. Máximo 3 fotos.
+                  </p>
+                  <ReferencePhotosSection
+                    photos={(product as any)?.reference_photos || []}
+                    onPhotosChange={async (newPhotos) => {
+                      await saveProductMeta({ reference_photos: newPhotos });
+                      queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+                      toast({ title: "Atualizado", description: "Fotos de referência atualizadas." });
+                    }}
+                    maxPhotos={3}
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </main>
@@ -1977,6 +2012,16 @@ const ProductPage = () => {
         onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
         accessories={state.accessories}
         onAccessoriesChange={(a) => update("accessories", a)}
+        isCombo={state.isCombo}
+        onIsComboChange={(v) => {
+          update("isCombo", v);
+          saveProductMeta({ is_combo: v });
+        }}
+        featuredPiece={state.featuredPiece}
+        onFeaturedPieceChange={(v) => {
+          update("featuredPiece", v || null);
+          saveProductMeta({ featured_piece: v || null });
+        }}
       />
 
       {/* Lightbox Modal */}
