@@ -1959,6 +1959,25 @@ const ProductPage = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Reference Photos */}
+              <Card>
+                <CardContent className="pt-4 space-y-4">
+                  <h3 className="text-sm font-semibold">Fotos de referência</h3>
+                  <p className="text-[10px] text-muted-foreground">
+                    Fotos usadas como referência para análise e geração. Máximo 3 fotos.
+                  </p>
+                  <ReferencePhotosSection
+                    photos={(product as any)?.reference_photos || []}
+                    onPhotosChange={async (newPhotos) => {
+                      await saveProductMeta({ reference_photos: newPhotos });
+                      queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+                      toast({ title: "Atualizado", description: "Fotos de referência atualizadas." });
+                    }}
+                    maxPhotos={3}
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </main>
