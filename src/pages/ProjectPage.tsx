@@ -1981,6 +1981,16 @@ const ProductPage = () => {
         onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
         accessories={state.accessories}
         onAccessoriesChange={(a) => update("accessories", a)}
+        isCombo={state.isCombo}
+        onIsComboChange={(v) => {
+          update("isCombo", v);
+          saveProductMeta({ is_combo: v });
+        }}
+        featuredPiece={state.featuredPiece}
+        onFeaturedPieceChange={(v) => {
+          update("featuredPiece", v || null);
+          saveProductMeta({ featured_piece: v || null });
+        }}
       />
 
       {/* Lightbox Modal */}
