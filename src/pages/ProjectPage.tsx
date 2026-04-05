@@ -374,6 +374,8 @@ const ProductPage = () => {
           image_url: string | null;
           original_url: string | null;
           preview_url: string | null;
+          raw_url: string | null;
+          upscaled: boolean;
           model_used: string | null;
           generation_ms: number | null;
           attempt_number: number | null;
@@ -395,6 +397,8 @@ const ProductPage = () => {
                     imageUrl: row.preview_url || row.original_url || row.image_url || i.imageUrl,
                     originalUrl: row.original_url || row.image_url || i.originalUrl,
                     previewUrl: row.preview_url || i.previewUrl,
+                    rawUrl: row.raw_url || i.rawUrl,
+                    upscaled: row.upscaled ?? i.upscaled,
                     modelUsed: row.model_used || i.modelUsed,
                     generationMs: row.generation_ms || i.generationMs,
                     attemptNumber: row.attempt_number || i.attemptNumber,
