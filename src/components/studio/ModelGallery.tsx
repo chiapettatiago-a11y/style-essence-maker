@@ -33,7 +33,7 @@ const ModelGallery: React.FC<ModelGalleryProps> = ({ selectedModelId, onSelectMo
           Selecione o biotipo da modelo que usará a peça nas fotos
         </p>
       </div>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 max-h-[480px] overflow-y-auto pr-1">
         {MODEL_GALLERY.map((model) => {
           const isSelected = selectedModelId === model.id;
           const hasLora = loraSlugs.has(model.id);

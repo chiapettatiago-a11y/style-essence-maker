@@ -7,6 +7,11 @@ import asiaticaModerna from "@/assets/models/asiatica-moderna.jpg";
 import morenaComercial from "@/assets/models/morena-comercial.jpg";
 import latinaGlamour from "@/assets/models/latina-glamour.jpg";
 import thaisRodrigues from "@/assets/models/thais-rodrigues.jpg";
+import paulistanaUrbana from "@/assets/models/paulistana-urbana.jpg";
+import gauchaSerrana from "@/assets/models/gaucha-serrana.jpg";
+import baianaSolar from "@/assets/models/baiana-solar.jpg";
+import indigenaContemporanea from "@/assets/models/indigena-contemporanea.jpg";
+import mineiraClassica from "@/assets/models/mineira-classica.jpg";
 
 export interface GalleryModel extends ModelProfile {
   faceImage: string;
@@ -32,6 +37,86 @@ export const MODEL_GALLERY: GalleryModel[] = [
     promptBlockEN: "MODELO_THAIS Brazilian female model, 1.72m height, morena clara skin with natural bronze undertone, broad cheekbones, dark expressive eyes, full lips, brown wavy hair with natural movement, authentic Brazilian commercial beauty, age 26-30. NOT Asian features, NOT straight black hair, NOT pale skin.",
     lora_url: "https://v3b.fal.media/files/b/0a937f0e/Hm1Fcjsk0831sOokpV8bv_pytorch_lora_weights.safetensors",
     lora_trigger_word: "MODELO_THAIS",
+  },
+  {
+    id: "paulistana_urbana",
+    name: "Paulistana Urbana",
+    description: "Branca de subtom oliva, cabelo liso castanho escuro longo",
+    faceImage: paulistanaUrbana,
+    height: "1.74",
+    bust: "86",
+    waist: "64",
+    hip: "90",
+    skinTone: "Branca de subtom oliva",
+    hairType: "Liso",
+    hairColor: "Castanho escuro",
+    generalStyle: "Editorial",
+    promptBlockEN: "Brazilian woman, white olive-toned skin, straight long dark brown hair. Sharp facial features, high cheekbones, defined jaw. São Paulo urban sophistication. Height 174cm. NOT European. Authentic Brazilian latina, natural skin texture.",
+    lora_trigger_word: "PAULISTANA_URBANA",
+  },
+  {
+    id: "gaucha_serrana",
+    name: "Gaúcha Serrana",
+    description: "Clara rosada, cabelo ondulado ruivo/castanho claro",
+    faceImage: gauchaSerrana,
+    height: "1.71",
+    bust: "87",
+    waist: "65",
+    hip: "91",
+    skinTone: "Clara rosada",
+    hairType: "Ondulado",
+    hairColor: "Ruivo/Castanho claro",
+    generalStyle: "Editorial",
+    promptBlockEN: "Brazilian woman, fair rosy skin tone, light wavy auburn-brown hair. Soft facial features, green or light brown eyes. Southern Brazilian natural beauty. Height 171cm. NOT Northern European. Authentic Brazilian, warm natural expression.",
+    lora_trigger_word: "GAUCHA_SERRANA",
+  },
+  {
+    id: "baiana_solar",
+    name: "Baiana Solar",
+    description: "Negra dourada, cabelo crespo volumoso 4B natural",
+    faceImage: baianaSolar,
+    height: "1.70",
+    bust: "92",
+    waist: "70",
+    hip: "98",
+    skinTone: "Negra dourada",
+    hairType: "Crespo volumoso 4B",
+    hairColor: "Preto natural",
+    generalStyle: "Editorial",
+    promptBlockEN: "Brazilian woman, rich dark golden-brown skin, full natural 4B coily hair with volume. Strong defined features, full lips, expressive dark eyes. Bahian solar beauty. Height 170cm. Authentic afro-Brazilian, NOT African-American aesthetic. Natural skin texture, real pores.",
+    lora_trigger_word: "BAIANA_SOLAR",
+  },
+  {
+    id: "indigena_contemporanea",
+    name: "Indígena Contemporânea",
+    description: "Morena acobreada, cabelo liso preto intenso comprido",
+    faceImage: indigenaContemporanea,
+    height: "1.68",
+    bust: "88",
+    waist: "67",
+    hip: "93",
+    skinTone: "Morena acobreada",
+    hairType: "Liso",
+    hairColor: "Preto intenso",
+    generalStyle: "Contemporâneo",
+    promptBlockEN: "Brazilian woman, warm copper-brown skin tone, straight intense black hair, long and thick. Broad cheekbones, almond dark eyes, strong nose bridge. Indigenous Brazilian contemporary beauty. Height 168cm. NOT East Asian. Authentic Brazilian native features, natural dignified presence.",
+    lora_trigger_word: "INDIGENA_CONTEMPORANEA",
+  },
+  {
+    id: "mineira_classica",
+    name: "Mineira Clássica",
+    description: "Parda morena clara, cabelo ondulado castanho médio volumoso",
+    faceImage: mineiraClassica,
+    height: "1.69",
+    bust: "89",
+    waist: "67",
+    hip: "94",
+    skinTone: "Parda morena clara",
+    hairType: "Ondulado volumoso",
+    hairColor: "Castanho médio",
+    generalStyle: "Clássico",
+    promptBlockEN: "Brazilian woman, light warm brown parda skin, medium wavy voluminous brown hair. Classic mixed-race Brazilian features, welcoming expression, naturally full lips. Minas Gerais timeless elegance. Height 169cm. Authentic mixed Brazilian beauty, natural warm undertone.",
+    lora_trigger_word: "MINEIRA_CLASSICA",
   },
   {
     id: "brasileira-natural",

@@ -683,6 +683,50 @@ async function callFalEngine(params: {
   }
 }
 
+async function callUpscaler(imageUrl: string): Promise<string> {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) {
+    console.warn("[upscaler] FAL_API_KEY not set, skipping upscale");
+    return imageUrl;
+  }
+
+  fal.config({ credentials: FAL_API_KEY });
+
+  const publicUrl = await ensurePublicUrl(imageUrl);
+  console.log(`[upscaler] Upscaling image: ${publicUrl.substring(0, 80)}...`);
+
+  try {
+    const result = await fal.subscribe("fal-ai/clarity-upscaler", {
+      input: {
+        image_url: publicUrl,
+        scale: 2,
+        overlapping_tiles: true,
+        creativity: 0,
+        resemblance: 1,
+        prompt: "professional fashion photography, high resolution, sharp details, clean studio photo",
+        negative_prompt: "blur, noise, artifacts, distortion, watermark",
+      },
+    });
+
+    const upscaledUrl = (result as any)?.image?.url
+      || (result as any)?.data?.image?.url
+      || (Array.isArray((result as any)?.images) ? (result as any).images[0]?.url : "")
+      || "";
+
+    if (!upscaledUrl) {
+      console.error(`[upscaler] No upscaled image in response:`, JSON.stringify(result).substring(0, 500));
+      return imageUrl; // Return original on failure
+    }
+
+    console.log(`[upscaler] Success: ${upscaledUrl.substring(0, 80)}...`);
+    return upscaledUrl;
+  } catch (upscaleErr: unknown) {
+    const errMsg = upscaleErr instanceof Error ? upscaleErr.message : String(upscaleErr);
+    console.error(`[upscaler] ERROR:`, errMsg);
+    return imageUrl; // Return original on failure — don't block pipeline
+  }
+}
+
 async function callFaceSwap(params: {
   generatedImageUrl: string;
   faceReferenceUrl: string;
@@ -721,7 +765,6 @@ async function callFaceSwap(params: {
   } catch (swapErr: unknown) {
     const errMsg = swapErr instanceof Error ? swapErr.message : String(swapErr);
     console.error(`[face-swap] ERROR:`, errMsg);
-    // Return original image if face swap fails — don't block the pipeline
     console.warn(`[face-swap] Falling back to original generated image`);
     return publicGenUrl;
   }
@@ -939,17 +982,64 @@ serve(async (req) => {
       result.modelUsed = `${result.modelUsed} + face-swap`;
     }
 
-    const storedAsset = await uploadGeneratedAsset({
+    // Save raw (pre-upscale) image to storage
+    const rawAsset = await uploadGeneratedAsset({
       sourceUrl: result.imageUrl,
       launchId,
       type: parsedAngle,
       attemptNumber: requestAttempt,
     });
+    const rawUrl = rawAsset.originalUrl;
+
+    // UPSCALE with clarity-upscaler (2x)
+    let upscaled = false;
+    let finalImageUrl = result.imageUrl;
+    try {
+      const upscaledUrl = await callUpscaler(result.imageUrl);
+      if (upscaledUrl !== result.imageUrl) {
+        finalImageUrl = upscaledUrl;
+        upscaled = true;
+      }
+    } catch (upErr) {
+      console.error(`[generate-image] Upscale failed, using original:`, upErr);
+    }
+
+    // Upload upscaled (or original if upscale failed) as the main asset
+    let storedAsset;
+    if (upscaled) {
+      // Upload the upscaled version with a different path suffix
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && serviceRoleKey) {
+        const admin = createClient(supabaseUrl, serviceRoleKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const { bytes, contentType } = await fetchImageBytes(finalImageUrl);
+        const objectPath = [
+          sanitizePathSegment(launchId || "standalone"),
+          `${sanitizePathSegment(parsedAngle)}-attempt-${requestAttempt}-hd.png`,
+        ].join("/");
+        await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+          contentType: contentType.includes("png") ? contentType : "image/png",
+          cacheControl: "3600",
+          upsert: true,
+        });
+        const originalUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+        const previewUrl = buildPreviewUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+        storedAsset = { originalUrl, previewUrl, imageUrl: previewUrl };
+      } else {
+        storedAsset = rawAsset;
+      }
+    } else {
+      storedAsset = rawAsset;
+    }
 
     return new Response(JSON.stringify({
       imageUrl: storedAsset.imageUrl,
       originalUrl: storedAsset.originalUrl,
       previewUrl: storedAsset.previewUrl,
+      rawUrl,
+      upscaled,
       promptUsed,
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,

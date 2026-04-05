@@ -374,6 +374,8 @@ const ProductPage = () => {
           image_url: string | null;
           original_url: string | null;
           preview_url: string | null;
+          raw_url: string | null;
+          upscaled: boolean;
           model_used: string | null;
           generation_ms: number | null;
           attempt_number: number | null;
@@ -395,6 +397,8 @@ const ProductPage = () => {
                     imageUrl: row.preview_url || row.original_url || row.image_url || i.imageUrl,
                     originalUrl: row.original_url || row.image_url || i.originalUrl,
                     previewUrl: row.preview_url || i.previewUrl,
+                    rawUrl: row.raw_url || i.rawUrl,
+                    upscaled: row.upscaled ?? i.upscaled,
                     modelUsed: row.model_used || i.modelUsed,
                     generationMs: row.generation_ms || i.generationMs,
                     attemptNumber: row.attempt_number || i.attemptNumber,
@@ -787,6 +791,8 @@ const ProductPage = () => {
     if (updates.modelUsed) dbUpdate.model_used = updates.modelUsed;
     if (updates.attemptNumber !== undefined) dbUpdate.attempt_number = updates.attemptNumber;
     if (updates.promptUsed) dbUpdate.prompt_used = updates.promptUsed;
+    if (updates.rawUrl) dbUpdate.raw_url = updates.rawUrl;
+    if (updates.upscaled !== undefined) dbUpdate.upscaled = updates.upscaled;
 
     if (Object.keys(dbUpdate).length > 0) {
       supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
@@ -933,6 +939,8 @@ const ProductPage = () => {
           imageUrl: data.previewUrl || data.imageUrl,
           originalUrl: data.originalUrl || data.imageUrl,
           previewUrl: data.previewUrl || data.imageUrl,
+          rawUrl: data.rawUrl || undefined,
+          upscaled: data.upscaled || false,
           modelUsed: data.modelUsed,
           generationMs: Math.round(performance.now() - startedAt),
           attemptNumber: data.attemptNumber || 1,
