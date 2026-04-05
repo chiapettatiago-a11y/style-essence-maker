@@ -683,6 +683,50 @@ async function callFalEngine(params: {
   }
 }
 
+async function callUpscaler(imageUrl: string): Promise<string> {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) {
+    console.warn("[upscaler] FAL_API_KEY not set, skipping upscale");
+    return imageUrl;
+  }
+
+  fal.config({ credentials: FAL_API_KEY });
+
+  const publicUrl = await ensurePublicUrl(imageUrl);
+  console.log(`[upscaler] Upscaling image: ${publicUrl.substring(0, 80)}...`);
+
+  try {
+    const result = await fal.subscribe("fal-ai/clarity-upscaler", {
+      input: {
+        image_url: publicUrl,
+        scale: 2,
+        overlapping_tiles: true,
+        creativity: 0,
+        resemblance: 1,
+        prompt: "professional fashion photography, high resolution, sharp details, clean studio photo",
+        negative_prompt: "blur, noise, artifacts, distortion, watermark",
+      },
+    });
+
+    const upscaledUrl = (result as any)?.image?.url
+      || (result as any)?.data?.image?.url
+      || (Array.isArray((result as any)?.images) ? (result as any).images[0]?.url : "")
+      || "";
+
+    if (!upscaledUrl) {
+      console.error(`[upscaler] No upscaled image in response:`, JSON.stringify(result).substring(0, 500));
+      return imageUrl; // Return original on failure
+    }
+
+    console.log(`[upscaler] Success: ${upscaledUrl.substring(0, 80)}...`);
+    return upscaledUrl;
+  } catch (upscaleErr: unknown) {
+    const errMsg = upscaleErr instanceof Error ? upscaleErr.message : String(upscaleErr);
+    console.error(`[upscaler] ERROR:`, errMsg);
+    return imageUrl; // Return original on failure — don't block pipeline
+  }
+}
+
 async function callFaceSwap(params: {
   generatedImageUrl: string;
   faceReferenceUrl: string;
@@ -721,7 +765,6 @@ async function callFaceSwap(params: {
   } catch (swapErr: unknown) {
     const errMsg = swapErr instanceof Error ? swapErr.message : String(swapErr);
     console.error(`[face-swap] ERROR:`, errMsg);
-    // Return original image if face swap fails — don't block the pipeline
     console.warn(`[face-swap] Falling back to original generated image`);
     return publicGenUrl;
   }
