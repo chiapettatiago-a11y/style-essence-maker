@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { GeneratedImage, GenerationEngine, WeeklyLaunch } from "@/types/fashion";
-import { Download, RefreshCw, Copy, Check, Loader2, ImageIcon, X, Video, Sparkles, Layers3, ZoomIn, ArrowLeft } from "lucide-react";
+import { Download, RefreshCw, Copy, Check, Loader2, ImageIcon, X, Video, Sparkles, Layers3, ZoomIn, ArrowLeft, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
