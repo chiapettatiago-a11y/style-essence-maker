@@ -982,17 +982,64 @@ serve(async (req) => {
       result.modelUsed = `${result.modelUsed} + face-swap`;
     }
 
-    const storedAsset = await uploadGeneratedAsset({
+    // Save raw (pre-upscale) image to storage
+    const rawAsset = await uploadGeneratedAsset({
       sourceUrl: result.imageUrl,
       launchId,
       type: parsedAngle,
       attemptNumber: requestAttempt,
     });
+    const rawUrl = rawAsset.originalUrl;
+
+    // UPSCALE with clarity-upscaler (2x)
+    let upscaled = false;
+    let finalImageUrl = result.imageUrl;
+    try {
+      const upscaledUrl = await callUpscaler(result.imageUrl);
+      if (upscaledUrl !== result.imageUrl) {
+        finalImageUrl = upscaledUrl;
+        upscaled = true;
+      }
+    } catch (upErr) {
+      console.error(`[generate-image] Upscale failed, using original:`, upErr);
+    }
+
+    // Upload upscaled (or original if upscale failed) as the main asset
+    let storedAsset;
+    if (upscaled) {
+      // Upload the upscaled version with a different path suffix
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && serviceRoleKey) {
+        const admin = createClient(supabaseUrl, serviceRoleKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const { bytes, contentType } = await fetchImageBytes(finalImageUrl);
+        const objectPath = [
+          sanitizePathSegment(launchId || "standalone"),
+          `${sanitizePathSegment(parsedAngle)}-attempt-${requestAttempt}-hd.png`,
+        ].join("/");
+        await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+          contentType: contentType.includes("png") ? contentType : "image/png",
+          cacheControl: "3600",
+          upsert: true,
+        });
+        const originalUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+        const previewUrl = buildPreviewUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+        storedAsset = { originalUrl, previewUrl, imageUrl: previewUrl };
+      } else {
+        storedAsset = rawAsset;
+      }
+    } else {
+      storedAsset = rawAsset;
+    }
 
     return new Response(JSON.stringify({
       imageUrl: storedAsset.imageUrl,
       originalUrl: storedAsset.originalUrl,
       previewUrl: storedAsset.previewUrl,
+      rawUrl,
+      upscaled,
       promptUsed,
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
