@@ -30,8 +30,10 @@ export type Database = {
           preview_url: string | null
           prompt: string
           prompt_used: string | null
+          raw_url: string | null
           status: string
           type: string
+          upscaled: boolean
         }
         Insert: {
           attempt_number?: number
@@ -48,8 +50,10 @@ export type Database = {
           preview_url?: string | null
           prompt?: string
           prompt_used?: string | null
+          raw_url?: string | null
           status?: string
           type: string
+          upscaled?: boolean
         }
         Update: {
           attempt_number?: number
@@ -66,8 +70,10 @@ export type Database = {
           preview_url?: string | null
           prompt?: string
           prompt_used?: string | null
+          raw_url?: string | null
           status?: string
           type?: string
+          upscaled?: boolean
         }
         Relationships: [
           {
@@ -157,6 +163,8 @@ export type Database = {
           id: string
           product_id: string
           proportion_json: Json | null
+          reference_photos_bottom: string[] | null
+          reference_photos_top: string[] | null
           shoulder_width_cm: number | null
           sleeve_length_cm: number | null
           sleeve_type: string | null
@@ -179,6 +187,8 @@ export type Database = {
           id?: string
           product_id: string
           proportion_json?: Json | null
+          reference_photos_bottom?: string[] | null
+          reference_photos_top?: string[] | null
           shoulder_width_cm?: number | null
           sleeve_length_cm?: number | null
           sleeve_type?: string | null
@@ -201,6 +211,8 @@ export type Database = {
           id?: string
           product_id?: string
           proportion_json?: Json | null
+          reference_photos_bottom?: string[] | null
+          reference_photos_top?: string[] | null
           shoulder_width_cm?: number | null
           sleeve_length_cm?: number | null
           sleeve_type?: string | null
