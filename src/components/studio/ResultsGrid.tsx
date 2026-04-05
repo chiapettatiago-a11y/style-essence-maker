@@ -160,7 +160,14 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
               <span className="text-[10px] text-muted-foreground">Pendente...</span>
             )}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background/80 to-transparent p-2 pt-6">
-              <p className="text-[10px] font-medium text-foreground truncate">{img.label}</p>
+              <div className="flex items-center gap-1">
+                {img.upscaled && (
+                  <span className="inline-flex items-center gap-0.5 bg-accent/90 text-accent-foreground text-[8px] font-bold px-1.5 py-0.5 rounded-full">
+                    HD
+                  </span>
+                )}
+                <p className="text-[10px] font-medium text-foreground truncate">{img.label}</p>
+              </div>
             </div>
             {img.status === "done" && (img.previewUrl || img.imageUrl || img.originalUrl) && (
               <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
