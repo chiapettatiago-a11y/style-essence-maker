@@ -935,6 +935,8 @@ const ProductPage = () => {
           imageUrl: data.previewUrl || data.imageUrl,
           originalUrl: data.originalUrl || data.imageUrl,
           previewUrl: data.previewUrl || data.imageUrl,
+          rawUrl: data.rawUrl || undefined,
+          upscaled: data.upscaled || false,
           modelUsed: data.modelUsed,
           generationMs: Math.round(performance.now() - startedAt),
           attemptNumber: data.attemptNumber || 1,

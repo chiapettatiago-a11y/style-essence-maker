@@ -101,6 +101,8 @@ export interface GeneratedImage {
   photoAngle?: string;
   originalUrl?: string;
   previewUrl?: string;
+  rawUrl?: string;
+  upscaled?: boolean;
   promptUsed?: string;
   generationMs?: number;
   modelUsed?: string;
