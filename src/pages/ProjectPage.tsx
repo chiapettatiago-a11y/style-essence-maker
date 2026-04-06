@@ -1107,6 +1107,85 @@ const ProductPage = () => {
     }
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
+  /** Generate a single pending angle with an optional scene override */
+  const handleGenerateSingle = useCallback(async (id: string, sceneOverride?: string) => {
+    let img: GeneratedImage | undefined;
+    let sourceLaunch: WeeklyLaunch | undefined;
+    for (const w of state.weeklyLaunches) {
+      const candidate = w.images.find((i) => i.id === id);
+      if (candidate) { img = candidate; sourceLaunch = w; break; }
+    }
+    if (!img || !activeVariant) return;
+
+    const frontReference = sourceLaunch?.images.find((i) => i.type === "lookbook-front" && i.status === "done");
+    const frontReferenceUrl = frontReference?.originalUrl || frontReference?.previewUrl || frontReference?.imageUrl || "";
+    const isCloseDetail = img.type === "close-tr-detail";
+
+    if (isCloseDetail && !frontReferenceUrl) {
+      updateImageInState(id, { status: "error", error: "Gere a front view primeiro." });
+      return;
+    }
+
+    // Build presets with scene override
+    const presetsWithScene = sceneOverride
+      ? { ...state.selectedPresets, scenario: sceneOverride }
+      : state.selectedPresets;
+
+    updateImageInState(id, { status: "generating", error: undefined });
+    const startedAt = performance.now();
+
+    try {
+      const shouldUseRef = isCloseDetail || img.type === "lookbook-front" || img.type === "movement-shot";
+      const referenceImageUrl = shouldUseRef
+        ? (isCloseDetail ? frontReferenceUrl : (frontReferenceUrl || activeVariant.uploadedImages[0]))
+        : (frontReferenceUrl || activeVariant.uploadedImages[0] || undefined);
+
+      const { data, error } = await supabase.functions.invoke("generate-image", {
+        body: {
+          angleType: img.type,
+          angle: img.type,
+          basePrompt: img.prompt,
+          prompt: img.prompt,
+          manualPrompt: state.manualPrompt,
+          engine: state.selectedEngine,
+          selectedPresets: presetsWithScene,
+          garmentAnalysis: activeVariant.garmentAnalysis,
+          proportionJson: activeVariant.proportionJson,
+          modelProfile: state.selectedProfile,
+          mannequin: {
+            height_cm: mannequin.mannequin_height_cm,
+            bust_cm: mannequin.mannequin_bust_cm,
+            waist_cm: mannequin.mannequin_waist_cm,
+            hip_cm: mannequin.mannequin_hip_cm,
+            torso_cm: mannequin.mannequin_torso_cm,
+            arm_cm: mannequin.mannequin_arm_cm,
+          },
+          referenceImages: activeVariant.uploadedImages.slice(0, 3),
+          image_url: referenceImageUrl,
+          attemptNumber: 1,
+          launchId: sourceLaunch?.id,
+        },
+      });
+      if (error) throw error;
+
+      updateImageInState(id, {
+        status: "done",
+        imageUrl: data.previewUrl || data.imageUrl,
+        originalUrl: data.originalUrl || data.imageUrl,
+        previewUrl: data.previewUrl || data.imageUrl,
+        rawUrl: data.rawUrl || undefined,
+        upscaled: data.upscaled || false,
+        modelUsed: data.modelUsed,
+        generationMs: Math.round(performance.now() - startedAt),
+        attemptNumber: data.attemptNumber || 1,
+        promptUsed: data.promptUsed || img.prompt,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Falha na geração";
+      updateImageInState(id, { status: "error", error: message });
+    }
+  }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
+
   const handleDownloadZip = async () => {
     const imagesToZip = variantWeeklyLaunches
       .flatMap((w) => w.images)
