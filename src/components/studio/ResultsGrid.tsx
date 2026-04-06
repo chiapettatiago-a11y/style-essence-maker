@@ -1,13 +1,21 @@
 import React, { useMemo, useState } from "react";
 import { GeneratedImage, GenerationEngine, WeeklyLaunch } from "@/types/fashion";
-import { Download, RefreshCw, Copy, Check, Loader2, ImageIcon, X, Video, Sparkles, Layers3, ZoomIn, ArrowLeft, Shield } from "lucide-react";
+import { Download, RefreshCw, Copy, Check, Loader2, ImageIcon, X, Video, Sparkles, Layers3, ZoomIn, ArrowLeft, Shield, Play, Image as ImageLucide } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+
+const SCENE_OPTIONS = [
+  { id: "estudio-branco", label: "Estúdio Branco Puro", icon: "⬜" },
+  { id: "estudio-neutro-bege", label: "Estúdio Neutro Bege", icon: "🟫" },
+  { id: "urbano-contemporaneo", label: "Urbano Contemporâneo", icon: "🏙️" },
+  { id: "natureza-suave", label: "Natureza Suave", icon: "🌿" },
+];
 
 interface ResultsGridProps {
   weeklyLaunches: WeeklyLaunch[];
   onRegenerate: (id: string, engine?: GenerationEngine) => void;
   onRegenerateAll?: (engine: GenerationEngine) => void;
+  onGenerateSingle?: (id: string, sceneOverride?: string) => void;
 }
 
 const GalleryImage: React.FC<{ image: GeneratedImage; className?: string }> = ({ image, className }) => {
@@ -60,12 +68,11 @@ const downloadFile = async (url: string, filename: string) => {
     a.click();
     URL.revokeObjectURL(blobUrl);
   } catch {
-    // Fallback: open in new tab
     window.open(url, "_blank");
   }
 };
 
-const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate, onRegenerateAll }) => {
+const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate, onRegenerateAll, onGenerateSingle }) => {
   const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -151,6 +158,33 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
                       <DropdownMenuItem key={id} onClick={() => onRegenerate(img.id, id)} className="gap-2 text-xs">
                         <Icon className="h-3.5 w-3.5" />
                         {label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : img.status === "pending" && onGenerateSingle ? (
+              /* ── Pending card with "Gerar" + scene selection ── */
+              <div className="flex flex-col items-center gap-3 p-3">
+                <ImageLucide className="h-8 w-8 text-muted-foreground/40" />
+                <span className="text-[10px] text-muted-foreground text-center">Aguardando</span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" className="text-[10px] h-7 gap-1" onClick={(e) => e.stopPropagation()}>
+                      <Play className="h-3 w-3" /> Gerar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent onClick={(e) => e.stopPropagation()} align="center" className="w-52">
+                    <DropdownMenuLabel className="text-[10px] text-muted-foreground">Escolha o cenário</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {SCENE_OPTIONS.map((scene) => (
+                      <DropdownMenuItem
+                        key={scene.id}
+                        onClick={() => onGenerateSingle(img.id, scene.id)}
+                        className="gap-2 text-xs"
+                      >
+                        <span>{scene.icon}</span>
+                        {scene.label}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>

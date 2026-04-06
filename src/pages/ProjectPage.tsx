@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { buildFullPrompt, assembleLayer2 } from "@/data/prompt-builder";
+import { LAYER1_BASE } from "@/data/prompt-layers";
 import ReferencePhotosSection from "@/components/studio/ReferencePhotosSection";
 import { useParams, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon } from "lucide-react";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
@@ -957,30 +959,11 @@ const ProductPage = () => {
 
     const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
     const frontImage = imageItems.find((img) => img.type === "lookbook-front");
-    const closeImages = imageItems.filter((img) => img.type === "close-tr-detail");
-    const movementImages = imageItems.filter((img) => img.type === "movement-shot");
-    const standardImages = imageItems.filter((img) => img.type !== "lookbook-front" && img.type !== "close-tr-detail" && img.type !== "movement-shot");
 
-    // 1. Generate front_view first (anchor image for LoRA / reference)
+    // Only generate the front view initially — other angles stay pending for individual generation
     let frontReferenceUrl = "";
     if (frontImage) {
       frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
-    }
-
-    // 2. Generate sides/back + movement using frontReferenceUrl for kontext consistency
-    const sideBackRef = frontReferenceUrl || activeVariant.uploadedImages[0] || undefined;
-    await Promise.allSettled([
-      ...standardImages.map((img) => runImageGeneration(img, sideBackRef)),
-      ...movementImages.map((img) => runImageGeneration(img, sideBackRef)),
-    ]);
-
-    // 3. Generate close-up detail using frontReferenceUrl
-    if (!frontReferenceUrl && closeImages.length > 0) {
-      closeImages.forEach((img) => {
-        updateImageInState(img.id, { status: "error", error: "A front view precisa ser gerada primeiro para servir como referência dos closes." });
-      });
-    } else {
-      await Promise.allSettled(closeImages.map((img) => runImageGeneration(img, frontReferenceUrl)));
     }
 
     // Generate videos using front_view as starting frame
@@ -1123,6 +1106,95 @@ const ProductPage = () => {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Falha na regeneração";
       updateImageInState(id, { status: "error", error: message, attemptNumber: nextAttempt });
+    }
+  }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
+
+  /** Generate a single pending angle with an optional scene override */
+  const handleGenerateSingle = useCallback(async (id: string, sceneOverride?: string) => {
+    let img: GeneratedImage | undefined;
+    let sourceLaunch: WeeklyLaunch | undefined;
+    for (const w of state.weeklyLaunches) {
+      const candidate = w.images.find((i) => i.id === id);
+      if (candidate) { img = candidate; sourceLaunch = w; break; }
+    }
+    if (!img || !activeVariant) return;
+
+    const frontReference = sourceLaunch?.images.find((i) => i.type === "lookbook-front" && i.status === "done");
+    const frontReferenceUrl = frontReference?.originalUrl || frontReference?.previewUrl || frontReference?.imageUrl || "";
+    const isCloseDetail = img.type === "close-tr-detail";
+
+    if (isCloseDetail && !frontReferenceUrl) {
+      updateImageInState(id, { status: "error", error: "Gere a front view primeiro." });
+      return;
+    }
+
+    // Rebuild prompt with scene override if needed
+    const presetsWithScene = sceneOverride
+      ? { ...state.selectedPresets, scenario: sceneOverride }
+      : state.selectedPresets;
+
+    const layer2Text = assembleLayer2(presetsWithScene);
+    const rebuiltPrompt = buildFullPrompt(
+      { layer1: LAYER1_BASE, layer2: layer2Text, layer3: state.manualPrompt },
+      activeVariant.garmentAnalysis,
+      img.type,
+      state.selectedProfile,
+      presetsWithScene,
+      activeVariant.garmentType,
+      state.accessories,
+    );
+
+    updateImageInState(id, { status: "generating", error: undefined });
+    const startedAt = performance.now();
+
+    try {
+      const shouldUseRef = isCloseDetail || img.type === "lookbook-front" || img.type === "movement-shot";
+      const referenceImageUrl = shouldUseRef
+        ? (isCloseDetail ? frontReferenceUrl : (frontReferenceUrl || activeVariant.uploadedImages[0]))
+        : (frontReferenceUrl || activeVariant.uploadedImages[0] || undefined);
+
+      const { data, error } = await supabase.functions.invoke("generate-image", {
+        body: {
+          angleType: img.type,
+          angle: img.type,
+          basePrompt: rebuiltPrompt,
+          prompt: rebuiltPrompt,
+          manualPrompt: state.manualPrompt,
+          engine: state.selectedEngine,
+          garmentAnalysis: activeVariant.garmentAnalysis,
+          proportionJson: activeVariant.proportionJson,
+          modelProfile: state.selectedProfile,
+          mannequin: {
+            height_cm: mannequin.mannequin_height_cm,
+            bust_cm: mannequin.mannequin_bust_cm,
+            waist_cm: mannequin.mannequin_waist_cm,
+            hip_cm: mannequin.mannequin_hip_cm,
+            torso_cm: mannequin.mannequin_torso_cm,
+            arm_cm: mannequin.mannequin_arm_cm,
+          },
+          referenceImages: activeVariant.uploadedImages.slice(0, 3),
+          image_url: referenceImageUrl,
+          attemptNumber: 1,
+          launchId: sourceLaunch?.id,
+        },
+      });
+      if (error) throw error;
+
+      updateImageInState(id, {
+        status: "done",
+        imageUrl: data.previewUrl || data.imageUrl,
+        originalUrl: data.originalUrl || data.imageUrl,
+        previewUrl: data.previewUrl || data.imageUrl,
+        rawUrl: data.rawUrl || undefined,
+        upscaled: data.upscaled || false,
+        modelUsed: data.modelUsed,
+        generationMs: Math.round(performance.now() - startedAt),
+        attemptNumber: data.attemptNumber || 1,
+        promptUsed: data.promptUsed || img.prompt,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Falha na geração";
+      updateImageInState(id, { status: "error", error: message });
     }
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
@@ -1430,7 +1502,34 @@ const ProductPage = () => {
                               </>
                             )}
                             {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
-                            {img.status === "pending" && <span className="text-xs text-muted-foreground">Aguardando</span>}
+                            {img.status === "pending" && (
+                              <div className="flex flex-col items-center gap-2 p-3">
+                                <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                                <span className="text-[10px] text-muted-foreground">Aguardando</span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" className="h-7 text-[10px] gap-1">
+                                      <Sparkles className="h-3 w-3" /> Gerar
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="center" className="w-52">
+                                    <DropdownMenuItem className="text-[10px] text-muted-foreground font-medium" disabled>Escolha o cenário</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-branco")} className="gap-2 text-xs">
+                                      <span>⬜</span> Estúdio Branco Puro
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-neutro-bege")} className="gap-2 text-xs">
+                                      <span>🟫</span> Estúdio Neutro Bege
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "urbano-contemporaneo")} className="gap-2 text-xs">
+                                      <span>🏙️</span> Urbano Contemporâneo
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "natureza-suave")} className="gap-2 text-xs">
+                                      <span>🌿</span> Natureza Suave
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
                             {img.status === "error" && (
                               <div className="text-center p-2">
                                 <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
