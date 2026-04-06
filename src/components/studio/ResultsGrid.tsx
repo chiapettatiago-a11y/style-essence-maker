@@ -250,10 +250,17 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
               </Button>
               <span className="text-sm font-medium">{lightboxImage.label}</span>
               <Button variant="outline" size="sm" onClick={() => {
-                downloadFile(lightboxImage.originalUrl || lightboxImage.imageUrl || lightboxImage.previewUrl || "", `${lightboxImage.label}.png`);
+                downloadFile(lightboxImage.originalUrl || lightboxImage.imageUrl || lightboxImage.previewUrl || "", `${lightboxImage.label}_HD.png`);
               }}>
-                <Download className="h-3 w-3 mr-1" /> Download
+                <Download className="h-3 w-3 mr-1" /> Download HD
               </Button>
+              {lightboxImage.upscaled && lightboxImage.rawUrl && (
+                <Button variant="outline" size="sm" onClick={() => {
+                  downloadFile(lightboxImage.rawUrl!, `${lightboxImage.label}_raw.png`);
+                }}>
+                  <Download className="h-3 w-3 mr-1" /> Download Raw
+                </Button>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
