@@ -244,18 +244,23 @@ const ResultsGrid: React.FC<ResultsGridProps> = ({ weeklyLaunches, onRegenerate,
         >
           <div className="relative max-w-2xl max-h-full flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
             <GalleryImage image={lightboxImage} className="max-h-[80vh] object-contain rounded-lg shadow-xl" />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap justify-center">
               <Button variant="outline" size="sm" onClick={() => setLightboxImage(null)}>
                 <ArrowLeft className="h-3 w-3 mr-1" /> Voltar
               </Button>
               <span className="text-sm font-medium">{lightboxImage.label}</span>
+              {lightboxImage.upscaled && (
+                <span className="inline-flex items-center gap-0.5 bg-accent/90 text-accent-foreground text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+                  <Shield className="h-2.5 w-2.5" /> HD 2x
+                </span>
+              )}
               <Button variant="outline" size="sm" onClick={() => {
                 downloadFile(lightboxImage.originalUrl || lightboxImage.imageUrl || lightboxImage.previewUrl || "", `${lightboxImage.label}_HD.png`);
               }}>
-                <Download className="h-3 w-3 mr-1" /> Download HD
+                <Download className="h-3 w-3 mr-1" /> {lightboxImage.upscaled ? "Download HD" : "Download"}
               </Button>
-              {lightboxImage.upscaled && lightboxImage.rawUrl && (
-                <Button variant="outline" size="sm" onClick={() => {
+              {lightboxImage.rawUrl && (
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => {
                   downloadFile(lightboxImage.rawUrl!, `${lightboxImage.label}_raw.png`);
                 }}>
                   <Download className="h-3 w-3 mr-1" /> Download Raw
