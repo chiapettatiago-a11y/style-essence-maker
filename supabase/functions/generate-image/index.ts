@@ -87,9 +87,16 @@ serve(async (req) => {
 
     // Gemini fallback — use current model names
     if (!base64) {
-      console.warn("[Cascade] Falling back to Gemini Pro...");
-      base64 = await callGemini("gemini-2.0-flash-exp", prompt, apiKey);
+      console.warn("[Cascade] Falling back to Gemini Flash Preview...");
+      base64 = await callGemini("gemini-2.5-flash-preview-image-generation", prompt, apiKey);
       engineUsed = "gemini";
+    }
+
+    // Last resort
+    if (!base64) {
+      console.warn("[Cascade] Falling back to Gemini 2.0 Flash Exp...");
+      base64 = await callGemini("gemini-2.0-flash-exp-image-generation", prompt, apiKey);
+      engineUsed = "nano";
     }
 
     if (!base64) throw new Error("All engines failed");
