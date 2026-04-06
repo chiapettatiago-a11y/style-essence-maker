@@ -1145,7 +1145,7 @@ const ProductPage = () => {
           const response = await fetch(img.url);
           const blob = await response.blob();
           const safeName = img.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-          zip.file(`${String(idx + 1).padStart(2, "0")}-${safeName || "foto"}.png`, blob);
+          zip.file(`${String(idx + 1).padStart(2, "0")}-${safeName || "foto"}.jpg`, blob);
         })
       );
 

@@ -77,7 +77,57 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
  The model is FEMALE. This is a WOMEN'S garment.
  Do NOT generate a male model under any circumstances.
  Female body proportions, female facial features, female silhouette — mandatory.`;
- 
+
+// ─── RULE 1: BOTTOM GARMENT — NEVER INVENT ───
+const BOTTOM_GARMENT_BLOCK = `BOTTOM GARMENT — ABSOLUTE RULE:
+When the main garment is a top (blouse, jacket, shirt, blazer, crop top, or any upper-body piece):
+- ALWAYS use the EXACT bottom garment visible in the reference photo.
+- Copy the reference bottom precisely: same length, same silhouette, same color, same fabric.
+- NEVER generate: mini skirts, micro shorts, very short skirts, or any bottom shorter than midi length UNLESS explicitly shown in the reference photo.
+- If NO bottom garment is visible in the reference photo, use: tailored straight black trousers, ankle length, clean and pressed, no creases.
+- The bottom garment must look natural and proportional to the main piece.
+- Do NOT invent, redesign, or substitute the bottom with anything not in the reference.`;
+
+// ─── RULE 2: INNER LAYER FOR JACKETS ───
+const INNER_LAYER_BLOCK = `INNER LAYER — STYLING RULE:
+A plain white fitted t-shirt is worn underneath this open-front garment.
+The white layer must:
+- Be barely visible at the neckline opening and at the cuffs/wrists
+- NEVER overshadow or compete with the main garment
+- Prevent any skin, cleavage, or décolletage from showing
+- Look natural and intentional as a deliberate styling choice
+- Be a simple, minimal, fitted crew-neck white tee — no graphics, no logos`;
+
+// ─── RULE 3: NO TAGS OR LABELS ───
+const NO_TAGS_BLOCK = `TAGS AND LABELS — ABSOLUTE PROHIBITION:
+The garment must appear RETAIL-READY, as displayed in a luxury boutique.
+FORBIDDEN in all generated images — zero tolerance:
+- Hang tags, price tags, swing tags of any kind
+- Care labels, washing instruction labels visible externally
+- Brand labels visible on the outside of the garment
+- Any paper, plastic, or fabric tag hanging from the garment
+- Stickers, barcodes, or any retail packaging remnants
+If ANY tag or label appears in the generated image, the image is REJECTED.`;
+
+// ─── RULE 4: TR CLOSE-UP QUALITY ───
+const TR_CLOSEUP_QUALITY_BLOCK = `TR MONOGRAM CLOSE-UP — MANDATORY QUALITY STANDARDS:
+This is a critical brand deliverable. Apply strict quality control:
+
+MANDATORY — every element must pass:
+- TR golden metallic button MUST be tack-sharp, center frame, in perfect focus
+- Monogram engraving clearly legible: "TR" interlocking letters, each stroke distinguishable
+- Button surface: polished warm gold (#D4AF37 to #FFD700), realistic specular highlights, NO overexposure
+- Fabric surrounding the button: perfectly pressed, zero wrinkles, zero creases
+- Depth of field: button razor-sharp, fabric softly blurred behind — professional macro photography feel
+- Lighting: soft directional light catching the gold surface, warm tone
+
+HARD FAIL — regenerate immediately if:
+- TR lettering is blurry, distorted, illegible, or abstracted
+- Button appears silver, dark, matte, brass, or any color other than polished gold
+- Button is off-center or partially cropped out of frame
+- Any wrinkle, crease, or fold appears near the button/cuff area
+- Button scale is wrong (too large or microscopic)`;
+
  const TR_BADGE_DETAILED_BLOCK_FN = (signatureDetails?: string) => {
    const positionNotVisible = !signatureDetails || /not clearly visible/i.test(signatureDetails);
    if (positionNotVisible) {
@@ -192,6 +242,23 @@ function isDressLikeGarment(garmentAnalysis?: GarmentAnalysis | null) {
   return /(dress|vestido|gown|two-piece|two piece|conjunto|saia|skirt)/.test(text);
 }
 
+function isUpperBodyGarment(garmentAnalysis?: GarmentAnalysis | null): boolean {
+  const text = [garmentAnalysis?.type, garmentAnalysis?.fullDescription]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /(blouse|blusa|jacket|jaqueta|blazer|shirt|camisa|crop top|top|cardigan|coat|casaco|vest|colete)/.test(text)
+    && !/(dress|vestido|gown|jumpsuit|macacão)/.test(text);
+}
+
+function isOpenFrontGarment(garmentAnalysis?: GarmentAnalysis | null): boolean {
+  const text = [garmentAnalysis?.type, garmentAnalysis?.fullDescription, garmentAnalysis?.closure]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return /(jacket|jaqueta|blazer|cardigan|coat|casaco|vest|colete|open.?front|kimono)/.test(text);
+}
+
 function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
   if (!modelProfile) return "";
 
@@ -207,14 +274,14 @@ function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
   ].filter(Boolean).join("\n");
 }
 
-function shouldUseFalReferenceImage(angleType: AngleType) {
+function shouldUseFalReferenceImage(_angleType: AngleType) {
   return true;
 }
 
 async function fetchImageBytes(url: string) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Failed to fetch generated image: ${response.status}`);
-  const contentType = response.headers.get("content-type") || "image/png";
+  const contentType = response.headers.get("content-type") || "image/jpeg";
   const bytes = new Uint8Array(await response.arrayBuffer());
   return { bytes, contentType };
 }
@@ -233,6 +300,7 @@ async function uploadGeneratedAsset(params: {
   launchId?: string;
   type: AngleType;
   attemptNumber: number;
+  suffix?: string;
 }) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -249,14 +317,15 @@ async function uploadGeneratedAsset(params: {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { bytes, contentType } = await fetchImageBytes(params.sourceUrl);
+  const { bytes } = await fetchImageBytes(params.sourceUrl);
+  const sfx = params.suffix ? `-${params.suffix}` : "";
   const objectPath = [
     sanitizePathSegment(params.launchId || "standalone"),
-    `${sanitizePathSegment(params.type)}-attempt-${params.attemptNumber}.png`,
+    `${sanitizePathSegment(params.type)}-attempt-${params.attemptNumber}${sfx}.jpg`,
   ].join("/");
 
   const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
-    contentType: contentType.includes("png") ? contentType : "image/png",
+    contentType: "image/jpeg",
     cacheControl: "3600",
     upsert: true,
   });
@@ -302,12 +371,12 @@ function buildPrompt(params: {
 Camera: studio DSLR, 85mm lens, f/5.6 for sharp full-body focus.
 Lighting: soft diffused studio lighting, high-key, color-accurate.
 Clean white studio cyclorama background. Centered model. Symmetrical framing.
-Format: portrait orientation, high resolution.
+Format: portrait orientation, high resolution, JPG 300 DPI sRGB.
 Style: clean e-commerce catalog photo like ZARA, NET-A-PORTER, Farfetch.`
     : `Professional fashion photography, editorial quality.
 Camera: Sony A7R V equivalent, 85mm f/1.8.
 Lighting: natural key light + soft fill, no harsh shadows.
-Resolution: 1080x1920px portrait, 4K clarity.
+Resolution: 1080x1920px portrait, 4K clarity, JPG 300 DPI sRGB.
 Format: 9:16 portrait.`;
 
   const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garmentAnalysis?.type || "");
@@ -324,7 +393,7 @@ This garment is a TWO-PIECE SET (top + bottom sold together).
   // Resolve mannequin with fallback to defaults
   const resolvedMannequin = (mannequin && mannequin.height_cm) ? mannequin : DEFAULT_MANNEQUIN;
 
-  // For close-tr-detail, use simplified garment block focused on waist area
+  // For close-tr-detail, use specialized close-up block with quality rules
   let blockB: string;
   if (isCloseDetail && garmentAnalysis) {
     blockB = `GARMENT CONTEXT:
@@ -332,7 +401,9 @@ Type: ${garmentAnalysis.type || "N/A"}
 Color: ${garmentAnalysis.color || "N/A"}
 Fabric: ${garmentAnalysis.fabric || "N/A"}. Texture: ${garmentAnalysis.fabricTexture || "N/A"}.
 
-ANGLE: Half-body crop centered on the waist/midsection area of the garment. Show construction details, fabric texture, and any decorative elements around the waist. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context.`;
+ANGLE: Half-body crop centered on the waist/midsection area of the garment. Show construction details, fabric texture, and any decorative elements around the waist. Natural relaxed pose. NOT a macro close-up — maintain editorial distance showing garment context.
+
+${TR_CLOSEUP_QUALITY_BLOCK}`;
   } else {
     // Length description with smart fallback
     const lengthDesc = garmentAnalysis?.lengthDescription
@@ -394,12 +465,23 @@ Beauty direction: authentic Brazilian, natural latina beauty, real skin texture,
   const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
 
+  // RULE 1: Bottom garment safety for upper-body pieces
+  const bottomBlock = (FULL_BODY_ANGLE_TYPES.has(angleType) && isUpperBodyGarment(garmentAnalysis))
+    ? BOTTOM_GARMENT_BLOCK : "";
+
+  // RULE 2: Inner layer for jackets/open-front tops
+  const innerLayerBlock = isOpenFrontGarment(garmentAnalysis) ? INNER_LAYER_BLOCK : "";
+
   const blockE = manualPrompt?.trim()
     ? `Additional direction from the designer: ${manualPrompt.trim()}
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
-  return [blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock, blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE]
+  return [
+    blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock,
+    bottomBlock, innerLayerBlock, NO_TAGS_BLOCK,
+    blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE,
+  ]
     .filter(Boolean)
     .join("\n\n");
 }
@@ -479,7 +561,6 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
 
   const data = await response.json();
 
-  // Log text response for diagnostics when no image is found
   const imageUrl = extractGeminiImageUrl(data);
   if (!imageUrl) {
     const textContent = data?.choices?.[0]?.message?.content;
@@ -510,24 +591,19 @@ async function callGeminiGateway(params: {
     }
   }
 
-  // Primary model: Nano Banana Pro (Gemini 3 Pro Image)
-  // Fallback: Nano Banana 2 (Gemini 3.1 Flash Image)
   const PRIMARY_MODEL = "google/gemini-3-pro-image-preview";
   const FALLBACK_MODEL = "google/gemini-3.1-flash-image-preview";
 
   const primaryModel = params.attemptNumber > 1 ? FALLBACK_MODEL : PRIMARY_MODEL;
 
-  // Attempt 1: full prompt with primary model
   console.log(`[generate-image] Attempt 1 with ${primaryModel}`);
   const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, primaryModel);
   if (result1.imageUrl) return { imageUrl: result1.imageUrl, modelUsed: result1.modelUsed };
 
-  // Attempt 2: retry with fallback model
   console.warn(`[generate-image] Primary model returned no image. Retrying with fallback: ${FALLBACK_MODEL}`);
   const result2 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, FALLBACK_MODEL);
   if (result2.imageUrl) return { imageUrl: result2.imageUrl, modelUsed: result2.modelUsed };
 
-  // Attempt 3: simplified prompt with fallback
   console.warn(`[generate-image] Retry with simplified prompt (model: ${FALLBACK_MODEL})`);
   const simplifiedPrompt = `Generate a professional fashion photograph based on this description. White studio background, full body shot, editorial quality.\n\n${params.promptUsed.substring(0, 1500)}`;
   const result3 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL);
@@ -537,12 +613,10 @@ async function callGeminiGateway(params: {
 }
 
 async function ensurePublicUrl(imageUrl: string): Promise<string> {
-  // If already a public URL, return as-is
   if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
     return imageUrl;
   }
 
-  // If base64, upload to storage and return public URL
   if (imageUrl.startsWith("data:image/")) {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -600,12 +674,6 @@ async function callFalEngine(params: {
   const isFrontView = params.angleType === "lookbook-front";
   const isSideOrBack = ["lookbook-back", "lookbook-left", "lookbook-three-quarter", "movement-shot"].includes(params.angleType);
 
-  // Angle-specific endpoint selection:
-  // - front_view + LoRA → fal-ai/flux-lora
-  // - back/sides (with reference image from front) → fal-ai/flux-pro/kontext
-  // - close-ups → fal-ai/flux-2-pro (no LoRA)
-  // - no LoRA + reference → fal-ai/flux-pro/kontext
-  // - no LoRA + no reference → fal-ai/flux-2-pro
   let endpoint: string;
   if (isCloseUp) {
     endpoint = "fal-ai/flux-2-pro";
@@ -625,7 +693,6 @@ async function callFalEngine(params: {
   const loraScale = params.loraScale ?? 1.0;
   const guidanceScale = params.guidanceScale ?? 3.5;
 
-  // Prepend trigger word to prompt when using LoRA endpoint
   const usingLoraEndpoint = endpoint === "fal-ai/flux-lora";
   const finalPrompt = usingLoraEndpoint && params.loraTriggerWord
     ? `${params.loraTriggerWord} ${params.promptUsed}`
@@ -636,29 +703,26 @@ async function callFalEngine(params: {
   const input: Record<string, unknown> = {
     prompt: finalPrompt,
     image_size: imageSize,
-    output_format: "png",
+    output_format: "jpeg",
   };
 
   if (usingLoraEndpoint) {
-    // LoRA-specific params
     input.loras = [{ path: params.loraUrl!, scale: loraScale }];
     input.num_inference_steps = 28;
     input.guidance_scale = guidanceScale;
-    input.output_quality = 100;
+    input.output_quality = 95;
     if (useReference) {
       input.image_url = publicImageUrl;
     }
   } else if (endpoint === "fal-ai/flux-pro/kontext") {
-    // Kontext uses image_url for reference
     input.image_url = publicImageUrl;
     input.num_inference_steps = 28;
     input.guidance_scale = 3.5;
-    input.output_quality = 100;
+    input.output_quality = 95;
   } else {
-    // flux-2-pro defaults
     input.num_inference_steps = 28;
     input.guidance_scale = 3.5;
-    input.output_quality = 100;
+    input.output_quality = 95;
   }
 
   console.log(`[fal] Full payload for ${endpoint}:`, JSON.stringify({
@@ -724,7 +788,7 @@ async function callUpscaler(imageUrl: string): Promise<string> {
 
     if (!upscaledUrl) {
       console.error(`[upscaler] No upscaled image in response:`, JSON.stringify(result).substring(0, 500));
-      return imageUrl; // Return original on failure
+      return imageUrl;
     }
 
     console.log(`[upscaler] Success: ${upscaledUrl.substring(0, 80)}...`);
@@ -732,7 +796,7 @@ async function callUpscaler(imageUrl: string): Promise<string> {
   } catch (upscaleErr: unknown) {
     const errMsg = upscaleErr instanceof Error ? upscaleErr.message : String(upscaleErr);
     console.error(`[upscaler] ERROR:`, errMsg);
-    return imageUrl; // Return original on failure — don't block pipeline
+    return imageUrl;
   }
 }
 
@@ -788,10 +852,8 @@ async function callFalVideoEngine(params: {
 
   fal.config({ credentials: FAL_API_KEY });
 
-  // Ensure we have a public URL for the reference image
   const publicImageUrl = await ensurePublicUrl(params.imageUrl);
 
-  // Truncate prompt to avoid Kling's payload limits (max ~2000 chars)
   const truncatedPrompt = params.promptUsed.length > 2000
     ? params.promptUsed.substring(0, 2000)
     : params.promptUsed;
@@ -974,9 +1036,7 @@ serve(async (req) => {
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
 
-    // PIPELINE DUPLO: Face swap para fixar identidade da modelo
-    // Aplica após geração Gemini (que respeita a peça mas não a modelo)
-    // Pula para close-tr-detail (sem rosto) e video-product (sem modelo)
+    // Face swap pipeline
     const isCloseDetailAngle = parsedAngle === "close-tr-detail";
     const faceImageUrl = modelProfile?.face_image_url;
     const shouldFaceSwap = !!faceImageUrl && !isCloseDetailAngle && parsedAngle !== "video-product";
@@ -991,7 +1051,7 @@ serve(async (req) => {
       result.modelUsed = `${result.modelUsed} + face-swap`;
     }
 
-    // Save raw (pre-upscale) image to storage
+    // Save raw (pre-upscale) image to storage as JPG
     const rawAsset = await uploadGeneratedAsset({
       sourceUrl: result.imageUrl,
       launchId,
@@ -1013,32 +1073,16 @@ serve(async (req) => {
       console.error(`[generate-image] Upscale failed, using original:`, upErr);
     }
 
-    // Upload upscaled (or original if upscale failed) as the main asset
+    // Upload upscaled (or original if upscale failed) as the main HD asset — JPG
     let storedAsset;
     if (upscaled) {
-      // Upload the upscaled version with a different path suffix
-      const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-      if (supabaseUrl && serviceRoleKey) {
-        const admin = createClient(supabaseUrl, serviceRoleKey, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
-        const { bytes, contentType } = await fetchImageBytes(finalImageUrl);
-        const objectPath = [
-          sanitizePathSegment(launchId || "standalone"),
-          `${sanitizePathSegment(parsedAngle)}-attempt-${requestAttempt}-hd.png`,
-        ].join("/");
-        await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
-          contentType: contentType.includes("png") ? contentType : "image/png",
-          cacheControl: "3600",
-          upsert: true,
-        });
-        const originalUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
-        const previewUrl = buildPreviewUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
-        storedAsset = { originalUrl, previewUrl, imageUrl: previewUrl };
-      } else {
-        storedAsset = rawAsset;
-      }
+      storedAsset = await uploadGeneratedAsset({
+        sourceUrl: finalImageUrl,
+        launchId,
+        type: parsedAngle,
+        attemptNumber: requestAttempt,
+        suffix: "hd",
+      });
     } else {
       storedAsset = rawAsset;
     }
