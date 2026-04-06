@@ -719,6 +719,7 @@ async function generateWithCascade(params: {
           engineTier: tier,
           angleType: params.angleType,
         });
+        console.log(`[Engine] Generated with: imagen-4-${tier}`);
         return { ...result, engineUsed: tier };
       } else if (tier === "gemini") {
         const result = await callGeminiGateway({
