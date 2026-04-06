@@ -19,6 +19,7 @@ import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
 import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
 import { useToast } from "@/hooks/use-toast";
+import NewVariantModal from "@/components/studio/NewVariantModal";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -137,6 +138,7 @@ const ProductPage = () => {
   const [launchModalStep, setLaunchModalStep] = useState(1);
   const [activeTab, setActiveTab] = useState<MainTab>("photos");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [newVariantModalOpen, setNewVariantModalOpen] = useState(false);
   const [editingVariantName, setEditingVariantName] = useState("");
   const [productName, setProductName] = useState("");
   const [mannequin, setMannequin] = useState<MannequinData>({
@@ -1349,7 +1351,7 @@ const ProductPage = () => {
                 )}
               </div>
             ))}
-            <button onClick={addVariant} className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground shrink-0">
+            <button onClick={() => setNewVariantModalOpen(true)} className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground shrink-0">
               <Plus className="h-3 w-3 inline mr-1" /> Nova Cor
             </button>
             {state.variants.length > 1 && activeVariant && (
@@ -1891,7 +1893,26 @@ const ProductPage = () => {
         }}
       />
 
-      {/* Lightbox Modal */}
+      <NewVariantModal
+        open={newVariantModalOpen}
+        onOpenChange={setNewVariantModalOpen}
+        projectId={projectId || ""}
+        isCombo={state.isCombo}
+        originalVariant={activeVariant || null}
+        garmentType={activeVariant?.garmentType}
+        onVariantCreated={(newVariant) => {
+          setState((s) => ({
+            ...s,
+            variants: [...s.variants, newVariant],
+            activeVariantId: newVariant.id,
+            uploadedImages: newVariant.uploadedImages,
+            garmentAnalysis: newVariant.garmentAnalysis,
+            activeWeek: "",
+            selectedEngine: "gemini",
+          }));
+        }}
+      />
+
       {lightboxImage && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onClick={() => setLightboxImage(null)}>
           <div className="relative max-w-2xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
