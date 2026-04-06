@@ -1546,6 +1546,7 @@ const ProductPage = () => {
                   </p>
                 </div>
               </div>
+            </TabsContent>
 
             <TabsContent value="analysis" className="mt-4">
               {activeVariant?.garmentAnalysis ? (
