@@ -1534,100 +1534,18 @@ const ProductPage = () => {
               {/* Gerar Vídeo standalone button */}
               {/* Video generation button disabled — keeping prompt text only */}
 
-              {[...variantWeeklyLaunches].reverse().map((launch) => {
-                const videos = launch.images.filter((img) => img.type === "video-product" || img.type === "video-model");
-                if (videos.length === 0) return null;
-                return (
-                  <div key={launch.id} className="space-y-2">
-                    <h3 className="text-sm font-semibold">{launch.label}</h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                      {videos.map((v) => (
-                        <Card key={v.id}>
-                          <CardContent className="pt-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium">{v.label}</p>
-                              <div className="flex items-center gap-1">
-                                {v.status === "generating" && (
-                                  <Badge variant="secondary" className="text-[10px]">
-                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                    Gerando...
-                                  </Badge>
-                                )}
-                                {v.status === "done" && v.originalUrl && (
-                                  <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                                    <a href={v.originalUrl} download target="_blank" rel="noopener noreferrer">
-                                      <Download className="h-3 w-3 mr-1" /> Download
-                                    </a>
-                                  </Button>
-                                )}
-                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyPrompt(v.id, v.prompt)}>
-                                  {copiedPromptId === v.id ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                  {copiedPromptId === v.id ? "Copiado" : "Prompt"}
-                                </Button>
-                              </div>
-                            </div>
-                            {v.status === "done" && v.originalUrl ? (
-                              <div className="rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <video
-                                  src={v.originalUrl}
-                                  controls
-                                  loop
-                                  muted
-                                  playsInline
-                                  className="w-full h-full object-contain"
-                                />
-                              </div>
-                            ) : v.status === "done" && v.imageUrl ? (
-                              <div className="rounded-lg overflow-hidden bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <img src={v.imageUrl} alt={v.label} className="w-full h-full object-contain" />
-                              </div>
-                            ) : v.status === "error" ? (
-                              <div className="rounded-lg bg-destructive/10 text-destructive text-xs p-3">{v.error}</div>
-                            ) : v.status === "generating" ? (
-                              <div className="rounded-lg bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <div className="text-center space-y-2">
-                                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                                  <p className="text-xs text-muted-foreground">Gerando vídeo...</p>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="rounded-lg bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <p className="text-xs text-muted-foreground">Aguardando geração</p>
-                              </div>
-                            )}
-                            {v.modelUsed && (
-                              <p className="text-[10px] text-muted-foreground">Motor: {v.modelUsed} {v.generationMs ? `• ${(v.generationMs / 1000).toFixed(1)}s` : ""}</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
+              {/* Video section hidden — Kling disabled */}
+              <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="h-6 w-6 text-primary" />
                   </div>
-                );
-              })}
-              {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type === "video-product" || img.type === "video-model").length === 0) && (
-                <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
-                  <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 text-primary" />
-                    </div>
-                    <h3 className="text-sm font-semibold">Nenhum vídeo gerado ainda</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Gere primeiro as <strong>fotos do lookbook</strong> via "Novo lançamento", depois clique em <strong>"Gerar Vídeo"</strong> para criar o vídeo a partir da foto frontal.
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setLaunchModalStep(1);
-                        setLaunchModalOpen(true);
-                      }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Novo lançamento
-                    </Button>
-                  </div>
+                  <h3 className="text-sm font-semibold">Vídeos em breve</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    A geração de vídeos está temporariamente desativada. Os prompts de vídeo continuam sendo gerados no lançamento e podem ser copiados na aba de Resultados.
+                  </p>
                 </div>
-              )}
-            </TabsContent>
+              </div>
 
             <TabsContent value="analysis" className="mt-4">
               {activeVariant?.garmentAnalysis ? (
