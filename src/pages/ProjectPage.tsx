@@ -1351,7 +1351,7 @@ const ProductPage = () => {
                 )}
               </div>
             ))}
-            <button onClick={addVariant} className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground shrink-0">
+            <button onClick={() => setNewVariantModalOpen(true)} className="text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:text-foreground shrink-0">
               <Plus className="h-3 w-3 inline mr-1" /> Nova Cor
             </button>
             {state.variants.length > 1 && activeVariant && (
