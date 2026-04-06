@@ -510,21 +510,30 @@ async function callGeminiGateway(params: {
     }
   }
 
-  const modelUsed = params.attemptNumber > 1
-    ? "google/gemini-2.5-flash-image"
-    : "google/gemini-3-pro-image-preview";
+  // Primary model: Nano Banana Pro (Gemini 3 Pro Image)
+  // Fallback: Nano Banana 2 (Gemini 3.1 Flash Image)
+  const PRIMARY_MODEL = "google/gemini-3-pro-image-preview";
+  const FALLBACK_MODEL = "google/gemini-3.1-flash-image-preview";
 
-  // Attempt 1: full prompt
-  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, modelUsed);
+  const primaryModel = params.attemptNumber > 1 ? FALLBACK_MODEL : PRIMARY_MODEL;
+
+  // Attempt 1: full prompt with primary model
+  console.log(`[generate-image] Attempt 1 with ${primaryModel}`);
+  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, primaryModel);
   if (result1.imageUrl) return { imageUrl: result1.imageUrl, modelUsed: result1.modelUsed };
 
-  // Attempt 2: retry with simplified prompt (remove verbose blocks, keep essentials)
-  console.warn(`[generate-image] Retry with simplified prompt (model: google/gemini-2.5-flash-image)`);
-  const simplifiedPrompt = `Generate a professional fashion photograph based on this description. White studio background, full body shot, editorial quality.\n\n${params.promptUsed.substring(0, 1500)}`;
-  const result2 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, "google/gemini-2.5-flash-image");
+  // Attempt 2: retry with fallback model
+  console.warn(`[generate-image] Primary model returned no image. Retrying with fallback: ${FALLBACK_MODEL}`);
+  const result2 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, FALLBACK_MODEL);
   if (result2.imageUrl) return { imageUrl: result2.imageUrl, modelUsed: result2.modelUsed };
 
-  throw new Error("Gemini returned no image after 2 attempts. Possible content policy block or prompt too complex.");
+  // Attempt 3: simplified prompt with fallback
+  console.warn(`[generate-image] Retry with simplified prompt (model: ${FALLBACK_MODEL})`);
+  const simplifiedPrompt = `Generate a professional fashion photograph based on this description. White studio background, full body shot, editorial quality.\n\n${params.promptUsed.substring(0, 1500)}`;
+  const result3 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL);
+  if (result3.imageUrl) return { imageUrl: result3.imageUrl, modelUsed: result3.modelUsed };
+
+  throw new Error("Gemini returned no image after 3 attempts (Pro + Flash fallback). Possible content policy block.");
 }
 
 async function ensurePublicUrl(imageUrl: string): Promise<string> {
