@@ -377,7 +377,7 @@ Style: clean e-commerce catalog photo like ZARA, NET-A-PORTER, Farfetch.`
     : `Professional fashion photography, editorial quality.
 Camera: Sony A7R V equivalent, 85mm f/1.8.
 Lighting: natural key light + soft fill, no harsh shadows.
-Resolution: 1080x1920px portrait, 4K clarity, JPG 300 DPI sRGB.
+Resolution: maximum native resolution, minimum 1365x2048, target 1536x2048+, portrait 9:16, JPG 300 DPI sRGB.
 Format: 9:16 portrait.`;
 
   const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garmentAnalysis?.type || "");
