@@ -26,6 +26,10 @@ Full body centered in frame, no cropping, garment fully visible within 9:16 port
 
 Soft diffused lighting with subtle shadow depth to enhance texture and textile realism.
 
+SKIN REALISM — CRITICAL:
+Natural human skin with visible pores and subtle imperfections. Realistic skin texture with natural micro-details.
+Avoid plastic, doll-like, or overly airbrushed appearance at all costs. Skin must look authentically human.
+
 Luxury commercial lookbook aesthetic, sharp textile detail, no distortion, no compression artifacts, maximum texture fidelity, photorealistic fabric detail.`;
 
 export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video at maximum native resolution, 9:16 portrait, 4K clarity, 24fps.
