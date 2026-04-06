@@ -533,50 +533,64 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 3) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model,
-      modalities: ["image", "text"],
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            ...imageUrlParts,
-          ],
-        },
-      ],
-    }),
-  });
+  for (let attempt = 0; attempt < retries; attempt++) {
+    if (attempt > 0) {
+      const delayMs = Math.min(2000 * Math.pow(2, attempt - 1), 15000) + Math.random() * 1000;
+      console.log(`[generate-image] Rate limited, waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}/${retries}...`);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
 
-  if (!response.ok) {
-    const errText = await response.text();
-    if (response.status === 429) throw new Error("Rate limits exceeded, tente novamente em instantes.");
-    if (response.status === 402) throw new Error("Créditos de IA insuficientes no workspace.");
-    throw new Error(`AI image generation failed [${response.status}]: ${errText}`);
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        modalities: ["image", "text"],
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              ...imageUrlParts,
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (response.status === 429) {
+      if (attempt < retries - 1) continue;
+      throw new Error("Rate limits exceeded após múltiplas tentativas. Aguarde alguns segundos e tente novamente.");
+    }
+
+    if (!response.ok) {
+      const errText = await response.text();
+      if (response.status === 402) throw new Error("Créditos de IA insuficientes no workspace.");
+      throw new Error(`AI image generation failed [${response.status}]: ${errText}`);
+    }
+
+    const data = await response.json();
+
+    const imageUrl = extractGeminiImageUrl(data);
+    if (!imageUrl) {
+      const textContent = data?.choices?.[0]?.message?.content;
+      const textPreview = typeof textContent === "string"
+        ? textContent.substring(0, 500)
+        : JSON.stringify(textContent)?.substring(0, 500);
+      console.error(`[generate-image] Gemini returned no image. Model: ${model}. Text response: ${textPreview}`);
+    }
+
+    return { imageUrl, modelUsed: model, rawData: data };
   }
 
-  const data = await response.json();
-
-  const imageUrl = extractGeminiImageUrl(data);
-  if (!imageUrl) {
-    const textContent = data?.choices?.[0]?.message?.content;
-    const textPreview = typeof textContent === "string"
-      ? textContent.substring(0, 500)
-      : JSON.stringify(textContent)?.substring(0, 500);
-    console.error(`[generate-image] Gemini returned no image. Model: ${model}. Text response: ${textPreview}`);
-  }
-
-  return { imageUrl, modelUsed: model, rawData: data };
+  throw new Error("Rate limits exceeded após múltiplas tentativas.");
 }
 
 async function callGeminiGateway(params: {
