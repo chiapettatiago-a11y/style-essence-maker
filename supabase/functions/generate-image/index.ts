@@ -782,8 +782,8 @@ async function callUpscaler(imageUrl: string): Promise<string> {
         overlapping_tiles: true,
         creativity: 0,
         resemblance: 1,
-        prompt: "professional fashion photography, high resolution, sharp details, clean studio photo",
-        negative_prompt: "blur, noise, artifacts, distortion, watermark",
+        prompt: "professional fashion photography, high resolution, sharp details, clean studio photo, preserve natural skin pores and texture details, do not smooth skin",
+        negative_prompt: "blur, noise, artifacts, distortion, watermark, plastic skin, airbrushed skin, smooth skin, doll-like",
       },
     });
 
