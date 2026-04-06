@@ -306,7 +306,7 @@ export function buildPromptPreviewPT(
   const parts: string[] = [];
   const presets = selectedPresets || {};
 
-  parts.push("🔒 Base técnica (resolução 1080x1920, fidelidade absoluta da peça)");
+  parts.push("🔒 Base técnica (maximum native resolution, minimum 1365x2048, target 1536x2048+, portrait 9:16, fidelidade absoluta da peça)");
 
   if (garment) {
     const isTwoPiece = /two-piece|two piece|conjunto/i.test(garment.type || "");
