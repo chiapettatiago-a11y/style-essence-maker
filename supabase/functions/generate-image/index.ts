@@ -727,6 +727,7 @@ async function generateWithCascade(params: {
           referenceImages: params.referenceImages,
           attemptNumber: params.attemptNumber,
         });
+        console.log(`[Engine] Generated with: gemini`);
         return { ...result, engineUsed: "gemini" };
       } else if (tier === "nano") {
         const result = await callGeminiGatewayOnce(
