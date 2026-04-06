@@ -1893,7 +1893,26 @@ const ProductPage = () => {
         }}
       />
 
-      {/* Lightbox Modal */}
+      <NewVariantModal
+        open={newVariantModalOpen}
+        onOpenChange={setNewVariantModalOpen}
+        projectId={projectId || ""}
+        isCombo={state.isCombo}
+        originalVariant={activeVariant || null}
+        garmentType={activeVariant?.garmentType}
+        onVariantCreated={(newVariant) => {
+          setState((s) => ({
+            ...s,
+            variants: [...s.variants, newVariant],
+            activeVariantId: newVariant.id,
+            uploadedImages: newVariant.uploadedImages,
+            garmentAnalysis: newVariant.garmentAnalysis,
+            activeWeek: "",
+            selectedEngine: "gemini",
+          }));
+        }}
+      />
+
       {lightboxImage && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-8" onClick={() => setLightboxImage(null)}>
           <div className="relative max-w-2xl max-h-[85vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
