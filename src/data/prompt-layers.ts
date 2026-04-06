@@ -40,6 +40,9 @@ CRITICAL BRAND ELEMENT — Golden "TR" tag/plate: The signature golden metallic 
 
 Soft diffused studio lighting enhancing texture depth.
 
+SKIN REALISM — CRITICAL:
+Natural human skin with visible pores and subtle imperfections. Realistic skin texture, avoid plastic or doll-like appearance.
+
 Luxury fashion campaign aesthetic. No distortion, no artificial smoothing, high textile realism.`;
 
 // 🎛 CAMADA 2 — Biblioteca de Estilos

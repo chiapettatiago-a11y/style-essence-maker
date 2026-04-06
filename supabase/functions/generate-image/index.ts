@@ -1042,10 +1042,10 @@ serve(async (req) => {
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
 
-    // Face swap pipeline
-    const isCloseDetailAngle = parsedAngle === "close-tr-detail";
+    // Face swap pipeline — only for front-facing angles to preserve natural skin texture
+    const FACE_SWAP_ANGLES = new Set<AngleType>(["lookbook-front", "lookbook-three-quarter"]);
     const faceImageUrl = modelProfile?.face_image_url;
-    const shouldFaceSwap = !!faceImageUrl && !isCloseDetailAngle && parsedAngle !== "video-product";
+    const shouldFaceSwap = !!faceImageUrl && FACE_SWAP_ANGLES.has(parsedAngle);
 
     if (shouldFaceSwap) {
       console.log(`[generate-image] Applying face swap for angle=${parsedAngle}, model=${modelProfile?.name || "unknown"}`);
