@@ -26,6 +26,10 @@ Full body centered in frame, no cropping, garment fully visible within 9:16 port
 
 Soft diffused lighting with subtle shadow depth to enhance texture and textile realism.
 
+SKIN REALISM — CRITICAL:
+Natural human skin with visible pores and subtle imperfections. Realistic skin texture with natural micro-details.
+Avoid plastic, doll-like, or overly airbrushed appearance at all costs. Skin must look authentically human.
+
 Luxury commercial lookbook aesthetic, sharp textile detail, no distortion, no compression artifacts, maximum texture fidelity, photorealistic fabric detail.`;
 
 export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video at maximum native resolution, 9:16 portrait, 4K clarity, 24fps.
@@ -35,6 +39,9 @@ Absolute garment fidelity — do not redesign or modify proportions. Preserve al
 CRITICAL BRAND ELEMENT — Golden "TR" tag/plate: The signature golden metallic tag engraved with "TR" must remain visible and intact throughout the video. Maintain its original placement, correct metallic gold finish, and legible engraving in every frame where it would naturally be visible.
 
 Soft diffused studio lighting enhancing texture depth.
+
+SKIN REALISM — CRITICAL:
+Natural human skin with visible pores and subtle imperfections. Realistic skin texture, avoid plastic or doll-like appearance.
 
 Luxury fashion campaign aesthetic. No distortion, no artificial smoothing, high textile realism.`;
 
