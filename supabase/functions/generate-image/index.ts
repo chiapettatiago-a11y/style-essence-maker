@@ -9,13 +9,14 @@ const corsHeaders = {
 const NEGATIVE_PROMPT = "wrinkles, creases, folds, crumpled fabric, price tag, hang tag, visible tag, distorted face, extra limbs, blurry, low quality, cartoon, watermark, text overlay";
 
 const ENGINE_MODELS: Record<string, string> = {
-  ultra: "imagen-4-ultra-generate",
-  standard: "imagen-4-generate",
-  fast: "imagen-4-fast-generate",
+  ultra: "imagen-4.0-ultra-generate-001",
+  standard: "imagen-4.0-generate-001",
+  fast: "imagen-4.0-fast-generate-001",
 };
 
 async function callImagen4(model: string, prompt: string, apiKey: string): Promise<string | null> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:predict?key=${apiKey}`;
+  console.log(`[Imagen4] Calling model: ${model}`);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -41,6 +42,7 @@ async function callImagen4(model: string, prompt: string, apiKey: string): Promi
 
 async function callGemini(model: string, prompt: string, apiKey: string): Promise<string | null> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  console.log(`[Gemini] Calling model: ${model}`);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -64,7 +66,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { prompt, launch_id, photo_id, engine = "standard", bucket = "generated-images" } = await req.json();
+    const { prompt, launch_id, photo_id, engine = "standard", bucket = "generated-assets" } = await req.json();
     if (!prompt) return new Response(JSON.stringify({ error: "prompt is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -83,18 +85,11 @@ serve(async (req) => {
       }
     }
 
-    // Gemini fallback
+    // Gemini fallback — use current model names
     if (!base64) {
       console.warn("[Cascade] Falling back to Gemini Pro...");
-      base64 = await callGemini("gemini-2.0-pro-exp-image-generation", prompt, apiKey);
+      base64 = await callGemini("gemini-2.0-flash-exp", prompt, apiKey);
       engineUsed = "gemini";
-    }
-
-    // Last resort
-    if (!base64) {
-      console.warn("[Cascade] Falling back to Gemini Flash...");
-      base64 = await callGemini("gemini-2.0-flash-exp-image-generation", prompt, apiKey);
-      engineUsed = "nano";
     }
 
     if (!base64) throw new Error("All engines failed");
