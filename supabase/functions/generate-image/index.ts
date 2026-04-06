@@ -66,7 +66,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { prompt, launch_id, photo_id, engine = "standard", bucket = "generated-images" } = await req.json();
+    const { prompt, launch_id, photo_id, engine = "standard", bucket = "generated-assets" } = await req.json();
     if (!prompt) return new Response(JSON.stringify({ error: "prompt is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
