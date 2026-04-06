@@ -1,7 +1,7 @@
 import { StyleCategory } from "@/types/fashion";
 
 // 🔒 CAMADA 1 — Base Técnica Travada
-export const LAYER1_BASE = `export const LAYER1_BASE = `Professional fashion lookbook photo at maximum native resolution, 9:16 portrait aspect ratio, ultra high definition.
+export const LAYER1_BASE = `Professional fashion lookbook photo at maximum native resolution, 9:16 portrait aspect ratio, ultra high definition.
 
 ABSOLUTE GARMENT FIDELITY — This is the most critical rule:
 - Do NOT alter, redesign, shorten, lengthen, or modify the garment in ANY way.
