@@ -1211,7 +1211,7 @@ serve(async (req) => {
       promptUsed,
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
-      engineUsed: parsedEngine,
+      engineUsed: result.engineUsed || parsedEngine,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
