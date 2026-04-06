@@ -1532,161 +1532,20 @@ const ProductPage = () => {
 
             <TabsContent value="video" className="mt-4 space-y-4">
               {/* Gerar Vídeo standalone button */}
-              {variantWeeklyLaunches.some((w) => w.images.some((img) => img.type === "lookbook-front" && img.status === "done")) && (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold">Gerar Vídeo com IA</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Usa a foto frontal como frame de referência para gerar um vídeo cinematográfico.
-                    </p>
+              {/* Video generation button disabled — keeping prompt text only */}
+
+              {/* Video section hidden — Kling disabled */}
+              <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
+                  <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="h-6 w-6 text-primary" />
                   </div>
-                  <Button
-                    size="default"
-                    disabled={isGenerating}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
-                    onClick={async () => {
-                      const frontImg = variantWeeklyLaunches
-                        .flatMap((w) => w.images)
-                        .find((img) => img.type === "lookbook-front" && img.status === "done");
-                      if (!frontImg) {
-                        toast({ title: "Erro", description: "Gere a foto frontal antes de criar o vídeo.", variant: "destructive" });
-                        return;
-                      }
-                      const sourceUrl = frontImg.originalUrl || frontImg.imageUrl;
-                      if (!sourceUrl) return;
-
-                      setIsGenerating(true);
-                      toast({ title: "Gerando vídeo...", description: "Isso pode levar alguns segundos." });
-
-                      try {
-                        const videoPrompt = `Professional cinematic fashion video frame. Model wearing the exact same garment from the reference image. Slow elegant 360-degree turn showing all angles. Studio white background. Cinematic lighting. Fashion lookbook campaign quality.`;
-
-                        const { data, error } = await supabase.functions.invoke("generate-video", {
-                          body: {
-                            prompt: videoPrompt,
-                            sourceImageUrl: sourceUrl,
-                            videoType: "video-model",
-                          },
-                        });
-                        if (error) throw error;
-
-                        toast({ title: "Vídeo gerado!", description: "Frame de referência criado com sucesso." });
-                      } catch (err: unknown) {
-                        const message = err instanceof Error ? err.message : "Falha na geração de vídeo";
-                        toast({ title: "Erro", description: message, variant: "destructive" });
-                      } finally {
-                        setIsGenerating(false);
-                      }
-                    }}
-                  >
-                    {isGenerating ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Gerando...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles className="h-4 w-4" />
-                        GERAR VÍDEO
-                      </span>
-                    )}
-                  </Button>
+                  <h3 className="text-sm font-semibold">Vídeos em breve</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    A geração de vídeos está temporariamente desativada. Os prompts de vídeo continuam sendo gerados no lançamento e podem ser copiados na aba de Resultados.
+                  </p>
                 </div>
-              )}
-
-              {[...variantWeeklyLaunches].reverse().map((launch) => {
-                const videos = launch.images.filter((img) => img.type === "video-product" || img.type === "video-model");
-                if (videos.length === 0) return null;
-                return (
-                  <div key={launch.id} className="space-y-2">
-                    <h3 className="text-sm font-semibold">{launch.label}</h3>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                      {videos.map((v) => (
-                        <Card key={v.id}>
-                          <CardContent className="pt-4 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-medium">{v.label}</p>
-                              <div className="flex items-center gap-1">
-                                {v.status === "generating" && (
-                                  <Badge variant="secondary" className="text-[10px]">
-                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                    Gerando...
-                                  </Badge>
-                                )}
-                                {v.status === "done" && v.originalUrl && (
-                                  <Button variant="outline" size="sm" className="h-7 text-xs" asChild>
-                                    <a href={v.originalUrl} download target="_blank" rel="noopener noreferrer">
-                                      <Download className="h-3 w-3 mr-1" /> Download
-                                    </a>
-                                  </Button>
-                                )}
-                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => copyPrompt(v.id, v.prompt)}>
-                                  {copiedPromptId === v.id ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}
-                                  {copiedPromptId === v.id ? "Copiado" : "Prompt"}
-                                </Button>
-                              </div>
-                            </div>
-                            {v.status === "done" && v.originalUrl ? (
-                              <div className="rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <video
-                                  src={v.originalUrl}
-                                  controls
-                                  loop
-                                  muted
-                                  playsInline
-                                  className="w-full h-full object-contain"
-                                />
-                              </div>
-                            ) : v.status === "done" && v.imageUrl ? (
-                              <div className="rounded-lg overflow-hidden bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <img src={v.imageUrl} alt={v.label} className="w-full h-full object-contain" />
-                              </div>
-                            ) : v.status === "error" ? (
-                              <div className="rounded-lg bg-destructive/10 text-destructive text-xs p-3">{v.error}</div>
-                            ) : v.status === "generating" ? (
-                              <div className="rounded-lg bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <div className="text-center space-y-2">
-                                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-                                  <p className="text-xs text-muted-foreground">Gerando vídeo...</p>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="rounded-lg bg-muted aspect-[9/16] max-h-[400px] flex items-center justify-center">
-                                <p className="text-xs text-muted-foreground">Aguardando geração</p>
-                              </div>
-                            )}
-                            {v.modelUsed && (
-                              <p className="text-[10px] text-muted-foreground">Motor: {v.modelUsed} {v.generationMs ? `• ${(v.generationMs / 1000).toFixed(1)}s` : ""}</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type === "video-product" || img.type === "video-model").length === 0) && (
-                <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
-                  <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 text-primary" />
-                    </div>
-                    <h3 className="text-sm font-semibold">Nenhum vídeo gerado ainda</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Gere primeiro as <strong>fotos do lookbook</strong> via "Novo lançamento", depois clique em <strong>"Gerar Vídeo"</strong> para criar o vídeo a partir da foto frontal.
-                    </p>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setLaunchModalStep(1);
-                        setLaunchModalOpen(true);
-                      }}
-                    >
-                      <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Novo lançamento
-                    </Button>
-                  </div>
-                </div>
-              )}
+              </div>
             </TabsContent>
 
             <TabsContent value="analysis" className="mt-4">
