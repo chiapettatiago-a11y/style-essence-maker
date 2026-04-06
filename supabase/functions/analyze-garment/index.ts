@@ -412,8 +412,26 @@ async function callAI(images: string[], isCombo = false) {
   const hasLovableAI = Boolean(Deno.env.get("LOVABLE_API_KEY"));
   const systemPrompt = isCombo ? COMBO_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
+  // Try Claude first with retry, then fallback to Lovable AI
   if (hasClaude) {
-    return await callClaudeAI(images, systemPrompt);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await callClaudeAI(images, systemPrompt);
+      } catch (err) {
+        const isRetryable = err instanceof UpstreamAIError && (err.status === 529 || err.status === 503);
+        if (isRetryable && attempt === 0) {
+          console.warn("Claude overloaded, retrying in 3s...");
+          await new Promise(r => setTimeout(r, 3000));
+          continue;
+        }
+        // On second failure or non-retryable, fallback to Lovable AI
+        if (isRetryable && hasLovableAI) {
+          console.warn("Claude still unavailable, falling back to Lovable AI");
+          return await callLovableAI(images, systemPrompt);
+        }
+        throw err;
+      }
+    }
   }
 
   if (hasLovableAI) {
