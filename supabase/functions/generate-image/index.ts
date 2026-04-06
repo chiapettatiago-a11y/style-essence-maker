@@ -545,7 +545,7 @@ async function callImagen4(params: {
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
   const isCloseUp = params.angleType === "close-tr-detail";
-  const aspectRatio = isCloseUp ? "1:1" : "3:4";
+  const aspectRatio = isCloseUp ? "1:1" : "9:16";
   const model = IMAGEN_ENDPOINTS[params.engineTier];
 
   console.log(`[imagen4] Calling ${model} (tier=${params.engineTier}, aspect=${aspectRatio})`);
@@ -559,6 +559,7 @@ async function callImagen4(params: {
         instances: [{
           prompt: params.promptUsed,
           negativePrompt: IMAGEN_NEGATIVE_PROMPT,
+          sampleCount: 1,
           aspectRatio,
           safetyFilterLevel: "block_few",
           personGeneration: "allow_adult",
@@ -579,9 +580,34 @@ async function callImagen4(params: {
     throw new Error(`Imagen 4 ${params.engineTier} returned no image`);
   }
 
+  // Upload base64 directly to Supabase Storage as JPG
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (supabaseUrl && serviceRoleKey) {
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const objectPath = `imagen4-raw/${crypto.randomUUID()}.jpg`;
+    const { error } = await admin.storage.from(STORAGE_BUCKET).upload(objectPath, bytes, {
+      contentType: "image/jpeg",
+      cacheControl: "3600",
+      upsert: true,
+    });
+    if (!error) {
+      const publicUrl = buildPublicObjectUrl(supabaseUrl, STORAGE_BUCKET, objectPath);
+      const engineUsed = `imagen-4-${params.engineTier}`;
+      console.log(`[Engine] Generated with: ${engineUsed}`);
+      return { imageUrl: publicUrl, modelUsed: engineUsed };
+    }
+    console.warn(`[imagen4] Storage upload failed: ${error.message}, falling back to data URI`);
+  }
+
+  const engineUsed = `imagen-4-${params.engineTier}`;
+  console.log(`[Engine] Generated with: ${engineUsed}`);
   return {
     imageUrl: `data:image/png;base64,${base64}`,
-    modelUsed: `imagen-4-${params.engineTier}`,
+    modelUsed: engineUsed,
   };
 }
 
