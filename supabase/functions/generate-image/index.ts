@@ -442,7 +442,13 @@ Brazilian latina woman, warm morena clara skin tone, dark brown wavy hair with n
 NOT Asian features. NOT straight black hair. NOT pale skin. Authentic Brazilian commercial beauty, age 26-30.
 Height: ${modelProfile?.height || "1.72"}m.
 Measurements: bust ${toCm(modelProfile?.bust)}, waist ${toCm(modelProfile?.waist)}, hips ${toCm(modelProfile?.hip)}.
-Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.`;
+Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.
+
+SKIN REALISM — MANDATORY:
+Natural human skin with visible pores, subtle skin imperfections, and realistic texture.
+The model must look like a REAL PERSON — NOT a mannequin, NOT a doll, NOT a 3D render.
+Include natural skin details: fine lines, subtle freckles or moles where appropriate, natural skin sheen.
+Avoid: plastic skin, porcelain finish, overly smooth airbrushed look, CGI appearance, wax figure look.`;
 
   const blockD = ANGLE_BLOCKS[angleType] || "";
   const fullBodyBlock = FULL_BODY_ANGLE_TYPES.has(angleType)
