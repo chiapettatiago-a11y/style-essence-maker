@@ -17,9 +17,6 @@ export type Database = {
       generated_images: {
         Row: {
           attempt_number: number
-          bg_swap_at: string | null
-          bg_swap_prompt: string | null
-          bg_swap_url: string | null
           created_at: string
           error: string | null
           generation_ms: number | null
@@ -40,9 +37,6 @@ export type Database = {
         }
         Insert: {
           attempt_number?: number
-          bg_swap_at?: string | null
-          bg_swap_prompt?: string | null
-          bg_swap_url?: string | null
           created_at?: string
           error?: string | null
           generation_ms?: number | null
@@ -63,9 +57,6 @@ export type Database = {
         }
         Update: {
           attempt_number?: number
-          bg_swap_at?: string | null
-          bg_swap_prompt?: string | null
-          bg_swap_url?: string | null
           created_at?: string
           error?: string | null
           generation_ms?: number | null
