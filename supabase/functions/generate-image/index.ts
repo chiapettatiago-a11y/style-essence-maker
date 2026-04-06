@@ -66,7 +66,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { prompt, launch_id, photo_id, engine = "standard", bucket = "generated-assets" } = await req.json();
+    const body = await req.json();
+    const { prompt, launch_id, launchId, photo_id, engine = "standard", bucket = "generated-assets" } = body;
+    const effectiveLaunchId = launch_id || launchId;
+
     if (!prompt) return new Response(JSON.stringify({ error: "prompt is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -85,7 +88,7 @@ serve(async (req) => {
       }
     }
 
-    // Gemini fallback — use current model names
+    // Gemini fallback
     if (!base64) {
       console.warn("[Cascade] Falling back to Gemini Flash Preview...");
       base64 = await callGemini("gemini-2.5-flash-preview-image-generation", prompt, apiKey);
@@ -101,20 +104,47 @@ serve(async (req) => {
 
     if (!base64) throw new Error("All engines failed");
 
+    console.log(`[DEBUG] base64 recebido: ${base64.substring(0, 50)}...`);
+
     const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const path = `launches/${launch_id ?? "unknown"}/${photo_id ?? Date.now()}.png`;
+    const path = `${effectiveLaunchId ?? "unknown"}/${photo_id ?? Date.now()}.png`;
 
     const { error: uploadError } = await supabase.storage.from(bucket).upload(path, binary, { contentType: "image/png", upsert: true });
     if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
     const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
 
+    console.log(`[DEBUG] Upload result - publicUrl: ${publicUrl}`);
+    console.log(`[DEBUG] photo_id para update: ${photo_id}`);
+
+    // Update generated_images table (the actual table, not launch_photos)
     if (photo_id) {
-      await supabase.from("launch_photos").update({ image_url: publicUrl, engine_used: engineUsed, status: "completed", generated_at: new Date().toISOString() }).eq("id", photo_id);
+      const { error: dbError } = await supabase
+        .from("generated_images")
+        .update({
+          image_url: publicUrl,
+          original_url: publicUrl,
+          preview_url: publicUrl,
+          model_used: engineUsed,
+          status: "done",
+          prompt_used: prompt,
+        })
+        .eq("id", photo_id);
+      console.log(`[DEBUG] DB update for photo_id ${photo_id}: ${dbError ? dbError.message : "OK"}`);
     }
 
     console.log(`[Done] engine=${engineUsed} url=${publicUrl}`);
-    return new Response(JSON.stringify({ url: publicUrl, engine_used: engineUsed }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Return fields the frontend expects
+    return new Response(JSON.stringify({
+      url: publicUrl,
+      imageUrl: publicUrl,
+      originalUrl: publicUrl,
+      previewUrl: publicUrl,
+      modelUsed: engineUsed,
+      engine_used: engineUsed,
+      promptUsed: prompt,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (err) {
     console.error("[generate-image] Error:", err);
