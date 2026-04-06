@@ -84,7 +84,8 @@ When the main garment is a top (blouse, jacket, shirt, blazer, crop top, or any 
 - ALWAYS use the EXACT bottom garment visible in the reference photo.
 - Copy the reference bottom precisely: same length, same silhouette, same color, same fabric.
 - NEVER generate: mini skirts, micro shorts, very short skirts, or any bottom shorter than midi length UNLESS explicitly shown in the reference photo.
-- If NO bottom garment is visible in the reference photo, use: tailored straight black trousers, ankle length, clean and pressed, no creases.
+- NEVER invent a bottom garment that is not in the reference. No black trousers, no jeans, no leggings — ONLY what the reference shows.
+- If NO bottom garment is visible in the reference photo, use: a simple midi skirt in a neutral tone that complements the main garment, clean and minimal.
 - The bottom garment must look natural and proportional to the main piece.
 - Do NOT invent, redesign, or substitute the bottom with anything not in the reference.`;
 
