@@ -988,33 +988,14 @@ serve(async (req) => {
     const isVideoRequest = parsedAngle === "video-model" || parsedAngle === "video-product";
 
     if (isVideoRequest) {
-      const videoReferenceImage = image_url || firstReferenceImage;
-      if (!videoReferenceImage) {
-        throw new Error("Video generation requires a reference image (front_view).");
-      }
-
-      const videoResult = await callFalVideoEngine({
-        promptUsed,
-        imageUrl: videoReferenceImage,
-      });
-
-      const storedVideo = await uploadGeneratedVideo({
-        sourceUrl: videoResult.videoUrl,
-        launchId,
-        type: parsedAngle,
-        attemptNumber: requestAttempt,
-      });
-
+      // Video generation is temporarily disabled
       return new Response(JSON.stringify({
-        imageUrl: storedVideo.imageUrl,
-        originalUrl: storedVideo.originalUrl,
-        previewUrl: storedVideo.originalUrl,
+        error: "Geração de vídeo temporariamente desativada. Apenas prompts de texto são gerados.",
+        code: "video_disabled",
         promptUsed,
-        modelUsed: videoResult.modelUsed,
         attemptNumber: requestAttempt,
-        engineUsed: "fal",
-        isVideo: true,
       }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
