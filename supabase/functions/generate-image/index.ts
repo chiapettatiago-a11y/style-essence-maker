@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-tr-detail" | "movement-shot" | "video-product" | "video-model";
-type GenerationEngine = "gemini" | "fal";
+type GenerationEngine = "ultra" | "standard" | "fast" | "gemini" | "nano" | "fal";
 
 type GarmentAnalysis = {
   type?: string;
