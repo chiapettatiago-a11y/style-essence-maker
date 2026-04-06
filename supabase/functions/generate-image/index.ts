@@ -735,7 +735,10 @@ async function generateWithCascade(params: {
           [],
           "google/gemini-3.1-flash-image-preview"
         );
-        if (result.imageUrl) return { imageUrl: result.imageUrl, modelUsed: result.modelUsed, engineUsed: "nano" };
+        if (result.imageUrl) {
+          console.log(`[Engine] Generated with: nano`);
+          return { imageUrl: result.imageUrl, modelUsed: result.modelUsed, engineUsed: "nano" };
+        }
         throw new Error("Nano returned no image");
       }
     } catch (err: unknown) {
