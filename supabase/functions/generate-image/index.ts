@@ -1121,10 +1121,10 @@ serve(async (req) => {
       });
     }
 
-    let result: { imageUrl: string; modelUsed: string };
+    let result: { imageUrl: string; modelUsed: string; engineUsed?: GenerationEngine };
     try {
-      result = parsedEngine === "fal"
-        ? await callFalEngine({
+      if (parsedEngine === "fal") {
+        const falResult = await callFalEngine({
             promptUsed,
             imageUrl: falReferenceImage,
             angleType: parsedAngle,
@@ -1132,12 +1132,19 @@ serve(async (req) => {
             loraTriggerWord: modelProfile?.lora_trigger_word,
             loraScale: modelProfile?.lora_scale ?? 1.0,
             guidanceScale: modelProfile?.guidance_scale ?? 3.5,
-          })
-        : await callGeminiGateway({
-            promptUsed,
-            referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
-            attemptNumber: requestAttempt,
           });
+        result = { ...falResult, engineUsed: "fal" as GenerationEngine };
+      } else {
+        result = await generateWithCascade({
+          engine: parsedEngine,
+          promptUsed,
+          angleType: parsedAngle,
+          referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
+          attemptNumber: requestAttempt,
+          modelProfile,
+          falReferenceImage,
+        });
+      }
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
