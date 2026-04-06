@@ -234,43 +234,134 @@ serve(async (req) => {
 
     console.log(`[DEBUG] base64 recebido: ${base64.substring(0, 50)}...`);
 
+    // ── Upload original (raw) image ──
     const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-    const path = `${effectiveLaunchId ?? "unknown"}/${photo_id ?? Date.now()}.png`;
+    const baseName = photo_id ?? Date.now();
+    const rawPath = `${effectiveLaunchId ?? "unknown"}/${baseName}_raw.png`;
 
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, binary, { contentType: "image/png", upsert: true });
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(rawPath, binary, { contentType: "image/png", upsert: true });
     if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
+    const { data: { publicUrl: rawUrl } } = supabase.storage.from(bucket).getPublicUrl(rawPath);
+    console.log(`[DEBUG] Raw upload done: ${rawUrl}`);
 
-    console.log(`[DEBUG] Upload result - publicUrl: ${publicUrl}`);
-    console.log(`[DEBUG] photo_id para update: ${photo_id}`);
+    // ── Upscale 2x via fal-ai/clarity-upscaler ──
+    let hdUrl = rawUrl;
+    let upscaled = false;
+    const falKey = Deno.env.get("FAL_API_KEY");
 
-    // Update generated_images table
+    if (falKey) {
+      try {
+        console.log(`[Upscale] Starting clarity-upscaler for ${rawUrl}`);
+        const upscaleRes = await fetch("https://queue.fal.run/fal-ai/clarity-upscaler", {
+          method: "POST",
+          headers: {
+            "Authorization": `Key ${falKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            input: {
+              image_url: rawUrl,
+              scale: 2,
+              output_format: "png",
+            },
+          }),
+        });
+
+        if (!upscaleRes.ok) {
+          console.warn(`[Upscale] Submit failed ${upscaleRes.status}: ${await upscaleRes.text()}`);
+        } else {
+          const upscaleData = await upscaleRes.json();
+
+          // Check for sync result
+          let upscaledImageUrl = upscaleData?.image?.url || upscaleData?.images?.[0]?.url;
+
+          // If async, poll
+          if (!upscaledImageUrl && upscaleData?.request_id) {
+            const reqId = upscaleData.request_id;
+            console.log(`[Upscale] Polling request_id: ${reqId}`);
+            for (let i = 0; i < 60; i++) {
+              await new Promise((r) => setTimeout(r, 2000));
+              const sRes = await fetch(`https://queue.fal.run/fal-ai/clarity-upscaler/requests/${reqId}/status`, {
+                headers: { "Authorization": `Key ${falKey}` },
+              });
+              if (!sRes.ok) continue;
+              const sData = await sRes.json();
+              if (sData.status === "COMPLETED") {
+                const rRes = await fetch(`https://queue.fal.run/fal-ai/clarity-upscaler/requests/${reqId}`, {
+                  headers: { "Authorization": `Key ${falKey}` },
+                });
+                if (rRes.ok) {
+                  const rData = await rRes.json();
+                  upscaledImageUrl = rData?.image?.url || rData?.images?.[0]?.url;
+                }
+                break;
+              }
+              if (sData.status === "FAILED") {
+                console.warn(`[Upscale] Job failed: ${JSON.stringify(sData)}`);
+                break;
+              }
+            }
+          }
+
+          if (upscaledImageUrl) {
+            // Download HD image and upload to storage
+            const hdRes = await fetch(upscaledImageUrl);
+            if (hdRes.ok) {
+              const hdBuf = new Uint8Array(await hdRes.arrayBuffer());
+              const hdPath = `${effectiveLaunchId ?? "unknown"}/${baseName}.png`;
+              const { error: hdUpErr } = await supabase.storage.from(bucket).upload(hdPath, hdBuf, { contentType: "image/png", upsert: true });
+              if (!hdUpErr) {
+                const { data: { publicUrl: hdPublicUrl } } = supabase.storage.from(bucket).getPublicUrl(hdPath);
+                hdUrl = hdPublicUrl;
+                upscaled = true;
+                console.log(`[Upscale] HD uploaded: ${hdUrl}`);
+              } else {
+                console.warn(`[Upscale] HD upload failed: ${hdUpErr.message}`);
+              }
+            }
+          }
+        }
+      } catch (upErr) {
+        console.warn(`[Upscale] Error (non-fatal): ${upErr}`);
+      }
+    } else {
+      console.warn("[Upscale] FAL_API_KEY not set, skipping upscale");
+    }
+
+    // ── Update DB ──
+    const previewUrl = rawUrl;
+    const originalUrl = hdUrl;
+
     if (photo_id) {
       const { error: dbError } = await supabase
         .from("generated_images")
         .update({
-          image_url: publicUrl,
-          original_url: publicUrl,
-          preview_url: publicUrl,
+          image_url: originalUrl,
+          original_url: originalUrl,
+          preview_url: previewUrl,
+          raw_url: rawUrl,
           model_used: engineUsed,
           status: "done",
           prompt_used: prompt,
+          upscaled,
         })
         .eq("id", photo_id);
       console.log(`[DEBUG] DB update for photo_id ${photo_id}: ${dbError ? dbError.message : "OK"}`);
     }
 
-    console.log(`[Engine] Generated with: ${engineUsed} url=${publicUrl}`);
+    console.log(`[Done] engine=${engineUsed} upscaled=${upscaled} hdUrl=${hdUrl}`);
 
     return new Response(JSON.stringify({
-      url: publicUrl,
-      imageUrl: publicUrl,
-      originalUrl: publicUrl,
-      previewUrl: publicUrl,
+      url: originalUrl,
+      imageUrl: originalUrl,
+      originalUrl,
+      previewUrl,
+      rawUrl,
       modelUsed: engineUsed,
       engine_used: engineUsed,
       promptUsed: prompt,
+      upscaled,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (err) {
