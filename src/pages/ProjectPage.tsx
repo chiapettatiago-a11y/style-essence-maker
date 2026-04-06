@@ -1128,10 +1128,21 @@ const ProductPage = () => {
       return;
     }
 
-    // Build presets with scene override
+    // Rebuild prompt with scene override if needed
     const presetsWithScene = sceneOverride
       ? { ...state.selectedPresets, scenario: sceneOverride }
       : state.selectedPresets;
+
+    const layer2Text = assembleLayer2(presetsWithScene);
+    const rebuiltPrompt = buildFullPrompt(
+      { layer1: LAYER1_BASE, layer2: layer2Text, layer3: state.manualPrompt },
+      activeVariant.garmentAnalysis,
+      img.type,
+      state.selectedProfile,
+      presetsWithScene,
+      activeVariant.garmentType,
+      state.accessories,
+    );
 
     updateImageInState(id, { status: "generating", error: undefined });
     const startedAt = performance.now();
@@ -1146,11 +1157,10 @@ const ProductPage = () => {
         body: {
           angleType: img.type,
           angle: img.type,
-          basePrompt: img.prompt,
-          prompt: img.prompt,
+          basePrompt: rebuiltPrompt,
+          prompt: rebuiltPrompt,
           manualPrompt: state.manualPrompt,
           engine: state.selectedEngine,
-          selectedPresets: presetsWithScene,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
           modelProfile: state.selectedProfile,
