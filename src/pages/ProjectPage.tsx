@@ -138,6 +138,7 @@ const ProductPage = () => {
   const [launchModalStep, setLaunchModalStep] = useState(1);
   const [activeTab, setActiveTab] = useState<MainTab>("photos");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
+  const [newVariantModalOpen, setNewVariantModalOpen] = useState(false);
   const [editingVariantName, setEditingVariantName] = useState("");
   const [productName, setProductName] = useState("");
   const [mannequin, setMannequin] = useState<MannequinData>({
