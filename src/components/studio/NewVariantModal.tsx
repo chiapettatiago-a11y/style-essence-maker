@@ -200,32 +200,29 @@ export default function NewVariantModal({
         }
       }
 
-      const insertData: Record<string, unknown> = {
-        product_id: projectId,
-        color_name: colorName.trim(),
-        sort_order: (originalVariant?.sortOrder ?? 0) + 1,
-        uploaded_images: uploadedUrls,
-        proportion_json: proportionJson,
-        garment_type: originalVariant?.garmentType || null,
-        garment_length: originalVariant?.garmentLength || null,
-        garment_length_cm: originalVariant?.garmentLengthCm || null,
-        hem_below_knee_cm: originalVariant?.hemBelowKneeCm || null,
-        waist_position_cm: originalVariant?.waistPositionCm || null,
-        sleeve_length_cm: originalVariant?.sleeveLengthCm || null,
-        sleeve_type: originalVariant?.sleeveType || null,
-        shoulder_width_cm: originalVariant?.shoulderWidthCm || null,
-        fabric_texture: materialNote || originalVariant?.fabricTexture || null,
-        tr_badge_location: originalVariant?.trBadgeLocation || null,
-      };
-
-      if (isCombo) {
-        insertData.reference_photos_top = refPhotosTop;
-        insertData.reference_photos_bottom = refPhotosBottom;
-      }
-
       const { data, error } = await supabase
         .from("product_variants")
-        .insert(insertData)
+        .insert({
+          product_id: projectId,
+          color_name: colorName.trim(),
+          sort_order: (originalVariant?.sortOrder ?? 0) + 1,
+          uploaded_images: uploadedUrls,
+          proportion_json: proportionJson as any,
+          garment_type: originalVariant?.garmentType || null,
+          garment_length: originalVariant?.garmentLength || null,
+          garment_length_cm: originalVariant?.garmentLengthCm || null,
+          hem_below_knee_cm: originalVariant?.hemBelowKneeCm || null,
+          waist_position_cm: originalVariant?.waistPositionCm || null,
+          sleeve_length_cm: originalVariant?.sleeveLengthCm || null,
+          sleeve_type: originalVariant?.sleeveType || null,
+          shoulder_width_cm: originalVariant?.shoulderWidthCm || null,
+          fabric_texture: materialNote || originalVariant?.fabricTexture || null,
+          tr_badge_location: originalVariant?.trBadgeLocation || null,
+          ...(isCombo ? {
+            reference_photos_top: refPhotosTop,
+            reference_photos_bottom: refPhotosBottom,
+          } : {}),
+        })
         .select("*")
         .single();
 
