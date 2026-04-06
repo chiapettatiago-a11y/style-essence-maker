@@ -103,7 +103,7 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
         ) : (
           <span className="flex items-center gap-1.5">
             <Sparkles className="h-4 w-4" />
-            Gerar Pacote Completo
+            Gerar Foto Frontal
           </span>
         )}
       </Button>
