@@ -1532,67 +1532,7 @@ const ProductPage = () => {
 
             <TabsContent value="video" className="mt-4 space-y-4">
               {/* Gerar Vídeo standalone button */}
-              {variantWeeklyLaunches.some((w) => w.images.some((img) => img.type === "lookbook-front" && img.status === "done")) && (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold">Gerar Vídeo com IA</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Usa a foto frontal como frame de referência para gerar um vídeo cinematográfico.
-                    </p>
-                  </div>
-                  <Button
-                    size="default"
-                    disabled={isGenerating}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 shrink-0"
-                    onClick={async () => {
-                      const frontImg = variantWeeklyLaunches
-                        .flatMap((w) => w.images)
-                        .find((img) => img.type === "lookbook-front" && img.status === "done");
-                      if (!frontImg) {
-                        toast({ title: "Erro", description: "Gere a foto frontal antes de criar o vídeo.", variant: "destructive" });
-                        return;
-                      }
-                      const sourceUrl = frontImg.originalUrl || frontImg.imageUrl;
-                      if (!sourceUrl) return;
-
-                      setIsGenerating(true);
-                      toast({ title: "Gerando vídeo...", description: "Isso pode levar alguns segundos." });
-
-                      try {
-                        const videoPrompt = `Professional cinematic fashion video frame. Model wearing the exact same garment from the reference image. Slow elegant 360-degree turn showing all angles. Studio white background. Cinematic lighting. Fashion lookbook campaign quality.`;
-
-                        const { data, error } = await supabase.functions.invoke("generate-video", {
-                          body: {
-                            prompt: videoPrompt,
-                            sourceImageUrl: sourceUrl,
-                            videoType: "video-model",
-                          },
-                        });
-                        if (error) throw error;
-
-                        toast({ title: "Vídeo gerado!", description: "Frame de referência criado com sucesso." });
-                      } catch (err: unknown) {
-                        const message = err instanceof Error ? err.message : "Falha na geração de vídeo";
-                        toast({ title: "Erro", description: message, variant: "destructive" });
-                      } finally {
-                        setIsGenerating(false);
-                      }
-                    }}
-                  >
-                    {isGenerating ? (
-                      <span className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Gerando...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1.5">
-                        <Sparkles className="h-4 w-4" />
-                        GERAR VÍDEO
-                      </span>
-                    )}
-                  </Button>
-                </div>
-              )}
+              {/* Video generation button disabled — keeping prompt text only */}
 
               {[...variantWeeklyLaunches].reverse().map((launch) => {
                 const videos = launch.images.filter((img) => img.type === "video-product" || img.type === "video-model");
