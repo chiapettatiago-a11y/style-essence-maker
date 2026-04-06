@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { buildFullPrompt, assembleLayer2 } from "@/data/prompt-builder";
+import { LAYER1_BASE } from "@/data/prompt-layers";
 import ReferencePhotosSection from "@/components/studio/ReferencePhotosSection";
 import { useParams, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
