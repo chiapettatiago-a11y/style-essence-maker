@@ -435,14 +435,18 @@ Construction details: ${garmentAnalysis?.details || "N/A"}${proportionsBlock}`;
   // TR badge block removed from prompt — badge will be added in post-production
   const trBadgeBlock = "";
 
+  const modelIdentityBlock = modelProfile?.promptSeed
+    ? modelProfile.promptSeed
+    : `Brazilian latina woman, warm morena clara skin tone, dark brown wavy hair with natural movement, defined facial features with broad cheekbones, dark expressive eyes, full lips, natural bronze undertone.
+NOT Asian features. NOT straight black hair. NOT pale skin. Authentic Brazilian commercial beauty, age 26-30.`;
+
   const blockC = angleType === "video-product"
     ? ""
     : `MODEL — CRITICAL IDENTITY:
-Brazilian latina woman, warm morena clara skin tone, dark brown wavy hair with natural movement, defined facial features with broad cheekbones, dark expressive eyes, full lips, natural bronze undertone.
-NOT Asian features. NOT straight black hair. NOT pale skin. Authentic Brazilian commercial beauty, age 26-30.
+${modelIdentityBlock}
 Height: ${modelProfile?.height || "1.72"}m.
 Measurements: bust ${toCm(modelProfile?.bust)}, waist ${toCm(modelProfile?.waist)}, hips ${toCm(modelProfile?.hip)}.
-Beauty direction: authentic Brazilian, natural latina beauty, real skin texture, NOT Eurocentric features, NOT K-beauty influence, NOT heavily filtered.
+Beauty direction: authentic, natural beauty, real skin texture, NOT heavily filtered.
 
 SKIN REALISM — MANDATORY:
 Natural human skin with visible pores, subtle skin imperfections, and realistic texture.
