@@ -74,7 +74,7 @@ export interface PromptLayers {
   layer3: string;
 }
 
-export type GenerationEngine = 'gemini' | 'fal';
+export type GenerationEngine = 'ultra' | 'standard' | 'fast' | 'gemini' | 'nano' | 'fal';
 
 export interface GenerationRequest {
   type:

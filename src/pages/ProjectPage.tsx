@@ -33,13 +33,29 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
 };
 
 const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: string }> = {
+  ultra: {
+    label: "Imagen 4 Ultra HD",
+    detail: "Melhor qualidade absoluta. Custo mais alto.",
+  },
+  standard: {
+    label: "Imagen 4 Padrão",
+    detail: "Melhor custo-benefício. Recomendado para produção.",
+  },
+  fast: {
+    label: "Imagen 4 Rápido",
+    detail: "Ideal para testes e rascunhos rápidos.",
+  },
   gemini: {
-    label: "Estimativa: consumo baixo",
-    detail: "Lovable não expõe crédito exato por geração; Gemini tende a consumir menos IA.",
+    label: "Gemini (fallback)",
+    detail: "Motor alternativo via Gemini 3 Pro Image.",
+  },
+  nano: {
+    label: "Gemini Flash (último recurso)",
+    detail: "Motor mais leve, menor custo.",
   },
   fal: {
-    label: "Estimativa: consumo alto",
-    detail: "Lovable não expõe crédito exato por geração; fal.ai tende a consumir mais IA.",
+    label: "fal.ai Flux",
+    detail: "Motor externo via fal.ai com LoRA/Kontext.",
   },
 };
 

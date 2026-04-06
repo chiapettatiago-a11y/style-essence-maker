@@ -22,7 +22,11 @@ interface GenerateSectionProps {
 }
 
 const ENGINE_LABELS: Record<GenerationEngine, string> = {
-  gemini: "Google Gemini",
+  ultra: "Imagen 4 Ultra HD",
+  standard: "Imagen 4 Padrão",
+  fast: "Imagen 4 Rápido",
+  gemini: "Gemini (fallback)",
+  nano: "Gemini Flash",
   fal: "fal.ai — Flux Kontext",
 };
 

@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-tr-detail" | "movement-shot" | "video-product" | "video-model";
-type GenerationEngine = "gemini" | "fal";
+type GenerationEngine = "ultra" | "standard" | "fast" | "gemini" | "nano" | "fal";
 
 type GarmentAnalysis = {
   type?: string;
@@ -528,6 +528,63 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
+const IMAGEN_NEGATIVE_PROMPT = "wrinkles, creases, folds, crumpled fabric, mini skirt, micro shorts, very short skirt, price tag, hang tag, swing tag, care label, visible tag, distorted face, extra limbs, blurry, low quality, cartoon, illustration, watermark, text overlay, Asian features, European features";
+
+const IMAGEN_ENDPOINTS: Record<string, string> = {
+  ultra: "imagen-4-ultra-generate:predict",
+  standard: "imagen-4-generate:predict",
+  fast: "imagen-4-fast-generate:predict",
+};
+
+async function callImagen4(params: {
+  promptUsed: string;
+  engineTier: "ultra" | "standard" | "fast";
+  angleType: AngleType;
+}): Promise<{ imageUrl: string; modelUsed: string }> {
+  const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
+  if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
+
+  const isCloseUp = params.angleType === "close-tr-detail";
+  const aspectRatio = isCloseUp ? "1:1" : "3:4";
+  const model = IMAGEN_ENDPOINTS[params.engineTier];
+
+  console.log(`[imagen4] Calling ${model} (tier=${params.engineTier}, aspect=${aspectRatio})`);
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}?key=${GOOGLE_API_KEY}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instances: [{
+          prompt: params.promptUsed,
+          negativePrompt: IMAGEN_NEGATIVE_PROMPT,
+          aspectRatio,
+          safetyFilterLevel: "block_few",
+          personGeneration: "allow_adult",
+        }],
+        parameters: { sampleCount: 1 },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Imagen 4 ${params.engineTier} failed [${response.status}]: ${errText.substring(0, 500)}`);
+  }
+
+  const data = await response.json();
+  const base64 = data?.predictions?.[0]?.bytesBase64Encoded;
+  if (!base64) {
+    throw new Error(`Imagen 4 ${params.engineTier} returned no image`);
+  }
+
+  return {
+    imageUrl: `data:image/png;base64,${base64}`,
+    modelUsed: `imagen-4-${params.engineTier}`,
+  };
+}
+
 async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -611,6 +668,56 @@ async function callGeminiGateway(params: {
   if (result3.imageUrl) return { imageUrl: result3.imageUrl, modelUsed: result3.modelUsed };
 
   throw new Error("Gemini returned no image after 3 attempts (Pro + Flash fallback). Possible content policy block.");
+}
+
+// Cascade: ultra → standard → fast → gemini → nano
+const ENGINE_CASCADE: GenerationEngine[] = ["ultra", "standard", "fast", "gemini", "nano"];
+
+async function generateWithCascade(params: {
+  engine: GenerationEngine;
+  promptUsed: string;
+  angleType: AngleType;
+  referenceImages: string[];
+  attemptNumber: number;
+  modelProfile?: ModelProfile | null;
+  falReferenceImage?: string;
+}): Promise<{ imageUrl: string; modelUsed: string; engineUsed: GenerationEngine }> {
+  const startIdx = ENGINE_CASCADE.indexOf(params.engine);
+  const cascade = startIdx >= 0 ? ENGINE_CASCADE.slice(startIdx) : ENGINE_CASCADE;
+
+  for (const tier of cascade) {
+    try {
+      if (tier === "ultra" || tier === "standard" || tier === "fast") {
+        const result = await callImagen4({
+          promptUsed: params.promptUsed,
+          engineTier: tier,
+          angleType: params.angleType,
+        });
+        return { ...result, engineUsed: tier };
+      } else if (tier === "gemini") {
+        const result = await callGeminiGateway({
+          promptUsed: params.promptUsed,
+          referenceImages: params.referenceImages,
+          attemptNumber: params.attemptNumber,
+        });
+        return { ...result, engineUsed: "gemini" };
+      } else if (tier === "nano") {
+        const result = await callGeminiGatewayOnce(
+          params.promptUsed,
+          [],
+          "google/gemini-3.1-flash-image-preview"
+        );
+        if (result.imageUrl) return { imageUrl: result.imageUrl, modelUsed: result.modelUsed, engineUsed: "nano" };
+        throw new Error("Nano returned no image");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[generate-image] Engine ${tier} failed: ${msg}. Cascading to next...`);
+      continue;
+    }
+  }
+
+  throw new Error("All engines failed in cascade (ultra → standard → fast → gemini → nano).");
 }
 
 async function ensurePublicUrl(imageUrl: string): Promise<string> {
@@ -1014,10 +1121,10 @@ serve(async (req) => {
       });
     }
 
-    let result: { imageUrl: string; modelUsed: string };
+    let result: { imageUrl: string; modelUsed: string; engineUsed?: GenerationEngine };
     try {
-      result = parsedEngine === "fal"
-        ? await callFalEngine({
+      if (parsedEngine === "fal") {
+        const falResult = await callFalEngine({
             promptUsed,
             imageUrl: falReferenceImage,
             angleType: parsedAngle,
@@ -1025,12 +1132,19 @@ serve(async (req) => {
             loraTriggerWord: modelProfile?.lora_trigger_word,
             loraScale: modelProfile?.lora_scale ?? 1.0,
             guidanceScale: modelProfile?.guidance_scale ?? 3.5,
-          })
-        : await callGeminiGateway({
-            promptUsed,
-            referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
-            attemptNumber: requestAttempt,
           });
+        result = { ...falResult, engineUsed: "fal" as GenerationEngine };
+      } else {
+        result = await generateWithCascade({
+          engine: parsedEngine,
+          promptUsed,
+          angleType: parsedAngle,
+          referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
+          attemptNumber: requestAttempt,
+          modelProfile,
+          falReferenceImage,
+        });
+      }
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
@@ -1097,7 +1211,7 @@ serve(async (req) => {
       promptUsed,
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
-      engineUsed: parsedEngine,
+      engineUsed: result.engineUsed || parsedEngine,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
