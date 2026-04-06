@@ -28,7 +28,7 @@ Soft diffused lighting with subtle shadow depth to enhance texture and textile r
 
 Luxury commercial lookbook aesthetic, sharp textile detail, no distortion, no compression artifacts, maximum texture fidelity, photorealistic fabric detail.`;
 
-export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video in 1080x1920 resolution (9:16 portrait), 4K clarity, 24fps.
+export const LAYER1_VIDEO_BASE = `export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video at maximum native resolution, 9:16 portrait, 4K clarity, 24fps.
 
 Absolute garment fidelity — do not redesign or modify proportions. Preserve all original design elements exactly.
 
