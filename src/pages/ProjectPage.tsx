@@ -19,6 +19,7 @@ import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
 import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
 import { useToast } from "@/hooks/use-toast";
+import NewVariantModal from "@/components/studio/NewVariantModal";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
