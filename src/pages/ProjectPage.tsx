@@ -1582,8 +1582,29 @@ const ProductPage = () => {
                 return (
                   <div key={launch.id} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">{launch.label}</h3>
+                      {editingLaunchId === launch.id ? (
+                        <Input
+                          value={editingLaunchName}
+                          onChange={(e) => setEditingLaunchName(e.target.value)}
+                          onBlur={() => handleSaveLaunchName(launch.id, editingLaunchName)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveLaunchName(launch.id, editingLaunchName); if (e.key === "Escape") setEditingLaunchId(null); }}
+                          className="h-7 text-sm w-48"
+                          autoFocus
+                        />
+                      ) : (
+                        <h3
+                          className="text-sm font-semibold cursor-pointer hover:text-accent transition-colors"
+                          onClick={() => { setEditingLaunchId(launch.id); setEditingLaunchName(launch.name || launch.label); }}
+                        >
+                          {launch.name || launch.label}
+                        </h3>
+                      )}
                       <div className="flex items-center gap-2">
+                        {launch.lockedProportionJson && (
+                          <Badge variant="outline" className="text-[9px] gap-1">
+                            <Lock className="h-2.5 w-2.5" /> Proporções travadas
+                          </Badge>
+                        )}
                         <Badge variant="outline">{launch.engineUsed || "gemini"}</Badge>
                         <Badge variant="secondary">{photos.length} ângulos</Badge>
                       </div>
