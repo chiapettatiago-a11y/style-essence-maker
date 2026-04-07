@@ -441,6 +441,18 @@ const ProductPage = () => {
       .filter((img) => img.status === "done" && img.type !== "video-product" && img.type !== "video-model").length;
   }, [variantWeeklyLaunches]);
 
+  const approvedCount = useMemo(() => {
+    return variantWeeklyLaunches
+      .flatMap((w) => w.images)
+      .filter((img) => img.status === "done" && img.approvalStatus === "approved" && img.type !== "video-product" && img.type !== "video-model").length;
+  }, [variantWeeklyLaunches]);
+
+  const allViewablePhotos = useMemo(() => {
+    return variantWeeklyLaunches
+      .flatMap((w) => w.images)
+      .filter((img) => img.type !== "video-product" && img.type !== "video-model");
+  }, [variantWeeklyLaunches]);
+
   const saveProductMeta = useCallback(async (payload: Record<string, unknown>) => {
     if (!projectId) return;
     const { error } = await supabase.from("products").update(payload).eq("id", projectId);
