@@ -5,7 +5,7 @@ import ReferencePhotosSection from "@/components/studio/ReferencePhotosSection";
 import { useParams, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { GarmentAnalysis, GeneratedImage, GenerationEngine, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
+import { ApprovalStatus, GarmentAnalysis, GeneratedImage, GenerationEngine, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2 } from "lucide-react";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
 import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
 import { useToast } from "@/hooks/use-toast";
+import { useCooldownTimer } from "@/hooks/useCooldownTimer";
+import PhotoViewer from "@/components/studio/PhotoViewer";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -151,6 +153,12 @@ const ProductPage = () => {
   });
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [editingLaunchId, setEditingLaunchId] = useState<string | null>(null);
+  const [editingLaunchName, setEditingLaunchName] = useState("");
+  const [isDownloadingHd, setIsDownloadingHd] = useState(false);
+  const { isCoolingDown, remaining, startCooldown } = useCooldownTimer();
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
@@ -292,6 +300,7 @@ const ProductPage = () => {
     const weeklyLaunches: WeeklyLaunch[] = (weeks || []).map((w) => ({
       id: w.id,
       label: w.label,
+      name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
       engineUsed: (w.engine_used as GenerationEngine | null) || "gemini",
       mannequinHeightCm: w.mannequin_height_cm,
@@ -301,6 +310,8 @@ const ProductPage = () => {
       mannequinTorsoCm: w.mannequin_torso_cm,
       mannequinArmCm: w.mannequin_arm_cm,
       referencePhotos: (w.reference_photos as string[]) || [],
+      lockedProportionJson: (w as any).locked_proportion_json as Record<string, unknown> | null,
+      totalCostUsd: Number((w as any).total_cost_usd) || 0,
       images: (dbImages || [])
         .filter((img) => img.launch_id === w.id)
         .map((img) => ({
@@ -318,6 +329,8 @@ const ProductPage = () => {
           attemptNumber: img.attempt_number || undefined,
           status: img.status as GeneratedImage["status"],
           error: img.error || undefined,
+          approvalStatus: ((img as any).approval_status as ApprovalStatus) || "pending",
+          generationCostUsd: Number((img as any).generation_cost_usd) || 0,
         })),
     }));
 
@@ -426,6 +439,18 @@ const ProductPage = () => {
     return variantWeeklyLaunches
       .flatMap((w) => w.images)
       .filter((img) => img.status === "done" && img.type !== "video-product" && img.type !== "video-model").length;
+  }, [variantWeeklyLaunches]);
+
+  const approvedCount = useMemo(() => {
+    return variantWeeklyLaunches
+      .flatMap((w) => w.images)
+      .filter((img) => img.status === "done" && img.approvalStatus === "approved" && img.type !== "video-product" && img.type !== "video-model").length;
+  }, [variantWeeklyLaunches]);
+
+  const allViewablePhotos = useMemo(() => {
+    return variantWeeklyLaunches
+      .flatMap((w) => w.images)
+      .filter((img) => img.type !== "video-product" && img.type !== "video-model");
   }, [variantWeeklyLaunches]);
 
   const saveProductMeta = useCallback(async (payload: Record<string, unknown>) => {
@@ -813,6 +838,78 @@ const ProductPage = () => {
     updateImageDb(id, updates);
   };
 
+  const handleApproveImage = useCallback((id: string) => {
+    let nextStatus: ApprovalStatus = "approved";
+    for (const w of state.weeklyLaunches) {
+      const img = w.images.find((i) => i.id === id);
+      if (img) {
+        nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        break;
+      }
+    }
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => ({
+        ...w,
+        images: w.images.map((i) => (i.id === id ? { ...i, approvalStatus: nextStatus } : i)),
+      })),
+    }));
+    supabase.from("generated_images").update({ approval_status: nextStatus }).eq("id", id).then();
+  }, [state.weeklyLaunches]);
+
+  const handleUpscaleAndDownload = useCallback(async (image: GeneratedImage) => {
+    const imageUrl = image.originalUrl || image.imageUrl;
+    if (!imageUrl) return;
+    setIsDownloadingHd(true);
+    toast({ title: "Preparando em alta resolução...", description: "O upscale pode levar alguns segundos." });
+    try {
+      const { data, error } = await supabase.functions.invoke("upscale-on-download", {
+        body: { imageUrl, scale: 2 },
+      });
+      if (error) throw error;
+      const downloadUrl = data?.upscaledUrl || imageUrl;
+      const resp = await fetch(downloadUrl);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${image.label}_HD.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Download HD concluído" });
+    } catch {
+      try {
+        const resp = await fetch(imageUrl);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${image.label}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch { window.open(imageUrl, "_blank"); }
+    } finally { setIsDownloadingHd(false); }
+  }, [toast]);
+
+  const handleSaveLaunchName = useCallback(async (launchId: string, newName: string) => {
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === launchId ? { ...w, name: newName, label: newName } : w),
+    }));
+    await supabase.from("weekly_launches").update({ name: newName, label: newName }).eq("id", launchId);
+    setEditingLaunchId(null);
+  }, []);
+
+  const handleUpdateLockedProportions = useCallback(async (launchId: string) => {
+    if (!activeVariant?.proportionJson) return;
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === launchId ? { ...w, lockedProportionJson: activeVariant.proportionJson } : w),
+    }));
+    await supabase.from("weekly_launches").update({ locked_proportion_json: activeVariant.proportionJson as any }).eq("id", launchId);
+    toast({ title: "Proporções atualizadas" });
+  }, [activeVariant, toast]);
+
   const handleEngineChange = useCallback((engine: GenerationEngine) => {
     setState((s) => ({ ...s, selectedEngine: engine }));
   }, []);
@@ -838,6 +935,7 @@ const ProductPage = () => {
         .insert({
           product_id: projectId,
           label: `Lançamento ${variantWeeklyLaunches.length + 1}`,
+          name: `Lançamento ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
           mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
@@ -847,6 +945,7 @@ const ProductPage = () => {
           mannequin_torso_cm: normalizedMannequin.mannequin_torso_cm,
           mannequin_arm_cm: normalizedMannequin.mannequin_arm_cm,
           reference_photos: activeVariant.uploadedImages,
+          locked_proportion_json: (activeVariant.proportionJson || null) as any,
         })
         .select("id,label,variant_id,engine_used")
         .single();
@@ -1009,6 +1108,7 @@ const ProductPage = () => {
     }
 
     setIsGenerating(false);
+    startCooldown();
     setActiveTab("photos");
     queryClient.invalidateQueries({ queryKey: ["images", projectId] });
     queryClient.invalidateQueries({ queryKey: ["weeks", projectId] });
@@ -1107,6 +1207,7 @@ const ProductPage = () => {
       const message = err instanceof Error ? err.message : "Falha na regeneração";
       updateImageInState(id, { status: "error", error: message, attemptNumber: nextAttempt });
     }
+    startCooldown();
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
   /** Generate a single pending angle with an optional scene override */
@@ -1196,25 +1297,43 @@ const ProductPage = () => {
       const message = err instanceof Error ? err.message : "Falha na geração";
       updateImageInState(id, { status: "error", error: message });
     }
+    startCooldown();
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
   const handleDownloadZip = async () => {
-    const imagesToZip = variantWeeklyLaunches
+    const approvedImages = variantWeeklyLaunches
       .flatMap((w) => w.images)
-      .filter((img) => img.status === "done" && img.type !== "video-product" && img.type !== "video-model")
+      .filter((img) => img.status === "done" && img.approvalStatus === "approved" && img.type !== "video-product" && img.type !== "video-model")
       .map((img) => ({ label: img.label, url: img.originalUrl || img.imageUrl }))
       .filter((img): img is { label: string; url: string } => !!img.url);
 
-    if (imagesToZip.length === 0) {
-      toast({ title: "Nada para baixar", description: "Nenhuma imagem finalizada nesta variante." });
+    if (approvedImages.length === 0) {
+      const pendingCount = variantWeeklyLaunches.flatMap((w) => w.images).filter((img) => img.status === "done" && img.approvalStatus === "pending").length;
+      toast({
+        title: "Nada para baixar",
+        description: pendingCount > 0 ? `${pendingCount} foto(s) aguardando aprovação. Aprove antes de baixar.` : "Nenhuma imagem aprovada.",
+        variant: "destructive",
+      });
       return;
     }
+
+    setIsDownloadingHd(true);
+    toast({ title: "Preparando ZIP em alta resolução...", description: `Processando ${approvedImages.length} fotos...` });
 
     try {
       const zip = new JSZip();
       await Promise.all(
-        imagesToZip.map(async (img, idx) => {
-          const response = await fetch(img.url);
+        approvedImages.map(async (img, idx) => {
+          // Try upscale for each
+          let downloadUrl = img.url;
+          try {
+            const { data } = await supabase.functions.invoke("upscale-on-download", {
+              body: { imageUrl: img.url, scale: 2 },
+            });
+            if (data?.upscaledUrl) downloadUrl = data.upscaledUrl;
+          } catch { /* fallback to original */ }
+
+          const response = await fetch(downloadUrl);
           const blob = await response.blob();
           const safeName = img.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
           zip.file(`${String(idx + 1).padStart(2, "0")}-${safeName || "foto"}.jpg`, blob);
@@ -1228,9 +1347,12 @@ const ProductPage = () => {
       a.download = `${(productName || "produto").toLowerCase().replace(/\s+/g, "-")}-lookbook.zip`;
       a.click();
       URL.revokeObjectURL(url);
+      toast({ title: "ZIP pronto!", description: `${approvedImages.length} fotos HD baixadas.` });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Falha ao gerar ZIP";
       toast({ title: "Erro", description: message, variant: "destructive" });
+    } finally {
+      setIsDownloadingHd(false);
     }
   };
 
@@ -1340,18 +1462,25 @@ const ProductPage = () => {
                   {activeLaunch?.engineUsed ? ` · motor ${activeLaunch.engineUsed}` : ""}
                 </p>
                 <Badge variant="outline" className="text-[10px] font-medium">
-                  {ENGINE_CREDIT_ESTIMATE[state.selectedEngine].label}
+                  <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+                  {approvedCount}/{donePhotoCount} aprovadas
                 </Badge>
+                {isCoolingDown && (
+                  <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                    <Timer className="h-3 w-3" /> Aguarde {remaining}s
+                  </Badge>
+                )}
+                {activeLaunch?.totalCostUsd ? (
+                  <Badge variant="outline" className="text-[10px]">Custo: ${activeLaunch.totalCostUsd.toFixed(2)}</Badge>
+                ) : null}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {ENGINE_CREDIT_ESTIMATE[state.selectedEngine].detail}
-              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handleDownloadZip}>
-              <Download className="h-3.5 w-3.5 mr-1" /> Baixar ZIP
+            <Button variant="outline" size="sm" onClick={handleDownloadZip} disabled={isDownloadingHd}>
+              {isDownloadingHd ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1" />}
+              {isDownloadingHd ? "Preparando HD..." : "Baixar ZIP"}
             </Button>
             <Button
               variant="outline"
@@ -1453,15 +1582,36 @@ const ProductPage = () => {
                 return (
                   <div key={launch.id} className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">{launch.label}</h3>
+                      {editingLaunchId === launch.id ? (
+                        <Input
+                          value={editingLaunchName}
+                          onChange={(e) => setEditingLaunchName(e.target.value)}
+                          onBlur={() => handleSaveLaunchName(launch.id, editingLaunchName)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveLaunchName(launch.id, editingLaunchName); if (e.key === "Escape") setEditingLaunchId(null); }}
+                          className="h-7 text-sm w-48"
+                          autoFocus
+                        />
+                      ) : (
+                        <h3
+                          className="text-sm font-semibold cursor-pointer hover:text-accent transition-colors"
+                          onClick={() => { setEditingLaunchId(launch.id); setEditingLaunchName(launch.name || launch.label); }}
+                        >
+                          {launch.name || launch.label}
+                        </h3>
+                      )}
                       <div className="flex items-center gap-2">
+                        {launch.lockedProportionJson && (
+                          <Badge variant="outline" className="text-[9px] gap-1">
+                            <Lock className="h-2.5 w-2.5" /> Proporções travadas
+                          </Badge>
+                        )}
                         <Badge variant="outline">{launch.engineUsed || "gemini"}</Badge>
                         <Badge variant="secondary">{photos.length} ângulos</Badge>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                       {photos.map((img) => (
-                        <div key={img.id} className="group rounded-xl border border-border bg-card overflow-hidden">
+                        <div key={img.id} className={cn("group rounded-xl border bg-card overflow-hidden", img.approvalStatus === "approved" ? "border-green-500" : "border-border")}>
                           <div className="aspect-[9/16] bg-muted relative flex items-center justify-center">
                             {img.status === "done" && img.imageUrl && (
                               <>
@@ -1552,10 +1702,21 @@ const ProductPage = () => {
                             )}
                           </div>
                           <div className="px-2.5 py-2 flex items-center justify-between">
-                            <span className="text-xs font-medium truncate">{img.label}</span>
+                            <div className="flex items-center gap-1 min-w-0">
+                              {img.approvalStatus === "approved" && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
+                              <span className="text-xs font-medium truncate">{img.label}</span>
+                            </div>
                             {img.status === "done" && (
                               <div className="flex items-center gap-0.5">
-                                {/* Swap model for this angle */}
+                                <Button
+                                  variant={img.approvalStatus === "approved" ? "default" : "outline"}
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title={img.approvalStatus === "approved" ? "Aprovada" : "Aprovar"}
+                                  onClick={(e) => { e.stopPropagation(); handleApproveImage(img.id); }}
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" title="Trocar modelo">
@@ -1564,18 +1725,13 @@ const ProductPage = () => {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-48">
                                     {MODEL_GALLERY.map((m) => (
-                                      <DropdownMenuItem
-                                        key={m.id}
-                                        onClick={() => handleRegenerate(img.id, undefined, m)}
-                                        className="gap-2 text-xs"
-                                      >
+                                      <DropdownMenuItem key={m.id} onClick={() => handleRegenerate(img.id, undefined, m)} className="gap-2 text-xs">
                                         <img src={m.faceImage} alt={m.name} className="h-5 w-5 rounded-full object-cover" />
                                         {m.name}
                                       </DropdownMenuItem>
                                     ))}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                                {/* Regenerate with engine */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7">
