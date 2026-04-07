@@ -1207,6 +1207,7 @@ const ProductPage = () => {
       const message = err instanceof Error ? err.message : "Falha na regeneração";
       updateImageInState(id, { status: "error", error: message, attemptNumber: nextAttempt });
     }
+    startCooldown();
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
   /** Generate a single pending angle with an optional scene override */
