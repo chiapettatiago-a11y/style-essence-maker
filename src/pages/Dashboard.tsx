@@ -86,9 +86,11 @@ const Dashboard = () => {
 
   const createProduct = useMutation({
     mutationFn: async (name: string) => {
-      const insertData: Record<string, unknown> = { name, user_id: user!.id };
-      if (selectedCollectionId) insertData.collection_id = selectedCollectionId;
-      const { data, error } = await supabase.from("products").insert(insertData).select("id").single();
+      const { data, error } = await supabase
+        .from("products")
+        .insert({ name, user_id: user!.id, collection_id: selectedCollectionId || undefined })
+        .select("id")
+        .single();
       if (error) throw error;
       const { error: weekError } = await supabase.from("weekly_launches").insert({ product_id: data.id, label: "Semana 1" });
       if (weekError) throw weekError;
