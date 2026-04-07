@@ -1462,12 +1462,18 @@ const ProductPage = () => {
                   {activeLaunch?.engineUsed ? ` · motor ${activeLaunch.engineUsed}` : ""}
                 </p>
                 <Badge variant="outline" className="text-[10px] font-medium">
-                  {ENGINE_CREDIT_ESTIMATE[state.selectedEngine].label}
+                  <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+                  {approvedCount}/{donePhotoCount} aprovadas
                 </Badge>
+                {isCoolingDown && (
+                  <Badge variant="secondary" className="text-[10px] font-medium gap-1">
+                    <Timer className="h-3 w-3" /> Aguarde {remaining}s
+                  </Badge>
+                )}
+                {activeLaunch?.totalCostUsd ? (
+                  <Badge variant="outline" className="text-[10px]">Custo: ${activeLaunch.totalCostUsd.toFixed(2)}</Badge>
+                ) : null}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {ENGINE_CREDIT_ESTIMATE[state.selectedEngine].detail}
-              </p>
             </div>
           </div>
 
