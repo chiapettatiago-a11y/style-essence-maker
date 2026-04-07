@@ -5,7 +5,7 @@ import ReferencePhotosSection from "@/components/studio/ReferencePhotosSection";
 import { useParams, useNavigate, Navigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { GarmentAnalysis, GeneratedImage, GenerationEngine, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
+import { ApprovalStatus, GarmentAnalysis, GeneratedImage, GenerationEngine, GenerationRequest, ModelProfile, ProductVariant, WeeklyLaunch, WizardState } from "@/types/fashion";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2 } from "lucide-react";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
 import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
 import { useToast } from "@/hooks/use-toast";
+import { useCooldownTimer } from "@/hooks/useCooldownTimer";
+import PhotoViewer from "@/components/studio/PhotoViewer";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -151,6 +153,12 @@ const ProductPage = () => {
   });
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
   const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [editingLaunchId, setEditingLaunchId] = useState<string | null>(null);
+  const [editingLaunchName, setEditingLaunchName] = useState("");
+  const [isDownloadingHd, setIsDownloadingHd] = useState(false);
+  const { isCoolingDown, remaining, startCooldown } = useCooldownTimer();
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
