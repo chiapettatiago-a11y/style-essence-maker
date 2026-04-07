@@ -1611,7 +1611,7 @@ const ProductPage = () => {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                       {photos.map((img) => (
-                        <div key={img.id} className="group rounded-xl border border-border bg-card overflow-hidden">
+                        <div key={img.id} className={cn("group rounded-xl border bg-card overflow-hidden", img.approvalStatus === "approved" ? "border-green-500" : "border-border")}>
                           <div className="aspect-[9/16] bg-muted relative flex items-center justify-center">
                             {img.status === "done" && img.imageUrl && (
                               <>
