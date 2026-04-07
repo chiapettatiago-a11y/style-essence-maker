@@ -935,6 +935,7 @@ const ProductPage = () => {
         .insert({
           product_id: projectId,
           label: `Lançamento ${variantWeeklyLaunches.length + 1}`,
+          name: `Lançamento ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
           mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
@@ -944,6 +945,7 @@ const ProductPage = () => {
           mannequin_torso_cm: normalizedMannequin.mannequin_torso_cm,
           mannequin_arm_cm: normalizedMannequin.mannequin_arm_cm,
           reference_photos: activeVariant.uploadedImages,
+          locked_proportion_json: (activeVariant.proportionJson || null) as any,
         })
         .select("id,label,variant_id,engine_used")
         .single();
