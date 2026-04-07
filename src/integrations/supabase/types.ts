@@ -14,14 +14,49 @@ export type Database = {
   }
   public: {
     Tables: {
+      collections: {
+        Row: {
+          color_tag: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          objective: string | null
+          season: string | null
+          user_id: string
+        }
+        Insert: {
+          color_tag?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          objective?: string | null
+          season?: string | null
+          user_id: string
+        }
+        Update: {
+          color_tag?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          objective?: string | null
+          season?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       generated_images: {
         Row: {
+          approval_status: string
           attempt_number: number
           bg_swap_at: string | null
           bg_swap_prompt: string | null
           bg_swap_url: string | null
           created_at: string
           error: string | null
+          generation_cost_usd: number | null
           generation_ms: number | null
           id: string
           image_url: string | null
@@ -39,12 +74,14 @@ export type Database = {
           upscaled: boolean
         }
         Insert: {
+          approval_status?: string
           attempt_number?: number
           bg_swap_at?: string | null
           bg_swap_prompt?: string | null
           bg_swap_url?: string | null
           created_at?: string
           error?: string | null
+          generation_cost_usd?: number | null
           generation_ms?: number | null
           id?: string
           image_url?: string | null
@@ -62,12 +99,14 @@ export type Database = {
           upscaled?: boolean
         }
         Update: {
+          approval_status?: string
           attempt_number?: number
           bg_swap_at?: string | null
           bg_swap_prompt?: string | null
           bg_swap_url?: string | null
           created_at?: string
           error?: string | null
+          generation_cost_usd?: number | null
           generation_ms?: number | null
           id?: string
           image_url?: string | null
@@ -242,6 +281,7 @@ export type Database = {
       }
       products: {
         Row: {
+          collection_id: string | null
           created_at: string
           featured_piece: string | null
           garment_analysis: Json | null
@@ -256,6 +296,7 @@ export type Database = {
           manual_prompt: string | null
           model_profile: Json | null
           name: string
+          product_code: string | null
           reference_photos: string[] | null
           selected_presets: Json | null
           updated_at: string
@@ -263,6 +304,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          collection_id?: string | null
           created_at?: string
           featured_piece?: string | null
           garment_analysis?: Json | null
@@ -277,6 +319,7 @@ export type Database = {
           manual_prompt?: string | null
           model_profile?: Json | null
           name: string
+          product_code?: string | null
           reference_photos?: string[] | null
           selected_presets?: Json | null
           updated_at?: string
@@ -284,6 +327,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          collection_id?: string | null
           created_at?: string
           featured_piece?: string | null
           garment_analysis?: Json | null
@@ -298,10 +342,91 @@ export type Database = {
           manual_prompt?: string | null
           model_profile?: Json | null
           name?: string
+          product_code?: string | null
           reference_photos?: string[] | null
           selected_presets?: Json | null
           updated_at?: string
           uploaded_images?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_shares: {
+        Row: {
+          collection_id: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          permission: string
+          product_id: string | null
+          shared_with_email: string | null
+          token: string
+        }
+        Insert: {
+          collection_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          permission?: string
+          product_id?: string | null
+          shared_with_email?: string | null
+          token?: string
+        }
+        Update: {
+          collection_id?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          permission?: string
+          product_id?: string | null
+          shared_with_email?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_shares_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_shares_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_credits: {
+        Row: {
+          credits_balance: number
+          credits_used: number
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          credits_balance?: number
+          credits_used?: number
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          credits_balance?: number
+          credits_used?: number
+          id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
@@ -312,14 +437,17 @@ export type Database = {
           engine_used: string
           id: string
           label: string
+          locked_proportion_json: Json | null
           mannequin_arm_cm: number | null
           mannequin_bust_cm: number | null
           mannequin_height_cm: number | null
           mannequin_hip_cm: number | null
           mannequin_torso_cm: number | null
           mannequin_waist_cm: number | null
+          name: string | null
           product_id: string
           reference_photos: string[] | null
+          total_cost_usd: number | null
           variant_id: string | null
         }
         Insert: {
@@ -327,14 +455,17 @@ export type Database = {
           engine_used?: string
           id?: string
           label: string
+          locked_proportion_json?: Json | null
           mannequin_arm_cm?: number | null
           mannequin_bust_cm?: number | null
           mannequin_height_cm?: number | null
           mannequin_hip_cm?: number | null
           mannequin_torso_cm?: number | null
           mannequin_waist_cm?: number | null
+          name?: string | null
           product_id: string
           reference_photos?: string[] | null
+          total_cost_usd?: number | null
           variant_id?: string | null
         }
         Update: {
@@ -342,14 +473,17 @@ export type Database = {
           engine_used?: string
           id?: string
           label?: string
+          locked_proportion_json?: Json | null
           mannequin_arm_cm?: number | null
           mannequin_bust_cm?: number | null
           mannequin_height_cm?: number | null
           mannequin_hip_cm?: number | null
           mannequin_torso_cm?: number | null
           mannequin_waist_cm?: number | null
+          name?: string | null
           product_id?: string
           reference_photos?: string[] | null
+          total_cost_usd?: number | null
           variant_id?: string | null
         }
         Relationships: [
