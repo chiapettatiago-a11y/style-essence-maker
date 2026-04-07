@@ -43,9 +43,6 @@ const PhotoViewer: React.FC<PhotoViewerProps> = ({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"regenerate" | "model">("regenerate");
 
-  const current = images[index];
-  if (!current) return null;
-
   const goNext = useCallback(() => setIndex((i) => Math.min(i + 1, images.length - 1)), [images.length]);
   const goPrev = useCallback(() => setIndex((i) => Math.max(i - 1, 0)), []);
 
@@ -58,6 +55,9 @@ const PhotoViewer: React.FC<PhotoViewerProps> = ({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose, goNext, goPrev]);
+
+  const current = images[index];
+  if (!current) return null;
 
   const isApproved = current.approvalStatus === "approved";
 
