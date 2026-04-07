@@ -1108,6 +1108,7 @@ const ProductPage = () => {
     }
 
     setIsGenerating(false);
+    startCooldown();
     setActiveTab("photos");
     queryClient.invalidateQueries({ queryKey: ["images", projectId] });
     queryClient.invalidateQueries({ queryKey: ["weeks", projectId] });
