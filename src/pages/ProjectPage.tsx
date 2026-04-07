@@ -300,6 +300,7 @@ const ProductPage = () => {
     const weeklyLaunches: WeeklyLaunch[] = (weeks || []).map((w) => ({
       id: w.id,
       label: w.label,
+      name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
       engineUsed: (w.engine_used as GenerationEngine | null) || "gemini",
       mannequinHeightCm: w.mannequin_height_cm,
@@ -309,6 +310,8 @@ const ProductPage = () => {
       mannequinTorsoCm: w.mannequin_torso_cm,
       mannequinArmCm: w.mannequin_arm_cm,
       referencePhotos: (w.reference_photos as string[]) || [],
+      lockedProportionJson: (w as any).locked_proportion_json as Record<string, unknown> | null,
+      totalCostUsd: Number((w as any).total_cost_usd) || 0,
       images: (dbImages || [])
         .filter((img) => img.launch_id === w.id)
         .map((img) => ({
@@ -326,6 +329,8 @@ const ProductPage = () => {
           attemptNumber: img.attempt_number || undefined,
           status: img.status as GeneratedImage["status"],
           error: img.error || undefined,
+          approvalStatus: ((img as any).approval_status as ApprovalStatus) || "pending",
+          generationCostUsd: Number((img as any).generation_cost_usd) || 0,
         })),
     }));
 
