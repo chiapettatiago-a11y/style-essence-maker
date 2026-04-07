@@ -1702,8 +1702,21 @@ const ProductPage = () => {
                             )}
                           </div>
                           <div className="px-2.5 py-2 flex items-center justify-between">
-                            <span className="text-xs font-medium truncate">{img.label}</span>
+                            <div className="flex items-center gap-1 min-w-0">
+                              {img.approvalStatus === "approved" && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
+                              <span className="text-xs font-medium truncate">{img.label}</span>
+                            </div>
                             {img.status === "done" && (
+                              <div className="flex items-center gap-0.5">
+                                <Button
+                                  variant={img.approvalStatus === "approved" ? "default" : "outline"}
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title={img.approvalStatus === "approved" ? "Aprovada" : "Aprovar"}
+                                  onClick={(e) => { e.stopPropagation(); handleApproveImage(img.id); }}
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
                               <div className="flex items-center gap-0.5">
                                 {/* Swap model for this angle */}
                                 <DropdownMenu>
