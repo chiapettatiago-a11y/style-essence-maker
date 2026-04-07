@@ -537,13 +537,13 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 3) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 5) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      const delayMs = Math.min(2000 * Math.pow(2, attempt - 1), 15000) + Math.random() * 1000;
+      const delayMs = Math.min(3000 * Math.pow(2, attempt - 1), 30000) + Math.random() * 2000;
       console.log(`[generate-image] Rate limited, waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, delayMs));
     }
