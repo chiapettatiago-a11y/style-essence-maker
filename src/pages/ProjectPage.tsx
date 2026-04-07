@@ -838,6 +838,78 @@ const ProductPage = () => {
     updateImageDb(id, updates);
   };
 
+  const handleApproveImage = useCallback((id: string) => {
+    let nextStatus: ApprovalStatus = "approved";
+    for (const w of state.weeklyLaunches) {
+      const img = w.images.find((i) => i.id === id);
+      if (img) {
+        nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        break;
+      }
+    }
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => ({
+        ...w,
+        images: w.images.map((i) => (i.id === id ? { ...i, approvalStatus: nextStatus } : i)),
+      })),
+    }));
+    supabase.from("generated_images").update({ approval_status: nextStatus }).eq("id", id).then();
+  }, [state.weeklyLaunches]);
+
+  const handleUpscaleAndDownload = useCallback(async (image: GeneratedImage) => {
+    const imageUrl = image.originalUrl || image.imageUrl;
+    if (!imageUrl) return;
+    setIsDownloadingHd(true);
+    toast({ title: "Preparando em alta resolução...", description: "O upscale pode levar alguns segundos." });
+    try {
+      const { data, error } = await supabase.functions.invoke("upscale-on-download", {
+        body: { imageUrl, scale: 2 },
+      });
+      if (error) throw error;
+      const downloadUrl = data?.upscaledUrl || imageUrl;
+      const resp = await fetch(downloadUrl);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${image.label}_HD.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Download HD concluído" });
+    } catch {
+      try {
+        const resp = await fetch(imageUrl);
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${image.label}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch { window.open(imageUrl, "_blank"); }
+    } finally { setIsDownloadingHd(false); }
+  }, [toast]);
+
+  const handleSaveLaunchName = useCallback(async (launchId: string, newName: string) => {
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === launchId ? { ...w, name: newName, label: newName } : w),
+    }));
+    await supabase.from("weekly_launches").update({ name: newName, label: newName }).eq("id", launchId);
+    setEditingLaunchId(null);
+  }, []);
+
+  const handleUpdateLockedProportions = useCallback(async (launchId: string) => {
+    if (!activeVariant?.proportionJson) return;
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === launchId ? { ...w, lockedProportionJson: activeVariant.proportionJson } : w),
+    }));
+    await supabase.from("weekly_launches").update({ locked_proportion_json: activeVariant.proportionJson }).eq("id", launchId);
+    toast({ title: "Proporções atualizadas" });
+  }, [activeVariant, toast]);
+
   const handleEngineChange = useCallback((engine: GenerationEngine) => {
     setState((s) => ({ ...s, selectedEngine: engine }));
   }, []);
