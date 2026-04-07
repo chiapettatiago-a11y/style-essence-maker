@@ -906,7 +906,7 @@ const ProductPage = () => {
       ...s,
       weeklyLaunches: s.weeklyLaunches.map((w) => w.id === launchId ? { ...w, lockedProportionJson: activeVariant.proportionJson } : w),
     }));
-    await supabase.from("weekly_launches").update({ locked_proportion_json: activeVariant.proportionJson }).eq("id", launchId);
+    await supabase.from("weekly_launches").update({ locked_proportion_json: activeVariant.proportionJson as any }).eq("id", launchId);
     toast({ title: "Proporções atualizadas" });
   }, [activeVariant, toast]);
 
