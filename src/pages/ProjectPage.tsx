@@ -1717,8 +1717,6 @@ const ProductPage = () => {
                                 >
                                   <Check className="h-3 w-3" />
                                 </Button>
-                              <div className="flex items-center gap-0.5">
-                                {/* Swap model for this angle */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7" title="Trocar modelo">
@@ -1727,18 +1725,13 @@ const ProductPage = () => {
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end" className="w-48">
                                     {MODEL_GALLERY.map((m) => (
-                                      <DropdownMenuItem
-                                        key={m.id}
-                                        onClick={() => handleRegenerate(img.id, undefined, m)}
-                                        className="gap-2 text-xs"
-                                      >
+                                      <DropdownMenuItem key={m.id} onClick={() => handleRegenerate(img.id, undefined, m)} className="gap-2 text-xs">
                                         <img src={m.faceImage} alt={m.name} className="h-5 w-5 rounded-full object-cover" />
                                         {m.name}
                                       </DropdownMenuItem>
                                     ))}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
-                                {/* Regenerate with engine */}
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
                                     <Button variant="ghost" size="icon" className="h-7 w-7">
