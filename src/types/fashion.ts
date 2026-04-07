@@ -90,6 +90,8 @@ export interface GenerationRequest {
   prompt: string;
 }
 
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
+
 export interface GeneratedImage {
   id: string;
   type: GenerationRequest['type'];
@@ -107,11 +109,14 @@ export interface GeneratedImage {
   generationMs?: number;
   modelUsed?: string;
   attemptNumber?: number;
+  approvalStatus?: ApprovalStatus;
+  generationCostUsd?: number;
 }
 
 export interface WeeklyLaunch {
   id: string;
   label: string;
+  name?: string;
   variantId?: string;
   engineUsed?: GenerationEngine;
   images: GeneratedImage[];
@@ -122,6 +127,19 @@ export interface WeeklyLaunch {
   mannequinTorsoCm?: number | null;
   mannequinArmCm?: number | null;
   referencePhotos?: string[];
+  lockedProportionJson?: Record<string, unknown> | null;
+  totalCostUsd?: number;
+}
+
+export interface Collection {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string | null;
+  season?: string | null;
+  objective?: string | null;
+  color_tag?: string;
+  created_at: string;
 }
 
 export interface ProductVariant {
