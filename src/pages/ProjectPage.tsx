@@ -1297,6 +1297,7 @@ const ProductPage = () => {
       const message = err instanceof Error ? err.message : "Falha na geração";
       updateImageInState(id, { status: "error", error: message });
     }
+    startCooldown();
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
   const handleDownloadZip = async () => {
