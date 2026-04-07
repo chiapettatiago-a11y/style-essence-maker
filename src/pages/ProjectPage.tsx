@@ -1301,22 +1301,39 @@ const ProductPage = () => {
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
   const handleDownloadZip = async () => {
-    const imagesToZip = variantWeeklyLaunches
+    const approvedImages = variantWeeklyLaunches
       .flatMap((w) => w.images)
-      .filter((img) => img.status === "done" && img.type !== "video-product" && img.type !== "video-model")
+      .filter((img) => img.status === "done" && img.approvalStatus === "approved" && img.type !== "video-product" && img.type !== "video-model")
       .map((img) => ({ label: img.label, url: img.originalUrl || img.imageUrl }))
       .filter((img): img is { label: string; url: string } => !!img.url);
 
-    if (imagesToZip.length === 0) {
-      toast({ title: "Nada para baixar", description: "Nenhuma imagem finalizada nesta variante." });
+    if (approvedImages.length === 0) {
+      const pendingCount = variantWeeklyLaunches.flatMap((w) => w.images).filter((img) => img.status === "done" && img.approvalStatus === "pending").length;
+      toast({
+        title: "Nada para baixar",
+        description: pendingCount > 0 ? `${pendingCount} foto(s) aguardando aprovação. Aprove antes de baixar.` : "Nenhuma imagem aprovada.",
+        variant: "destructive",
+      });
       return;
     }
+
+    setIsDownloadingHd(true);
+    toast({ title: "Preparando ZIP em alta resolução...", description: `Processando ${approvedImages.length} fotos...` });
 
     try {
       const zip = new JSZip();
       await Promise.all(
-        imagesToZip.map(async (img, idx) => {
-          const response = await fetch(img.url);
+        approvedImages.map(async (img, idx) => {
+          // Try upscale for each
+          let downloadUrl = img.url;
+          try {
+            const { data } = await supabase.functions.invoke("upscale-on-download", {
+              body: { imageUrl: img.url, scale: 2 },
+            });
+            if (data?.upscaledUrl) downloadUrl = data.upscaledUrl;
+          } catch { /* fallback to original */ }
+
+          const response = await fetch(downloadUrl);
           const blob = await response.blob();
           const safeName = img.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
           zip.file(`${String(idx + 1).padStart(2, "0")}-${safeName || "foto"}.jpg`, blob);
@@ -1330,9 +1347,12 @@ const ProductPage = () => {
       a.download = `${(productName || "produto").toLowerCase().replace(/\s+/g, "-")}-lookbook.zip`;
       a.click();
       URL.revokeObjectURL(url);
+      toast({ title: "ZIP pronto!", description: `${approvedImages.length} fotos HD baixadas.` });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Falha ao gerar ZIP";
       toast({ title: "Erro", description: message, variant: "destructive" });
+    } finally {
+      setIsDownloadingHd(false);
     }
   };
 
