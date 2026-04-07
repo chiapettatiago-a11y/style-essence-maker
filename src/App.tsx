@@ -7,6 +7,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/hooks/useTheme";
 import Dashboard from "./pages/Dashboard";
 import ProjectPage from "./pages/ProjectPage";
+import ProfilePage from "./pages/ProfilePage";
+import SharePage from "./pages/SharePage";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -24,6 +26,8 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/project/:projectId" element={<ProjectPage />} />
+              <Route path="/perfil" element={<ProfilePage />} />
+              <Route path="/share/:token" element={<SharePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
