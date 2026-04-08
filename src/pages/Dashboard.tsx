@@ -61,6 +61,47 @@ const Dashboard = () => {
     enabled: !!user,
   });
 
+  // Stats queries
+  const { data: allLaunches } = useQuery({
+    queryKey: ["all-launches-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("weekly_launches").select("id, product_id, engine_used, total_cost_usd");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: allImages } = useQuery({
+    queryKey: ["all-images-stats"],
+    queryFn: async () => {
+      if (!allLaunches || allLaunches.length === 0) return [];
+      const ids = allLaunches.map((l) => l.id);
+      const { data, error } = await supabase.from("generated_images").select("id, status, type, model_used, generation_cost_usd").in("launch_id", ids);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!allLaunches && allLaunches.length > 0,
+  });
+
+  const stats = useMemo(() => {
+    const imgs = allImages || [];
+    const doneImages = imgs.filter((i) => i.status === "done" && i.type !== "video-product" && i.type !== "video-model");
+    const totalCost = imgs.reduce((sum, i) => sum + (Number(i.generation_cost_usd) || 0), 0);
+    const engines = new Map<string, number>();
+    doneImages.forEach((i) => {
+      const e = i.model_used || "unknown";
+      engines.set(e, (engines.get(e) || 0) + 1);
+    });
+    return {
+      totalPhotos: doneImages.length,
+      totalProducts: (products || []).length,
+      totalCollections: (collections || []).length,
+      totalCost,
+      engines: Array.from(engines.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3),
+    };
+  }, [allImages, products, collections]);
+
   // Mutations
   const createCollection = useMutation({
     mutationFn: async (data: { name: string; description: string; season: string; objective: string; color_tag: string }) => {
@@ -244,6 +285,71 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* Stats Dashboard */}
+            {(stats.totalPhotos > 0 || stats.totalProducts > 0) && (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ImageIcon className="h-4 w-4 text-accent" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Fotos geradas</span>
+                  </div>
+                  <p className="text-2xl font-bold">{stats.totalPhotos}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FolderOpen className="h-4 w-4 text-accent" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Produtos</span>
+                  </div>
+                  <p className="text-2xl font-bold">{stats.totalProducts}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <DollarSign className="h-4 w-4 text-accent" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Custo total</span>
+                  </div>
+                  <p className="text-2xl font-bold">${stats.totalCost.toFixed(2)}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Cpu className="h-4 w-4 text-accent" />
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Motor principal</span>
+                  </div>
+                  <p className="text-sm font-semibold truncate">{stats.engines[0]?.[0] || "—"}</p>
+                  <p className="text-[10px] text-muted-foreground">{stats.engines[0]?.[1] || 0} gerações</p>
+                </div>
+              </div>
+            )}
+
+            {/* Collections Section */}
+            <div className="flex items-end justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Coleções</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {(collections || []).length} coleção{(collections || []).length !== 1 ? "ões" : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      <SortAsc className="h-3.5 w-3.5" /> Ordenar
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => setSortMode("name")}>Nome A-Z</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortMode("date")}>Data</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setSortMode("objective")}>Objetivo</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button onClick={() => setCollectionDialogOpen(true)} className="gap-1.5">
+                  <Plus className="h-4 w-4" /> Nova Coleção
+                </Button>
+                <Button variant="outline" onClick={() => setDialogOpen(true)} className="gap-1.5">
+                  <Plus className="h-4 w-4" /> Novo Produto
+                </Button>
+              </div>
+            </div>
+
             {/* Collection cards */}
             {hasCollections && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -282,29 +388,37 @@ const Dashboard = () => {
               </div>
             )}
 
-            {/* Uncategorized products */}
+            {/* Uncategorized products - collapsible */}
             {uncategorized.length > 0 && (
-              <>
-                <h2 className="text-sm font-semibold text-muted-foreground mb-3">Sem coleção</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {uncategorized.map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      isEditing={editingProductId === p.id}
-                      editingName={editingName}
-                      editingCode={editingCode}
-                      onStartEdit={() => { setEditingProductId(p.id); setEditingName(p.name); setEditingCode(p.product_code || ""); }}
-                      onCancelEdit={() => setEditingProductId(null)}
-                      onSaveEdit={() => updateProduct.mutate({ id: p.id, name: editingName, product_code: editingCode })}
-                      onNameChange={setEditingName}
-                      onCodeChange={setEditingCode}
-                      onNavigate={() => navigate(`/project/${p.id}`)}
-                      onDelete={() => deleteProduct.mutate(p.id)}
-                    />
-                  ))}
-                </div>
-              </>
+              <div className="mb-4">
+                <button
+                  onClick={() => setUncategorizedOpen(!uncategorizedOpen)}
+                  className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors mb-3"
+                >
+                  {uncategorizedOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  Sem coleção ({uncategorized.length})
+                </button>
+                {uncategorizedOpen && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {uncategorized.map((p) => (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        isEditing={editingProductId === p.id}
+                        editingName={editingName}
+                        editingCode={editingCode}
+                        onStartEdit={() => { setEditingProductId(p.id); setEditingName(p.name); setEditingCode(p.product_code || ""); }}
+                        onCancelEdit={() => setEditingProductId(null)}
+                        onSaveEdit={() => updateProduct.mutate({ id: p.id, name: editingName, product_code: editingCode })}
+                        onNameChange={setEditingName}
+                        onCodeChange={setEditingCode}
+                        onNavigate={() => navigate(`/project/${p.id}`)}
+                        onDelete={() => deleteProduct.mutate(p.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </>
         ) : (
