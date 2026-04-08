@@ -32,6 +32,7 @@ const Dashboard = () => {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [editingCode, setEditingCode] = useState("");
+  const [uncategorizedOpen, setUncategorizedOpen] = useState(false);
 
   // Queries
   const { data: collections, isLoading: collectionsLoading } = useQuery({
