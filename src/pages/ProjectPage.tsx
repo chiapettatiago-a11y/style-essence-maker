@@ -23,6 +23,7 @@ import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
 import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
+import VeoVideoSection from "@/components/studio/VeoVideoSection";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
