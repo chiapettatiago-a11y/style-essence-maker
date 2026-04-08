@@ -89,24 +89,37 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
         </span>
       </div>
 
-      <Button
-        onClick={() => onGenerate(requests)}
-        disabled={isGenerating || !garmentAnalysis}
-        className="w-full sm:w-auto"
-        size="default"
-      >
-        {isGenerating ? (
-          <span className="flex items-center gap-2">
-            <span className="h-3 w-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-            Gerando...
-          </span>
-        ) : (
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4" />
-            Gerar Foto Frontal
-          </span>
-        )}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          onClick={() => onGenerate(requests)}
+          disabled={isGenerating || !garmentAnalysis}
+          size="default"
+        >
+          {isGenerating ? (
+            <span className="flex items-center gap-2">
+              <span className="h-3 w-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+              Gerando...
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4" />
+              Gerar Pacote Completo
+            </span>
+          )}
+        </Button>
+        {imageRequests.map((req) => (
+          <Button
+            key={req.type}
+            variant="outline"
+            size="sm"
+            disabled={isGenerating || !garmentAnalysis}
+            onClick={() => onGenerate([req])}
+            className="text-xs"
+          >
+            {req.label}
+          </Button>
+        ))}
+      </div>
 
       <div className="border-t border-border pt-4 space-y-2">
         <div className="flex items-center justify-between">

@@ -23,6 +23,7 @@ import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
 import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
+import VeoVideoSection from "@/components/studio/VeoVideoSection";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -1786,21 +1787,14 @@ const ProductPage = () => {
             </TabsContent>
 
             <TabsContent value="video" className="mt-4 space-y-4">
-              {/* Gerar Vídeo standalone button */}
-              {/* Video generation button disabled — keeping prompt text only */}
-
-              {/* Video section hidden — Kling disabled */}
-              <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
-                <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="text-sm font-semibold">Vídeos em breve</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    A geração de vídeos está temporariamente desativada. Os prompts de vídeo continuam sendo gerados no lançamento e podem ser copiados na aba de Resultados.
-                  </p>
-                </div>
-              </div>
+              <VeoVideoSection
+                launches={variantWeeklyLaunches}
+                activeLaunchId={state.activeWeek}
+                onVideoGenerated={() => {
+                  queryClient.invalidateQueries({ queryKey: ["images", projectId] });
+                  queryClient.invalidateQueries({ queryKey: ["weeks", projectId] });
+                }}
+              />
             </TabsContent>
 
             <TabsContent value="analysis" className="mt-4">
