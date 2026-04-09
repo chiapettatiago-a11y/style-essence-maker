@@ -17,6 +17,7 @@ type Mannequin = {
 type AnalysisResult = {
   garment_type?: string;
   fabric?: string;
+  fabric_secondary?: string | null;
   fabric_texture?: string;
   color?: string;
   color_hex_estimate?: string;
@@ -28,11 +29,15 @@ type AnalysisResult = {
   sleeve_detail?: string;
   hem_type?: string;
   hem_detail?: string;
+  hem_position?: string;
   length?: string;
+  closure?: string;
+  lining?: string | null;
   construction?: string;
-  details?: string;
+  details?: string | string[];
   tr_badge_location?: string | null;
   tr_badge_description?: string | null;
+  signature_details?: string;
   proportions?: {
     garment_length_ratio?: number;
     waist_ratio?: number;
@@ -43,9 +48,7 @@ type AnalysisResult = {
   garment_length?: string;
   length_description?: string;
   sleeve_length?: string;
-  closure?: string;
   belt_or_tie?: string;
-  signature_details?: string;
   prompt_description?: string;
 };
 
