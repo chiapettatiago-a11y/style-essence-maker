@@ -243,7 +243,6 @@ export function buildFullPrompt(
     if (isTwoPiece) {
       // Override type line for two-piece
       parts.push(`TWO-PIECE OVERRIDE: Type is TWO-PIECE SET (separate top + separate bottom). This is NOT a dress. These are TWO DISTINCT GARMENTS worn together.`);
-    }
       parts.push(`TWO-PIECE SEPARATION — CRITICAL RULE:
 This outfit consists of TWO SEPARATE GARMENTS: a cropped top/blouse AND a separate skirt/pants.
 There MUST be a visible gap or waist seam between the top and the bottom piece.
