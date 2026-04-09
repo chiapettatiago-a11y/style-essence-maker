@@ -1,10 +1,11 @@
 export interface GarmentAnalysis {
   type: string;
   fabric: string;
+  fabricSecondary?: string | null;
   color: string;
   pattern: string;
   construction: string;
-  details: string;
+  details: string | string[];
   style: string;
   fullDescription: string;
   length: string;
@@ -15,6 +16,7 @@ export interface GarmentAnalysis {
   colorHexEstimate?: string;
   patternDescription?: string;
   hemType?: string;
+  hemPosition?: string;
   lengthDescription?: string;
   sleeveLength?: string;
   closure?: string;
@@ -24,6 +26,7 @@ export interface GarmentAnalysis {
   fabricTexture?: string;
   sleeveDetail?: string;
   hemDetail?: string;
+  lining?: string | null;
   trBadgeLocation?: string;
   trBadgeDescription?: string;
 }

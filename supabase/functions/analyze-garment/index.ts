@@ -17,6 +17,7 @@ type Mannequin = {
 type AnalysisResult = {
   garment_type?: string;
   fabric?: string;
+  fabric_secondary?: string | null;
   fabric_texture?: string;
   color?: string;
   color_hex_estimate?: string;
@@ -28,11 +29,15 @@ type AnalysisResult = {
   sleeve_detail?: string;
   hem_type?: string;
   hem_detail?: string;
+  hem_position?: string;
   length?: string;
+  closure?: string;
+  lining?: string | null;
   construction?: string;
-  details?: string;
+  details?: string | string[];
   tr_badge_location?: string | null;
   tr_badge_description?: string | null;
+  signature_details?: string;
   proportions?: {
     garment_length_ratio?: number;
     waist_ratio?: number;
@@ -43,9 +48,7 @@ type AnalysisResult = {
   garment_length?: string;
   length_description?: string;
   sleeve_length?: string;
-  closure?: string;
   belt_or_tie?: string;
-  signature_details?: string;
   prompt_description?: string;
 };
 
@@ -61,41 +64,48 @@ class UpstreamAIError extends Error {
   }
 }
 
-const SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand called THAIS RODRIGUES (TR).
-Analyze the garment photos and return ONLY a valid JSON object with no text before or after.
+const SYSTEM_PROMPT = `You are a professional fashion analyst for a Brazilian fashion brand called THAIS RODRIGUES (TR).
+Analyze the garment photos and return ONLY a valid JSON object.
+No text before or after the JSON.
 
 IMPORTANT: Photos may have dark backgrounds, hangers, wooden racks, or papers in front of the garment. Ignore all background elements. Focus ONLY on the garment itself.
 
 CRITICAL — TWO-PIECE SET DETECTION:
 If you see a cropped top/blouse AND a separate skirt/pants displayed together, identify as:
   garment_type: "two-piece set"
-Describe EACH piece separately in the "details" field.
+Describe EACH piece separately in the "details" array.
 
 TR SIGNATURE BADGE — ACCURACY RULE:
 Look carefully for a small round metallic button/charm engraved with "TR" monogram.
 Describe ONLY what you actually see and its exact position.
 If the TR badge is not clearly visible in the reference photos, set tr_badge_location to null.
 
-Return this exact JSON schema:
 {
-  "garment_type": "dress|blouse|pants|skirt|jacket|two-piece set|etc",
-  "fabric": "detailed fabric description — include if knit, woven, jersey, texture, specific stitch if visible",
+  "garment_type": "dress|blouse|shirt|skirt|pants|jacket|coat|top|two-piece set",
+  "fabric": "primary fabric — single raw material name in English (tweed, satin, denim, silk, cotton, linen, knit, lace, chiffon, crepe, velvet, organza, leather, faux leather, boucle, etc.) — NOT a description like 'woven fabric'",
+  "fabric_secondary": "secondary fabric if combo, or null",
   "fabric_texture": "visual texture description — e.g. alternating horizontal knit bands, waffle stitch, pointelle lace, smooth jersey",
-  "color": "main color",
+  "color": "color description",
   "color_hex_estimate": "#xxxxxx",
-  "pattern": "solid|stripes|floral|textured|patchwork|etc",
-  "pattern_description": "detailed pattern or texture description",
-  "silhouette": "fitted|A-line|straight|wrap|semi-fitted|etc",
-  "neckline": "complete neckline description including ruffles, volume, extension",
-  "sleeve_type": "sleeveless|short|3/4|long|balloon|etc",
-  "sleeve_detail": "sleeve finish description — e.g. gathered ruffle cuff, self-tie bow, ribbed, plain",
+  "pattern": "solid|woven|printed|embroidered|lace|textured|stripes|floral|patchwork|none",
+  "pattern_description": "detailed pattern or texture description, or null",
+  "silhouette": "fitted|A-line|straight|wrap|oversized|semi-fitted|etc",
+  "neckline": "exact neckline description",
+  "sleeve_type": "sleeveless|cap|short|3/4|long|puff|balloon|etc",
+  "sleeve_detail": "detailed sleeve construction — e.g. gathered ruffle cuff, self-tie bow, ribbed, plain",
   "hem_type": "straight|asymmetric|tiered ruffles|scalloped|etc",
-  "hem_detail": "detailed hem description — e.g. 5 to 6 horizontal ruffle tiers, each gathered at top seam cascading as flounce",
-  "length": "cropped|short|midi|maxi|ankle",
-  "construction": "visible construction details",
-  "details": "ALL details: buttons, bows, pleats, zippers, seams, ruffles, etc",
-  "tr_badge_location": "exact TR badge location — e.g. center front waist seam, left chest, right hip, center back — if not visible: null",
-  "tr_badge_description": "badge description — e.g. small round gold-tone metallic button/charm with TR monogram — if not visible: null",
+  "hem_detail": "detailed hem description",
+  "length": "mini|short|midi|maxi|cropped|ankle",
+  "hem_position": "well above knee|above knee|at knee|below knee|ankle|floor",
+  "closure": "zipper back|zipper side|buttons front|etc",
+  "lining": "lining description if visible, or null",
+  "construction": "visible seams, panels, structural details",
+  "details": [
+    "each visible detail as a separate string — be specific and exhaustive"
+  ],
+  "tr_badge_location": "exact TR badge location or null",
+  "tr_badge_description": "badge description or null",
+  "signature_details": "TR monogram button: location and exact description. THAIS RODRIGUES label: location",
   "proportions": {
     "garment_length_ratio": 0.0,
     "waist_ratio": 0.0,
@@ -105,15 +115,18 @@ Return this exact JSON schema:
 }
 
 Critical rules:
+- fabric must be the raw material name (tweed, satin, denim...) NOT a description like "woven fabric"
+- details MUST be an array of strings — list EVERY visible detail as a separate item
+- proportions: ratios 0-1 relative to total garment height
 - NEVER leave length empty — estimate from visual proportions if unsure
-- Use the DETECTED length value — if it looks maxi, say "maxi". If midi, say "midi". Never default.
 - fabric_texture must describe the VISUAL texture pattern, not just fabric type
 - sleeve_detail must describe the FINISH of the sleeve (cuff, tie, ruffle, plain)
 - hem_detail must describe the FULL hem construction (tiers, gathers, finish)
 - tr_badge_location must be the EXACT position or null — do NOT guess
 - For PATCHWORK: describe each panel separately
 - For TIERED/RUFFLE: count tiers, describe each tier's gathering
-- For TWO-PIECE SETS: describe each piece separately in details`;
+- For TWO-PIECE SETS: describe each piece separately in details array
+- Return ONLY the JSON`;
 
 const COMBO_SYSTEM_PROMPT = `You are an expert technical fashion analyst for a Brazilian womenswear brand called THAIS RODRIGUES (TR).
 You are analyzing a COMBINATION LOOK — two separate garments worn together, not a single piece.
@@ -267,6 +280,7 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
     patternDescription: raw.pattern_description || "",
     hemType: raw.hem_type || "",
     hemDetail: raw.hem_detail || "",
+    hemPosition: raw.hem_position || "",
     lengthDescription: raw.length_description || "",
     sleeveLength: raw.sleeve_length || raw.sleeve_type || "",
     sleeveDetail: raw.sleeve_detail || "",
@@ -275,6 +289,8 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
     signatureDetails: raw.signature_details || "",
     promptDescription: raw.prompt_description || "",
     fabricTexture: raw.fabric_texture || "",
+    fabricSecondary: raw.fabric_secondary || null,
+    lining: raw.lining || null,
     trBadgeLocation: raw.tr_badge_location || null,
     trBadgeDescription: raw.tr_badge_description || null,
   };
@@ -385,7 +401,7 @@ async function callClaudeAI(images: string[], systemPrompt: string = SYSTEM_PROM
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: "claude-opus-4-6",
       system: systemPrompt,
       max_tokens: 2000,
       temperature: 0.1,

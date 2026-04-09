@@ -2,6 +2,7 @@ import { AccessorySelection, GarmentAnalysis, GenerationRequest, ModelProfile, P
 import { SHOE_PROMPT_MAP, COLOR_PROMPT_MAP } from "@/components/studio/AccessoriesSelector";
 import { LAYER1_BASE, LAYER1_VIDEO_BASE, STYLE_CATEGORIES } from "./prompt-layers";
 import { MODEL_GALLERY } from "./model-gallery";
+import { getFabricPhysics, getGarmentTypeRules } from "./fabric-physics";
 
 const FULL_BODY_ANGLE_TYPES = new Set<GenerationRequest["type"]>([
   "lookbook-front",
@@ -100,6 +101,48 @@ function isDressLikeGarment(garment: GarmentAnalysis | null): boolean {
   return /(dress|vestido|gown|two-piece|two piece|conjunto|saia|skirt)/.test(text);
 }
 
+function buildGarmentBlock(analysis: GarmentAnalysis): string {
+  const physics = getFabricPhysics(analysis.fabric);
+  const typeRules = getGarmentTypeRules(analysis.type);
+  const detailsArr = Array.isArray(analysis.details) 
+    ? analysis.details 
+    : (analysis.details || "").split(/[,;]/).map(d => d.trim()).filter(Boolean);
+  const inventory = detailsArr
+    .map((d, i) => `${i + 1}. ${d} — preserve exactly`)
+    .join('\n');
+
+  return `
+GARMENT — ABSOLUTE FIDELITY REQUIRED:
+Type: ${analysis.type}
+${typeRules}
+
+FABRIC PHYSICS:
+Material: ${analysis.fabric}${analysis.fabricSecondary ? ` + ${analysis.fabricSecondary}` : ''}
+Surface rendering: ${physics.renderingInstruction}
+${analysis.pattern && analysis.pattern !== 'solid' && analysis.pattern !== 'none'
+  ? `Pattern: ${analysis.patternDescription || analysis.pattern} — render as PHYSICAL texture, NOT flat print`
+  : ''}
+
+COLOR: ${analysis.color} (${analysis.colorHexEstimate || 'N/A'})
+Silhouette: ${analysis.silhouette || 'N/A'}
+Length: ${analysis.length || 'N/A'} — hem ${analysis.hemPosition || analysis.hemDetail || 'as detected'}
+Neckline: ${analysis.neckline || 'N/A'}
+Sleeves: ${analysis.sleeves || 'N/A'} — ${analysis.sleeveDetail || 'N/A'}
+Closure: ${analysis.closure || 'N/A'}
+${analysis.lining ? `Lining: ${analysis.lining}` : ''}
+Construction: ${analysis.construction || 'N/A'}
+
+DETAIL INVENTORY — all mandatory in every photo:
+${inventory || 'No specific details detected.'}
+
+SIGNATURE BRAND DETAILS — mandatory in every photo:
+${analysis.signatureDetails || (analysis.trBadgeLocation && analysis.trBadgeDescription 
+  ? `${analysis.trBadgeDescription} positioned at ${analysis.trBadgeLocation}` 
+  : 'TR signature: not clearly visible in reference.')}
+Internal label "THAIS RODRIGUES" stitched below neckline.
+  `.trim();
+}
+
 function buildFaceAnchorPrompt(input: {
   identity: string;
   skinTone?: string;
@@ -193,31 +236,13 @@ export function buildFullPrompt(
   } else if (garment) {
     // Two-piece detection: user-declared garment type takes precedence over AI analysis
     const isTwoPiece = userGarmentType === "conjunto" || /two-piece|two piece|conjunto/i.test(garment.type || "");
-    const lengthDesc = lengthDescriptionEN(garment.length, garment.lengthDescription);
-    const garmentBlock = [
-      `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
-      isTwoPiece
-        ? `Type: TWO-PIECE SET (separate top + separate bottom). This is NOT a dress. These are TWO DISTINCT GARMENTS worn together.`
-        : `Type: ${garment.type}.`,
-      `Fabric: ${garment.fabric}. Texture: ${garment.fabricTexture || "N/A"}.`,
-      `Color: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — fully monochromatic, no color variation.`,
-      `Silhouette: ${garment.silhouette || "N/A"}.`,
-      `Length: ${garment.length || "N/A"} — hem reaches ${lengthDesc}.`,
-      `Neckline: ${garment.neckline || "N/A"}`,
-      `Sleeves: ${garment.sleeves || "N/A"}. Cuff detail: ${garment.sleeveDetail || garment.sleeveLength || "N/A"}`,
-      `Hem/Skirt: ${garment.hemDetail || garment.hemline || "N/A"}`,
-      `Construction details: ${garment.details || "N/A"}`,
-      garment.trBadgeLocation && garment.trBadgeDescription
-        ? `TR signature: ${garment.trBadgeDescription} positioned at ${garment.trBadgeLocation}.`
-        : garment.signatureDetails
-          ? `TR signature: ${garment.signatureDetails}`
-          : `TR signature: not clearly visible in reference.`,
-      `Internal label "THAIS RODRIGUES" stitched below neckline.`,
-    ].filter(Boolean).join("\n");
-    parts.push(garmentBlock);
+    
+    // Use the new buildGarmentBlock with fabric physics
+    parts.push(buildGarmentBlock(garment));
 
-    // Two-piece set: add explicit separation enforcement
     if (isTwoPiece) {
+      // Override type line for two-piece
+      parts.push(`TWO-PIECE OVERRIDE: Type is TWO-PIECE SET (separate top + separate bottom). This is NOT a dress. These are TWO DISTINCT GARMENTS worn together.`);
       parts.push(`TWO-PIECE SEPARATION — CRITICAL RULE:
 This outfit consists of TWO SEPARATE GARMENTS: a cropped top/blouse AND a separate skirt/pants.
 There MUST be a visible gap or waist seam between the top and the bottom piece.
