@@ -236,31 +236,14 @@ export function buildFullPrompt(
   } else if (garment) {
     // Two-piece detection: user-declared garment type takes precedence over AI analysis
     const isTwoPiece = userGarmentType === "conjunto" || /two-piece|two piece|conjunto/i.test(garment.type || "");
-    const lengthDesc = lengthDescriptionEN(garment.length, garment.lengthDescription);
-    const garmentBlock = [
-      `GARMENT — ABSOLUTE FIDELITY REQUIRED. Do not redesign, simplify or alter any detail.`,
-      isTwoPiece
-        ? `Type: TWO-PIECE SET (separate top + separate bottom). This is NOT a dress. These are TWO DISTINCT GARMENTS worn together.`
-        : `Type: ${garment.type}.`,
-      `Fabric: ${garment.fabric}. Texture: ${garment.fabricTexture || "N/A"}.`,
-      `Color: ${garment.color} (${garment.colorHexEstimate || "N/A"}) — fully monochromatic, no color variation.`,
-      `Silhouette: ${garment.silhouette || "N/A"}.`,
-      `Length: ${garment.length || "N/A"} — hem reaches ${lengthDesc}.`,
-      `Neckline: ${garment.neckline || "N/A"}`,
-      `Sleeves: ${garment.sleeves || "N/A"}. Cuff detail: ${garment.sleeveDetail || garment.sleeveLength || "N/A"}`,
-      `Hem/Skirt: ${garment.hemDetail || garment.hemline || "N/A"}`,
-      `Construction details: ${garment.details || "N/A"}`,
-      garment.trBadgeLocation && garment.trBadgeDescription
-        ? `TR signature: ${garment.trBadgeDescription} positioned at ${garment.trBadgeLocation}.`
-        : garment.signatureDetails
-          ? `TR signature: ${garment.signatureDetails}`
-          : `TR signature: not clearly visible in reference.`,
-      `Internal label "THAIS RODRIGUES" stitched below neckline.`,
-    ].filter(Boolean).join("\n");
-    parts.push(garmentBlock);
+    
+    // Use the new buildGarmentBlock with fabric physics
+    parts.push(buildGarmentBlock(garment));
 
-    // Two-piece set: add explicit separation enforcement
     if (isTwoPiece) {
+      // Override type line for two-piece
+      parts.push(`TWO-PIECE OVERRIDE: Type is TWO-PIECE SET (separate top + separate bottom). This is NOT a dress. These are TWO DISTINCT GARMENTS worn together.`);
+    }
       parts.push(`TWO-PIECE SEPARATION — CRITICAL RULE:
 This outfit consists of TWO SEPARATE GARMENTS: a cropped top/blouse AND a separate skirt/pants.
 There MUST be a visible gap or waist seam between the top and the bottom piece.
