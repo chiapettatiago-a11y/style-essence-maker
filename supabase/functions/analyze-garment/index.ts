@@ -277,6 +277,7 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
     patternDescription: raw.pattern_description || "",
     hemType: raw.hem_type || "",
     hemDetail: raw.hem_detail || "",
+    hemPosition: raw.hem_position || "",
     lengthDescription: raw.length_description || "",
     sleeveLength: raw.sleeve_length || raw.sleeve_type || "",
     sleeveDetail: raw.sleeve_detail || "",
@@ -285,6 +286,8 @@ function mapAnalysis(raw: AnalysisResult, proportions: ReturnType<typeof calcula
     signatureDetails: raw.signature_details || "",
     promptDescription: raw.prompt_description || "",
     fabricTexture: raw.fabric_texture || "",
+    fabricSecondary: raw.fabric_secondary || null,
+    lining: raw.lining || null,
     trBadgeLocation: raw.tr_badge_location || null,
     trBadgeDescription: raw.tr_badge_description || null,
   };
