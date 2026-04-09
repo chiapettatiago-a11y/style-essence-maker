@@ -30,7 +30,27 @@ SKIN REALISM — CRITICAL:
 Natural human skin with visible pores and subtle imperfections. Realistic skin texture with natural micro-details.
 Avoid plastic, doll-like, or overly airbrushed appearance at all costs. Skin must look authentically human.
 
-Luxury commercial lookbook aesthetic, sharp textile detail, no distortion, no compression artifacts, maximum texture fidelity, photorealistic fabric detail.`;
+Luxury commercial lookbook aesthetic, sharp textile detail, no distortion, no compression artifacts, maximum texture fidelity, photorealistic fabric detail.
+
+PHOTOGRAPHY REALISM — applies to every image in this system:
+Render as RAW editorial fashion photography. NOT AI illustration.
+NOT digital render. NOT beauty filter output.
+- Skin: real texture, visible pores, natural tonal variation. 
+  Zero digital smoothing. Zero AI hyper-perfection.
+- Hair: individual strands visible, natural movement, organic variation.
+- Eyes: real iris texture and catchlight — NOT glassy or digital.
+- Lighting: directional key light upper-left + soft fill right.
+  Natural shadows under chin, collarbone, sleeve edges MUST be present.
+  NEVER use flat even lighting — it causes artificial plastic appearance.
+- Output must look like shot by a human photographer on location.
+
+FABRIC PHYSICS RULE — applies to every garment:
+- Every fabric must be rendered as a PHYSICAL MATERIAL with real-world 
+  surface properties — NEVER as a flat color or printed pattern.
+- Woven/textured fabrics: raised areas catch light, recessed areas hold 
+  shadow. Individual material properties always visible.
+- Light must interact with the fabric surface organically.
+- Texture must remain consistent and dimensional — not simplify in shadows.`;
 
 export const LAYER1_VIDEO_BASE = `Professional cinematic fashion video at maximum native resolution, 9:16 portrait, 4K clarity, 24fps.
 
