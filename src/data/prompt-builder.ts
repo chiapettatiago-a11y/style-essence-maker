@@ -101,6 +101,48 @@ function isDressLikeGarment(garment: GarmentAnalysis | null): boolean {
   return /(dress|vestido|gown|two-piece|two piece|conjunto|saia|skirt)/.test(text);
 }
 
+function buildGarmentBlock(analysis: GarmentAnalysis): string {
+  const physics = getFabricPhysics(analysis.fabric);
+  const typeRules = getGarmentTypeRules(analysis.type);
+  const detailsArr = Array.isArray(analysis.details) 
+    ? analysis.details 
+    : (analysis.details || "").split(/[,;]/).map(d => d.trim()).filter(Boolean);
+  const inventory = detailsArr
+    .map((d, i) => `${i + 1}. ${d} — preserve exactly`)
+    .join('\n');
+
+  return `
+GARMENT — ABSOLUTE FIDELITY REQUIRED:
+Type: ${analysis.type}
+${typeRules}
+
+FABRIC PHYSICS:
+Material: ${analysis.fabric}${analysis.fabricSecondary ? ` + ${analysis.fabricSecondary}` : ''}
+Surface rendering: ${physics.renderingInstruction}
+${analysis.pattern && analysis.pattern !== 'solid' && analysis.pattern !== 'none'
+  ? `Pattern: ${analysis.patternDescription || analysis.pattern} — render as PHYSICAL texture, NOT flat print`
+  : ''}
+
+COLOR: ${analysis.color} (${analysis.colorHexEstimate || 'N/A'})
+Silhouette: ${analysis.silhouette || 'N/A'}
+Length: ${analysis.length || 'N/A'} — hem ${analysis.hemPosition || analysis.hemDetail || 'as detected'}
+Neckline: ${analysis.neckline || 'N/A'}
+Sleeves: ${analysis.sleeves || 'N/A'} — ${analysis.sleeveDetail || 'N/A'}
+Closure: ${analysis.closure || 'N/A'}
+${analysis.lining ? `Lining: ${analysis.lining}` : ''}
+Construction: ${analysis.construction || 'N/A'}
+
+DETAIL INVENTORY — all mandatory in every photo:
+${inventory || 'No specific details detected.'}
+
+SIGNATURE BRAND DETAILS — mandatory in every photo:
+${analysis.signatureDetails || (analysis.trBadgeLocation && analysis.trBadgeDescription 
+  ? `${analysis.trBadgeDescription} positioned at ${analysis.trBadgeLocation}` 
+  : 'TR signature: not clearly visible in reference.')}
+Internal label "THAIS RODRIGUES" stitched below neckline.
+  `.trim();
+}
+
 function buildFaceAnchorPrompt(input: {
   identity: string;
   skinTone?: string;
