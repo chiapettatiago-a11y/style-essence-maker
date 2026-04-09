@@ -2,6 +2,7 @@ import { AccessorySelection, GarmentAnalysis, GenerationRequest, ModelProfile, P
 import { SHOE_PROMPT_MAP, COLOR_PROMPT_MAP } from "@/components/studio/AccessoriesSelector";
 import { LAYER1_BASE, LAYER1_VIDEO_BASE, STYLE_CATEGORIES } from "./prompt-layers";
 import { MODEL_GALLERY } from "./model-gallery";
+import { getFabricPhysics, getGarmentTypeRules } from "./fabric-physics";
 
 const FULL_BODY_ANGLE_TYPES = new Set<GenerationRequest["type"]>([
   "lookbook-front",
