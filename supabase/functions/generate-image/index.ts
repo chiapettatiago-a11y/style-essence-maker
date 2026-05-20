@@ -537,7 +537,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 5) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 2) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -615,25 +615,20 @@ async function callGeminiGateway(params: {
     }
   }
 
-  const PRIMARY_MODEL = "google/gemini-3-pro-image-preview";
+  // Use Flash by default (much faster). Pro só na 1ª tentativa explícita (attemptNumber === 0 indica forçar Pro).
+  const PRIMARY_MODEL = "google/gemini-3.1-flash-image-preview";
   const FALLBACK_MODEL = "google/gemini-3.1-flash-image-preview";
 
-  const primaryModel = params.attemptNumber > 1 ? FALLBACK_MODEL : PRIMARY_MODEL;
-
-  console.log(`[generate-image] Attempt 1 with ${primaryModel}`);
-  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, primaryModel);
+  console.log(`[generate-image] Attempt 1 with ${PRIMARY_MODEL}`);
+  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, PRIMARY_MODEL);
   if (result1.imageUrl) return { imageUrl: result1.imageUrl, modelUsed: result1.modelUsed };
-
-  console.warn(`[generate-image] Primary model returned no image. Retrying with fallback: ${FALLBACK_MODEL}`);
-  const result2 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, FALLBACK_MODEL);
-  if (result2.imageUrl) return { imageUrl: result2.imageUrl, modelUsed: result2.modelUsed };
 
   console.warn(`[generate-image] Retry with simplified prompt (model: ${FALLBACK_MODEL})`);
   const simplifiedPrompt = `Generate a professional fashion photograph based on this description. White studio background, full body shot, editorial quality.\n\n${params.promptUsed.substring(0, 1500)}`;
-  const result3 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL);
-  if (result3.imageUrl) return { imageUrl: result3.imageUrl, modelUsed: result3.modelUsed };
+  const result2 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL);
+  if (result2.imageUrl) return { imageUrl: result2.imageUrl, modelUsed: result2.modelUsed };
 
-  throw new Error("Gemini returned no image after 3 attempts (Pro + Flash fallback). Possible content policy block.");
+  throw new Error("Gemini returned no image after 2 attempts. Possible content policy block.");
 }
 
 async function ensurePublicUrl(imageUrl: string): Promise<string> {
