@@ -2261,6 +2261,32 @@ const ProductPage = () => {
           </div>
         </div>
       )}
+
+      <Dialog open={newProductDialogOpen} onOpenChange={setNewProductDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Produto</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleCreateProduct(); }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label>Nome do produto</Label>
+              <Input
+                placeholder="Ex: Vestido TR001"
+                value={newProductName}
+                onChange={(e) => setNewProductName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={creatingProduct || !newProductName.trim()}>
+              {creatingProduct && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Criar
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
