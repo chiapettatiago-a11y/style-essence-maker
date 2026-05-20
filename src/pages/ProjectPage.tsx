@@ -980,6 +980,8 @@ const ProductPage = () => {
     const normalizedMannequin = normalizeMannequinData(mannequin);
     setMannequin(normalizedMannequin);
 
+    const { seed: productGenSeed, engine: effectiveEngine } = await ensureProductSeedAndEngine(state.selectedEngine);
+
     try {
       await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
     } catch {
@@ -1066,6 +1068,10 @@ const ProductPage = () => {
       const startedAt = performance.now();
 
       try {
+          const isFront = img.type === "lookbook-front";
+          const refImages = !isFront && productModelReferenceImage
+            ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
+            : activeVariant.uploadedImages.slice(0, 3);
           const { data, error } = await supabase.functions.invoke("generate-image", {
             body: {
               angleType: img.type,
@@ -1073,7 +1079,7 @@ const ProductPage = () => {
               basePrompt: img.prompt,
               prompt: img.prompt,
               manualPrompt: state.manualPrompt,
-              engine: state.selectedEngine,
+              engine: effectiveEngine,
               selectedPresets: state.selectedPresets,
               garmentAnalysis: activeVariant.garmentAnalysis,
               proportionJson: activeVariant.proportionJson,
@@ -1086,9 +1092,10 @@ const ProductPage = () => {
                 torso_cm: normalizedMannequin.mannequin_torso_cm,
                 arm_cm: normalizedMannequin.mannequin_arm_cm,
               },
-              referenceImages: activeVariant.uploadedImages.slice(0, 3),
+              referenceImages: refImages,
               image_url: imageUrl,
               launchId: activeWeekId,
+              seed: productGenSeed,
             },
           });
 
@@ -1105,6 +1112,7 @@ const ProductPage = () => {
           generationMs: Math.round(performance.now() - startedAt),
           attemptNumber: data.attemptNumber || 1,
           promptUsed: data.promptUsed || img.prompt,
+          seedUsed: data.seedUsed != null ? Number(data.seedUsed) : productGenSeed,
         });
 
         return data.originalUrl || data.previewUrl || data.imageUrl || "";
