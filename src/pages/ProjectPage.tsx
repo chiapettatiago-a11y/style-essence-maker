@@ -1665,6 +1665,36 @@ const ProductPage = () => {
             </TabsList>
 
             <TabsContent value="photos" className="mt-4 space-y-4">
+              {activeVariant && (
+                <PromptAndRefsEditor
+                  prompt={state.manualPrompt}
+                  onPromptChange={(v) => update("manualPrompt", v)}
+                  referenceImages={activeVariant.uploadedImages}
+                  onReferenceImagesChange={(imgs) => {
+                    updateVariant({ uploadedImages: imgs });
+                    saveVariant(activeVariant.id, { uploadedImages: imgs });
+                  }}
+                  approvedCount={approvedCount}
+                  isBusy={isGenerating}
+                  onSaveAndRegenerate={async (scope: RegenScope) => {
+                    if (projectId) {
+                      await supabase.from("products").update({ manual_prompt: state.manualPrompt }).eq("id", projectId);
+                    }
+                    const targets = variantWeeklyLaunches.flatMap((w) => w.images)
+                      .filter((i) => i.status === "done" && i.type !== "video-product" && i.type !== "video-model")
+                      .filter((i) => scope === "all" ? true : i.approvalStatus !== "approved");
+                    for (const t of targets) {
+                      await handleRegenerate(t.id);
+                    }
+                  }}
+                />
+              )}
+              {!hasApprovedFrontal && (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Gere e aprove o frontal antes de gerar laterais, costas ou close-ups (garante consistência da modelo).
+                </div>
+              )}
               {[...variantWeeklyLaunches].reverse().map((launch) => {
                 const photos = launch.images.filter((img) => img.type !== "video-product" && img.type !== "video-model");
                 if (photos.length === 0) return null;
