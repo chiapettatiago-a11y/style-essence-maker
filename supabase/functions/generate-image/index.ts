@@ -641,13 +641,13 @@ async function callGeminiGateway(params: {
   const PRIMARY_MODEL = "google/gemini-3.1-flash-image-preview";
   const FALLBACK_MODEL = "google/gemini-3.1-flash-image-preview";
 
-  console.log(`[generate-image] Attempt 1 with ${PRIMARY_MODEL}`);
-  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, PRIMARY_MODEL);
+  console.log(`[generate-image] Attempt 1 with ${PRIMARY_MODEL}, seed=${params.seed ?? "none"}`);
+  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, PRIMARY_MODEL, params.seed);
   if (result1.imageUrl) return { imageUrl: result1.imageUrl, modelUsed: result1.modelUsed };
 
   console.warn(`[generate-image] Retry with simplified prompt (model: ${FALLBACK_MODEL})`);
   const simplifiedPrompt = `Generate a professional fashion photograph based on this description. White studio background, full body shot, editorial quality.\n\n${params.promptUsed.substring(0, 1500)}`;
-  const result2 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL);
+  const result2 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL, params.seed);
   if (result2.imageUrl) return { imageUrl: result2.imageUrl, modelUsed: result2.modelUsed };
 
   throw new Error("Gemini returned no image after 2 attempts. Possible content policy block.");
