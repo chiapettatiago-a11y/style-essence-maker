@@ -1771,13 +1771,18 @@ const ProductPage = () => {
                               </>
                             )}
                             {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
-                            {img.status === "pending" && (
+                            {img.status === "pending" && (() => {
+                              const isFront = img.type === "lookbook-front";
+                              const blocked = !isFront && !hasApprovedFrontal;
+                              return (
                               <div className="flex flex-col items-center gap-2 p-3">
                                 <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-                                <span className="text-[10px] text-muted-foreground">Aguardando</span>
+                                <span className="text-[10px] text-muted-foreground text-center">
+                                  {blocked ? "Aprove o frontal primeiro" : "Aguardando"}
+                                </span>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button size="sm" className="h-7 text-[10px] gap-1">
+                                    <Button size="sm" disabled={blocked} className="h-7 text-[10px] gap-1">
                                       <Sparkles className="h-3 w-3" /> Gerar
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -1798,7 +1803,8 @@ const ProductPage = () => {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
-                            )}
+                              );
+                            })()}
                             {img.status === "error" && (
                               <div className="text-center p-2">
                                 <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
@@ -1824,6 +1830,17 @@ const ProductPage = () => {
                             <div className="flex items-center gap-1 min-w-0">
                               {img.approvalStatus === "approved" && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
                               <span className="text-xs font-medium truncate">{img.label}</span>
+                              {img.status === "done" && productSeed != null && productLockedEngine && (
+                                (img.seedUsed === productSeed && img.modelUsed === productLockedEngine) ? (
+                                  <Badge variant="outline" className="h-4 px-1 text-[8px] gap-0.5 border-green-500/40 text-green-600 dark:text-green-400 shrink-0" title={`Seed ${productSeed} • ${productLockedEngine}`}>
+                                    <Check className="h-2 w-2" /> ok
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="h-4 px-1 text-[8px] gap-0.5 border-yellow-500/40 text-yellow-600 dark:text-yellow-400 shrink-0" title={`Esperado seed ${productSeed}/${productLockedEngine} — recebido seed ${img.seedUsed ?? "?"}/${img.modelUsed ?? "?"}`}>
+                                    <AlertTriangle className="h-2 w-2" /> reger.
+                                  </Badge>
+                                )
+                              )}
                             </div>
                             {img.status === "done" && (
                               <div className="flex items-center gap-0.5">
