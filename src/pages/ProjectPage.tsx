@@ -943,9 +943,35 @@ const ProductPage = () => {
     toast({ title: "Proporções atualizadas" });
   }, [activeVariant, toast]);
 
+  const productSeed = (product as any)?.generation_seed != null ? Number((product as any).generation_seed) : null;
+  const productLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
+  const productModelReferenceImage = ((product as any)?.model_reference_image as string | null) || null;
+
+  const hasApprovedFrontal = useMemo(() => {
+    return variantWeeklyLaunches.some((w) => w.images.some((i) => i.type === "lookbook-front" && i.approvalStatus === "approved" && i.status === "done"));
+  }, [variantWeeklyLaunches]);
+
+  const ensureProductSeedAndEngine = useCallback(async (preferredEngine: GenerationEngine): Promise<{ seed: number; engine: GenerationEngine }> => {
+    if (!projectId) return { seed: Math.floor(Math.random() * 2_000_000_000), engine: preferredEngine };
+    const seed = productSeed ?? Math.floor(Math.random() * 2_000_000_000);
+    const engine = productLockedEngine ?? preferredEngine;
+    const updates: Record<string, unknown> = {};
+    if (productSeed == null) updates.generation_seed = seed;
+    if (productLockedEngine == null) updates.locked_engine = engine;
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("products").update(updates).eq("id", projectId);
+      queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+    }
+    return { seed, engine };
+  }, [projectId, productSeed, productLockedEngine, queryClient]);
+
   const handleEngineChange = useCallback((engine: GenerationEngine) => {
+    if (productLockedEngine) {
+      toast({ title: "Motor travado", description: `Motor ${productLockedEngine} está fixado para este produto para garantir consistência.`, variant: "destructive" });
+      return;
+    }
     setState((s) => ({ ...s, selectedEngine: engine }));
-  }, []);
+  }, [productLockedEngine, toast]);
 
   const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
     if (!activeVariant || !projectId) return;
