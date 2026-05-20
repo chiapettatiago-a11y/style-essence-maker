@@ -537,7 +537,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 2) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 2) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
@@ -567,12 +567,16 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
     }
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${googleModel}:generateContent?key=${GOOGLE_API_KEY}`;
+    const generationConfig: Record<string, unknown> = { responseModalities: ["IMAGE", "TEXT"] };
+    if (typeof seed === "number" && Number.isFinite(seed)) {
+      generationConfig.seed = Math.floor(seed);
+    }
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts }],
-        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+        generationConfig,
       }),
     });
 
@@ -618,6 +622,7 @@ async function callGeminiGateway(params: {
   promptUsed: string;
   referenceImages: string[];
   attemptNumber: number;
+  seed?: number;
 }) {
   const imageUrlParts: any[] = [];
   if (params.referenceImages.length > 0) {
