@@ -537,7 +537,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 5) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 2) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
