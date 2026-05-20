@@ -1771,13 +1771,18 @@ const ProductPage = () => {
                               </>
                             )}
                             {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
-                            {img.status === "pending" && (
+                            {img.status === "pending" && (() => {
+                              const isFront = img.type === "lookbook-front";
+                              const blocked = !isFront && !hasApprovedFrontal;
+                              return (
                               <div className="flex flex-col items-center gap-2 p-3">
                                 <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-                                <span className="text-[10px] text-muted-foreground">Aguardando</span>
+                                <span className="text-[10px] text-muted-foreground text-center">
+                                  {blocked ? "Aprove o frontal primeiro" : "Aguardando"}
+                                </span>
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <Button size="sm" className="h-7 text-[10px] gap-1">
+                                    <Button size="sm" disabled={blocked} className="h-7 text-[10px] gap-1">
                                       <Sparkles className="h-3 w-3" /> Gerar
                                     </Button>
                                   </DropdownMenuTrigger>
@@ -1798,7 +1803,8 @@ const ProductPage = () => {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
-                            )}
+                              );
+                            })()}
                             {img.status === "error" && (
                               <div className="text-center p-2">
                                 <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
