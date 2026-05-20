@@ -1054,6 +1054,7 @@ serve(async (req) => {
             promptUsed,
             referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
             attemptNumber: requestAttempt,
+            seed: numericSeed,
           });
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
