@@ -1241,6 +1241,11 @@ const ProductPage = () => {
         ? (isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0])
         : undefined;
 
+      const isFront = img.type === "lookbook-front";
+      const refImages = !isFront && productModelReferenceImage
+        ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
+        : activeVariant.uploadedImages.slice(0, 3);
+      const { seed: regenSeed, engine: regenEngine } = await ensureProductSeedAndEngine(engine);
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
           angleType: img.type,
@@ -1248,7 +1253,7 @@ const ProductPage = () => {
           basePrompt: img.prompt,
           prompt: img.prompt,
           manualPrompt: state.manualPrompt,
-          engine,
+          engine: overrideEngine || regenEngine,
           selectedPresets: state.selectedPresets,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
@@ -1261,10 +1266,11 @@ const ProductPage = () => {
             torso_cm: mannequin.mannequin_torso_cm,
             arm_cm: mannequin.mannequin_arm_cm,
           },
-          referenceImages: activeVariant.uploadedImages.slice(0, 3),
+          referenceImages: refImages,
           image_url: referenceImageUrl,
           attemptNumber: nextAttempt,
           launchId: sourceLaunch?.id,
+          seed: regenSeed,
         },
       });
       if (error) throw error;
@@ -1278,6 +1284,7 @@ const ProductPage = () => {
         generationMs: Math.round(performance.now() - startedAt),
         attemptNumber: data.attemptNumber || nextAttempt,
         promptUsed: data.promptUsed || img.prompt,
+        seedUsed: data.seedUsed != null ? Number(data.seedUsed) : regenSeed,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Falha na regeneração";
@@ -1330,6 +1337,11 @@ const ProductPage = () => {
         ? (isCloseDetail ? frontReferenceUrl : (frontReferenceUrl || activeVariant.uploadedImages[0]))
         : (frontReferenceUrl || activeVariant.uploadedImages[0] || undefined);
 
+      const isFront = img.type === "lookbook-front";
+      const refImages = !isFront && productModelReferenceImage
+        ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
+        : activeVariant.uploadedImages.slice(0, 3);
+      const { seed: singleSeed, engine: singleEngine } = await ensureProductSeedAndEngine(state.selectedEngine);
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
           angleType: img.type,
@@ -1337,7 +1349,7 @@ const ProductPage = () => {
           basePrompt: rebuiltPrompt,
           prompt: rebuiltPrompt,
           manualPrompt: state.manualPrompt,
-          engine: state.selectedEngine,
+          engine: singleEngine,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
           modelProfile: state.selectedProfile,
@@ -1349,10 +1361,11 @@ const ProductPage = () => {
             torso_cm: mannequin.mannequin_torso_cm,
             arm_cm: mannequin.mannequin_arm_cm,
           },
-          referenceImages: activeVariant.uploadedImages.slice(0, 3),
+          referenceImages: refImages,
           image_url: referenceImageUrl,
           attemptNumber: 1,
           launchId: sourceLaunch?.id,
+          seed: singleSeed,
         },
       });
       if (error) throw error;
@@ -1368,6 +1381,7 @@ const ProductPage = () => {
         generationMs: Math.round(performance.now() - startedAt),
         attemptNumber: data.attemptNumber || 1,
         promptUsed: data.promptUsed || img.prompt,
+        seedUsed: data.seedUsed != null ? Number(data.seedUsed) : singleSeed,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Falha na geração";
