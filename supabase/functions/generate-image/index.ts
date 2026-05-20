@@ -544,8 +544,10 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
   // Map gateway model names → Google API model names
   const googleModel = model
     .replace(/^google\//, "")
-    .replace("gemini-3.1-flash-image-preview", "gemini-2.5-flash-image-preview")
-    .replace("gemini-3-pro-image-preview", "gemini-2.5-flash-image-preview");
+    .replace("gemini-3.1-flash-image-preview", "gemini-2.5-flash-image")
+    .replace("gemini-3-pro-image-preview", "gemini-2.5-flash-image")
+    .replace("gemini-2.5-flash-image-preview", "gemini-2.5-flash-image");
+
 
   // Build Google-format parts: text + inlineData for reference images
   const parts: any[] = [{ text: prompt }];
