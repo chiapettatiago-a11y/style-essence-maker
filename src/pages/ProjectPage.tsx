@@ -1601,7 +1601,6 @@ const ProductPage = () => {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
             <TabsList>
               <TabsTrigger value="photos">Fotos</TabsTrigger>
-              <TabsTrigger value="video">Vídeos</TabsTrigger>
               <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
               <TabsTrigger value="settings">Configurações</TabsTrigger>
             </TabsList>
@@ -1816,16 +1815,8 @@ const ProductPage = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="video" className="mt-4 space-y-4">
-              <VeoVideoSection
-                launches={variantWeeklyLaunches}
-                activeLaunchId={state.activeWeek}
-                onVideoGenerated={() => {
-                  queryClient.invalidateQueries({ queryKey: ["images", projectId] });
-                  queryClient.invalidateQueries({ queryKey: ["weeks", projectId] });
-                }}
-              />
-            </TabsContent>
+
+
 
             <TabsContent value="analysis" className="mt-4">
               {activeVariant?.garmentAnalysis ? (
