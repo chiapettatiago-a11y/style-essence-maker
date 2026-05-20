@@ -851,6 +851,7 @@ const ProductPage = () => {
     if (updates.promptUsed) dbUpdate.prompt_used = updates.promptUsed;
     if (updates.rawUrl) dbUpdate.raw_url = updates.rawUrl;
     if (updates.upscaled !== undefined) dbUpdate.upscaled = updates.upscaled;
+    if (updates.seedUsed !== undefined) dbUpdate.seed_used = updates.seedUsed;
 
     if (Object.keys(dbUpdate).length > 0) {
       supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
