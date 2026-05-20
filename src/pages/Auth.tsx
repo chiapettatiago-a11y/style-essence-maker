@@ -77,6 +77,33 @@ const Auth = () => {
           </Button>
         </form>
 
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">ou</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={submitting}
+          onClick={async () => {
+            setSubmitting(true);
+            const result = await lovable.auth.signInWithOAuth("google", {
+              redirect_uri: window.location.origin,
+            });
+            if (result.error) {
+              setSubmitting(false);
+              toast({ title: "Erro", description: result.error.message ?? "Falha ao entrar com Google", variant: "destructive" });
+            }
+          }}
+        >
+          <GoogleIcon />
+          Continuar com Google
+        </Button>
+
         <p className="text-center text-sm text-muted-foreground">
           {isSignUp ? "Já tem conta?" : "Não tem conta?"}{" "}
           <button onClick={() => setIsSignUp(!isSignUp)} className="text-accent hover:underline">
