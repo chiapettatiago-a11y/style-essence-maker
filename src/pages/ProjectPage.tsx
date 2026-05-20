@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
@@ -153,6 +154,35 @@ const ProductPage = () => {
     mannequin_arm_cm: null,
   });
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const [newProductDialogOpen, setNewProductDialogOpen] = useState(false);
+  const [newProductName, setNewProductName] = useState("");
+  const [creatingProduct, setCreatingProduct] = useState(false);
+
+  const handleCreateProduct = async () => {
+    const name = newProductName.trim();
+    if (!name || !user) return;
+    setCreatingProduct(true);
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .insert({ name, user_id: user.id })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const { error: weekError } = await supabase
+        .from("weekly_launches")
+        .insert({ product_id: data.id, label: "Semana 1" });
+      if (weekError) throw weekError;
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setNewProductDialogOpen(false);
+      setNewProductName("");
+      navigate(`/project/${data.id}?new=1`);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setCreatingProduct(false);
+    }
+  };
   const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
@@ -1406,7 +1436,7 @@ const ProductPage = () => {
         </div>
 
         <div className="p-3 border-b border-border">
-          <Button className="w-full" size="sm" onClick={() => navigate("/")}>
+          <Button className="w-full" size="sm" onClick={() => setNewProductDialogOpen(true)}>
             <Plus className="h-3.5 w-3.5 mr-1" /> Novo produto
           </Button>
         </div>
@@ -2231,6 +2261,32 @@ const ProductPage = () => {
           </div>
         </div>
       )}
+
+      <Dialog open={newProductDialogOpen} onOpenChange={setNewProductDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Criar Produto</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleCreateProduct(); }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label>Nome do produto</Label>
+              <Input
+                placeholder="Ex: Vestido TR001"
+                value={newProductName}
+                onChange={(e) => setNewProductName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={creatingProduct || !newProductName.trim()}>
+              {creatingProduct && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Criar
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
