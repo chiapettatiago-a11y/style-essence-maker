@@ -154,6 +154,35 @@ const ProductPage = () => {
     mannequin_arm_cm: null,
   });
   const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
+  const [newProductDialogOpen, setNewProductDialogOpen] = useState(false);
+  const [newProductName, setNewProductName] = useState("");
+  const [creatingProduct, setCreatingProduct] = useState(false);
+
+  const handleCreateProduct = async () => {
+    const name = newProductName.trim();
+    if (!name || !user) return;
+    setCreatingProduct(true);
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .insert({ name, user_id: user.id })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const { error: weekError } = await supabase
+        .from("weekly_launches")
+        .insert({ product_id: data.id, label: "Semana 1" });
+      if (weekError) throw weekError;
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      setNewProductDialogOpen(false);
+      setNewProductName("");
+      navigate(`/project/${data.id}?new=1`);
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setCreatingProduct(false);
+    }
+  };
   const [lightboxImage, setLightboxImage] = useState<GeneratedImage | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
