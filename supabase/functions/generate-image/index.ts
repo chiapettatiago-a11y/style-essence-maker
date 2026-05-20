@@ -999,7 +999,10 @@ serve(async (req) => {
       referenceImages,
       attemptNumber,
       launchId,
+      seed,
     } = await req.json();
+
+    const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
 
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
     const parsedEngine = (engine || "gemini") as GenerationEngine;
