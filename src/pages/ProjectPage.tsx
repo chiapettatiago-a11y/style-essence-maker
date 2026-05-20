@@ -362,6 +362,7 @@ const ProductPage = () => {
           error: img.error || undefined,
           approvalStatus: ((img as any).approval_status as ApprovalStatus) || "pending",
           generationCostUsd: Number((img as any).generation_cost_usd) || 0,
+          seedUsed: (img as any).seed_used != null ? Number((img as any).seed_used) : null,
         })),
     }));
 
