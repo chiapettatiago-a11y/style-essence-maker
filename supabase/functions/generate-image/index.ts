@@ -537,7 +537,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 2) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 2) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
@@ -567,12 +567,16 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
     }
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${googleModel}:generateContent?key=${GOOGLE_API_KEY}`;
+    const generationConfig: Record<string, unknown> = { responseModalities: ["IMAGE", "TEXT"] };
+    if (typeof seed === "number" && Number.isFinite(seed)) {
+      generationConfig.seed = Math.floor(seed);
+    }
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts }],
-        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+        generationConfig,
       }),
     });
 
@@ -618,6 +622,7 @@ async function callGeminiGateway(params: {
   promptUsed: string;
   referenceImages: string[];
   attemptNumber: number;
+  seed?: number;
 }) {
   const imageUrlParts: any[] = [];
   if (params.referenceImages.length > 0) {
@@ -636,13 +641,13 @@ async function callGeminiGateway(params: {
   const PRIMARY_MODEL = "google/gemini-3.1-flash-image-preview";
   const FALLBACK_MODEL = "google/gemini-3.1-flash-image-preview";
 
-  console.log(`[generate-image] Attempt 1 with ${PRIMARY_MODEL}`);
-  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, PRIMARY_MODEL);
+  console.log(`[generate-image] Attempt 1 with ${PRIMARY_MODEL}, seed=${params.seed ?? "none"}`);
+  const result1 = await callGeminiGatewayOnce(params.promptUsed, imageUrlParts, PRIMARY_MODEL, params.seed);
   if (result1.imageUrl) return { imageUrl: result1.imageUrl, modelUsed: result1.modelUsed };
 
   console.warn(`[generate-image] Retry with simplified prompt (model: ${FALLBACK_MODEL})`);
   const simplifiedPrompt = `Generate a professional fashion photograph based on this description. White studio background, full body shot, editorial quality.\n\n${params.promptUsed.substring(0, 1500)}`;
-  const result2 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL);
+  const result2 = await callGeminiGatewayOnce(simplifiedPrompt, imageUrlParts, FALLBACK_MODEL, params.seed);
   if (result2.imageUrl) return { imageUrl: result2.imageUrl, modelUsed: result2.modelUsed };
 
   throw new Error("Gemini returned no image after 2 attempts. Possible content policy block.");
@@ -994,7 +999,10 @@ serve(async (req) => {
       referenceImages,
       attemptNumber,
       launchId,
+      seed,
     } = await req.json();
+
+    const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
 
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
     const parsedEngine = (engine || "gemini") as GenerationEngine;
@@ -1046,6 +1054,7 @@ serve(async (req) => {
             promptUsed,
             referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
             attemptNumber: requestAttempt,
+            seed: numericSeed,
           });
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
@@ -1114,6 +1123,7 @@ serve(async (req) => {
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
       engineUsed: parsedEngine,
+      seedUsed: numericSeed ?? null,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

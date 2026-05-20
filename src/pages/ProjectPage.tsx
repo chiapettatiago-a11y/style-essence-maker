@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2 } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
@@ -24,7 +24,7 @@ import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
 import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
-import VeoVideoSection from "@/components/studio/VeoVideoSection";
+import PromptAndRefsEditor, { RegenScope } from "@/components/studio/PromptAndRefsEditor";
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -48,7 +48,7 @@ const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: 
   },
 };
 
-type MainTab = "photos" | "video" | "analysis" | "settings";
+type MainTab = "photos" | "analysis" | "settings";
 
 type MannequinData = {
   mannequin_height_cm: number | null;
@@ -362,6 +362,7 @@ const ProductPage = () => {
           error: img.error || undefined,
           approvalStatus: ((img as any).approval_status as ApprovalStatus) || "pending",
           generationCostUsd: Number((img as any).generation_cost_usd) || 0,
+          seedUsed: (img as any).seed_used != null ? Number((img as any).seed_used) : null,
         })),
     }));
 
@@ -851,6 +852,7 @@ const ProductPage = () => {
     if (updates.promptUsed) dbUpdate.prompt_used = updates.promptUsed;
     if (updates.rawUrl) dbUpdate.raw_url = updates.rawUrl;
     if (updates.upscaled !== undefined) dbUpdate.upscaled = updates.upscaled;
+    if (updates.seedUsed !== undefined) dbUpdate.seed_used = updates.seedUsed;
 
     if (Object.keys(dbUpdate).length > 0) {
       supabase.from("generated_images").update(dbUpdate).eq("id", id).then();
@@ -871,10 +873,14 @@ const ProductPage = () => {
 
   const handleApproveImage = useCallback((id: string) => {
     let nextStatus: ApprovalStatus = "approved";
+    let approvedFrontUrl: string | null = null;
     for (const w of state.weeklyLaunches) {
       const img = w.images.find((i) => i.id === id);
       if (img) {
         nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        if (nextStatus === "approved" && img.type === "lookbook-front") {
+          approvedFrontUrl = img.originalUrl || img.imageUrl || null;
+        }
         break;
       }
     }
@@ -886,7 +892,12 @@ const ProductPage = () => {
       })),
     }));
     supabase.from("generated_images").update({ approval_status: nextStatus }).eq("id", id).then();
-  }, [state.weeklyLaunches]);
+    if (approvedFrontUrl && projectId) {
+      supabase.from("products").update({ model_reference_image: approvedFrontUrl }).eq("id", projectId).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+      });
+    }
+  }, [state.weeklyLaunches, projectId, queryClient]);
 
   const handleUpscaleAndDownload = useCallback(async (image: GeneratedImage) => {
     const imageUrl = image.originalUrl || image.imageUrl;
@@ -941,9 +952,35 @@ const ProductPage = () => {
     toast({ title: "Proporções atualizadas" });
   }, [activeVariant, toast]);
 
+  const productSeed = (product as any)?.generation_seed != null ? Number((product as any).generation_seed) : null;
+  const productLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
+  const productModelReferenceImage = ((product as any)?.model_reference_image as string | null) || null;
+
+  const hasApprovedFrontal = useMemo(() => {
+    return variantWeeklyLaunches.some((w) => w.images.some((i) => i.type === "lookbook-front" && i.approvalStatus === "approved" && i.status === "done"));
+  }, [variantWeeklyLaunches]);
+
+  const ensureProductSeedAndEngine = useCallback(async (preferredEngine: GenerationEngine): Promise<{ seed: number; engine: GenerationEngine }> => {
+    if (!projectId) return { seed: Math.floor(Math.random() * 2_000_000_000), engine: preferredEngine };
+    const seed = productSeed ?? Math.floor(Math.random() * 2_000_000_000);
+    const engine = productLockedEngine ?? preferredEngine;
+    const updates: Record<string, unknown> = {};
+    if (productSeed == null) updates.generation_seed = seed;
+    if (productLockedEngine == null) updates.locked_engine = engine;
+    if (Object.keys(updates).length > 0) {
+      await supabase.from("products").update(updates).eq("id", projectId);
+      queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+    }
+    return { seed, engine };
+  }, [projectId, productSeed, productLockedEngine, queryClient]);
+
   const handleEngineChange = useCallback((engine: GenerationEngine) => {
+    if (productLockedEngine) {
+      toast({ title: "Motor travado", description: `Motor ${productLockedEngine} está fixado para este produto para garantir consistência.`, variant: "destructive" });
+      return;
+    }
     setState((s) => ({ ...s, selectedEngine: engine }));
-  }, []);
+  }, [productLockedEngine, toast]);
 
   const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
     if (!activeVariant || !projectId) return;
@@ -951,6 +988,8 @@ const ProductPage = () => {
     setIsGenerating(true);
     const normalizedMannequin = normalizeMannequinData(mannequin);
     setMannequin(normalizedMannequin);
+
+    const { seed: productGenSeed, engine: effectiveEngine } = await ensureProductSeedAndEngine(state.selectedEngine);
 
     try {
       await saveProductMeta({ ...normalizedMannequin, name: productName.trim() || productName });
@@ -1038,6 +1077,10 @@ const ProductPage = () => {
       const startedAt = performance.now();
 
       try {
+          const isFront = img.type === "lookbook-front";
+          const refImages = !isFront && productModelReferenceImage
+            ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
+            : activeVariant.uploadedImages.slice(0, 3);
           const { data, error } = await supabase.functions.invoke("generate-image", {
             body: {
               angleType: img.type,
@@ -1045,7 +1088,7 @@ const ProductPage = () => {
               basePrompt: img.prompt,
               prompt: img.prompt,
               manualPrompt: state.manualPrompt,
-              engine: state.selectedEngine,
+              engine: effectiveEngine,
               selectedPresets: state.selectedPresets,
               garmentAnalysis: activeVariant.garmentAnalysis,
               proportionJson: activeVariant.proportionJson,
@@ -1058,9 +1101,10 @@ const ProductPage = () => {
                 torso_cm: normalizedMannequin.mannequin_torso_cm,
                 arm_cm: normalizedMannequin.mannequin_arm_cm,
               },
-              referenceImages: activeVariant.uploadedImages.slice(0, 3),
+              referenceImages: refImages,
               image_url: imageUrl,
               launchId: activeWeekId,
+              seed: productGenSeed,
             },
           });
 
@@ -1077,6 +1121,7 @@ const ProductPage = () => {
           generationMs: Math.round(performance.now() - startedAt),
           attemptNumber: data.attemptNumber || 1,
           promptUsed: data.promptUsed || img.prompt,
+          seedUsed: data.seedUsed != null ? Number(data.seedUsed) : productGenSeed,
         });
 
         return data.originalUrl || data.previewUrl || data.imageUrl || "";
@@ -1196,6 +1241,11 @@ const ProductPage = () => {
         ? (isCloseDetail ? frontReferenceUrl : activeVariant.uploadedImages[0])
         : undefined;
 
+      const isFront = img.type === "lookbook-front";
+      const refImages = !isFront && productModelReferenceImage
+        ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
+        : activeVariant.uploadedImages.slice(0, 3);
+      const { seed: regenSeed, engine: regenEngine } = await ensureProductSeedAndEngine(engine);
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
           angleType: img.type,
@@ -1203,7 +1253,7 @@ const ProductPage = () => {
           basePrompt: img.prompt,
           prompt: img.prompt,
           manualPrompt: state.manualPrompt,
-          engine,
+          engine: overrideEngine || regenEngine,
           selectedPresets: state.selectedPresets,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
@@ -1216,10 +1266,11 @@ const ProductPage = () => {
             torso_cm: mannequin.mannequin_torso_cm,
             arm_cm: mannequin.mannequin_arm_cm,
           },
-          referenceImages: activeVariant.uploadedImages.slice(0, 3),
+          referenceImages: refImages,
           image_url: referenceImageUrl,
           attemptNumber: nextAttempt,
           launchId: sourceLaunch?.id,
+          seed: regenSeed,
         },
       });
       if (error) throw error;
@@ -1233,6 +1284,7 @@ const ProductPage = () => {
         generationMs: Math.round(performance.now() - startedAt),
         attemptNumber: data.attemptNumber || nextAttempt,
         promptUsed: data.promptUsed || img.prompt,
+        seedUsed: data.seedUsed != null ? Number(data.seedUsed) : regenSeed,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Falha na regeneração";
@@ -1285,6 +1337,11 @@ const ProductPage = () => {
         ? (isCloseDetail ? frontReferenceUrl : (frontReferenceUrl || activeVariant.uploadedImages[0]))
         : (frontReferenceUrl || activeVariant.uploadedImages[0] || undefined);
 
+      const isFront = img.type === "lookbook-front";
+      const refImages = !isFront && productModelReferenceImage
+        ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
+        : activeVariant.uploadedImages.slice(0, 3);
+      const { seed: singleSeed, engine: singleEngine } = await ensureProductSeedAndEngine(state.selectedEngine);
       const { data, error } = await supabase.functions.invoke("generate-image", {
         body: {
           angleType: img.type,
@@ -1292,7 +1349,7 @@ const ProductPage = () => {
           basePrompt: rebuiltPrompt,
           prompt: rebuiltPrompt,
           manualPrompt: state.manualPrompt,
-          engine: state.selectedEngine,
+          engine: singleEngine,
           garmentAnalysis: activeVariant.garmentAnalysis,
           proportionJson: activeVariant.proportionJson,
           modelProfile: state.selectedProfile,
@@ -1304,10 +1361,11 @@ const ProductPage = () => {
             torso_cm: mannequin.mannequin_torso_cm,
             arm_cm: mannequin.mannequin_arm_cm,
           },
-          referenceImages: activeVariant.uploadedImages.slice(0, 3),
+          referenceImages: refImages,
           image_url: referenceImageUrl,
           attemptNumber: 1,
           launchId: sourceLaunch?.id,
+          seed: singleSeed,
         },
       });
       if (error) throw error;
@@ -1323,6 +1381,7 @@ const ProductPage = () => {
         generationMs: Math.round(performance.now() - startedAt),
         attemptNumber: data.attemptNumber || 1,
         promptUsed: data.promptUsed || img.prompt,
+        seedUsed: data.seedUsed != null ? Number(data.seedUsed) : singleSeed,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Falha na geração";
@@ -1601,12 +1660,41 @@ const ProductPage = () => {
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
             <TabsList>
               <TabsTrigger value="photos">Fotos</TabsTrigger>
-              <TabsTrigger value="video">Vídeos</TabsTrigger>
               <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
               <TabsTrigger value="settings">Configurações</TabsTrigger>
             </TabsList>
 
             <TabsContent value="photos" className="mt-4 space-y-4">
+              {activeVariant && (
+                <PromptAndRefsEditor
+                  prompt={state.manualPrompt}
+                  onPromptChange={(v) => update("manualPrompt", v)}
+                  referenceImages={activeVariant.uploadedImages}
+                  onReferenceImagesChange={(imgs) => {
+                    setState((s) => ({ ...s, variants: s.variants.map((v) => v.id === activeVariant.id ? { ...v, uploadedImages: imgs } : v) }));
+                    saveVariant(activeVariant.id, { uploadedImages: imgs });
+                  }}
+                  approvedCount={approvedCount}
+                  isBusy={isGenerating}
+                  onSaveAndRegenerate={async (scope: RegenScope) => {
+                    if (projectId) {
+                      await supabase.from("products").update({ manual_prompt: state.manualPrompt }).eq("id", projectId);
+                    }
+                    const targets = variantWeeklyLaunches.flatMap((w) => w.images)
+                      .filter((i) => i.status === "done" && i.type !== "video-product" && i.type !== "video-model")
+                      .filter((i) => scope === "all" ? true : i.approvalStatus !== "approved");
+                    for (const t of targets) {
+                      await handleRegenerate(t.id);
+                    }
+                  }}
+                />
+              )}
+              {!hasApprovedFrontal && (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Gere e aprove o frontal antes de gerar laterais, costas ou close-ups (garante consistência da modelo).
+                </div>
+              )}
               {[...variantWeeklyLaunches].reverse().map((launch) => {
                 const photos = launch.images.filter((img) => img.type !== "video-product" && img.type !== "video-model");
                 if (photos.length === 0) return null;
@@ -1816,16 +1904,8 @@ const ProductPage = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="video" className="mt-4 space-y-4">
-              <VeoVideoSection
-                launches={variantWeeklyLaunches}
-                activeLaunchId={state.activeWeek}
-                onVideoGenerated={() => {
-                  queryClient.invalidateQueries({ queryKey: ["images", projectId] });
-                  queryClient.invalidateQueries({ queryKey: ["weeks", projectId] });
-                }}
-              />
-            </TabsContent>
+
+
 
             <TabsContent value="analysis" className="mt-4">
               {activeVariant?.garmentAnalysis ? (
