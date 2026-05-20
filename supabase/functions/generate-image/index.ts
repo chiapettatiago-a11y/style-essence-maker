@@ -538,8 +538,24 @@ const extractFalImageUrl = (payload: any): string => {
 };
 
 async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, retries = 2) {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+  const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
+  if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
+
+  // Map gateway model names → Google API model names
+  const googleModel = model
+    .replace(/^google\//, "")
+    .replace("gemini-3.1-flash-image-preview", "gemini-2.5-flash-image-preview")
+    .replace("gemini-3-pro-image-preview", "gemini-2.5-flash-image-preview");
+
+  // Build Google-format parts: text + inlineData for reference images
+  const parts: any[] = [{ text: prompt }];
+  for (const p of imageUrlParts) {
+    const url = p?.image_url?.url || "";
+    const m = url.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (m) {
+      parts.push({ inlineData: { mimeType: `image/${m[1]}`, data: m[2] } });
+    }
+  }
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
@@ -548,54 +564,53 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
       await new Promise(r => setTimeout(r, delayMs));
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${googleModel}:generateContent?key=${GOOGLE_API_KEY}`;
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model,
-        modalities: ["image", "text"],
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              ...imageUrlParts,
-            ],
-          },
-        ],
+        contents: [{ role: "user", parts }],
+        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
       }),
     });
 
     if (response.status === 429) {
       if (attempt < retries - 1) continue;
-      throw new Error("Rate limits exceeded após múltiplas tentativas. Aguarde alguns segundos e tente novamente.");
+      throw new Error("Google API rate limit excedido. Aguarde alguns segundos e tente novamente.");
     }
 
     if (!response.ok) {
       const errText = await response.text();
-      if (response.status === 402) throw new Error("Créditos de IA insuficientes no workspace.");
-      throw new Error(`AI image generation failed [${response.status}]: ${errText}`);
+      if (response.status === 402 || response.status === 403) {
+        throw new Error(`Google API: cota/permissão (${response.status}). Verifique billing do projeto tha-studio.`);
+      }
+      throw new Error(`Google API image generation failed [${response.status}]: ${errText}`);
     }
 
     const data = await response.json();
 
-    const imageUrl = extractGeminiImageUrl(data);
-    if (!imageUrl) {
-      const textContent = data?.choices?.[0]?.message?.content;
-      const textPreview = typeof textContent === "string"
-        ? textContent.substring(0, 500)
-        : JSON.stringify(textContent)?.substring(0, 500);
-      console.error(`[generate-image] Gemini returned no image. Model: ${model}. Text response: ${textPreview}`);
+    // Extract image from Google native format
+    let imageUrl = "";
+    const candidateParts = data?.candidates?.[0]?.content?.parts || [];
+    for (const part of candidateParts) {
+      if (part?.inlineData?.data) {
+        const mime = part.inlineData.mimeType || "image/png";
+        imageUrl = `data:${mime};base64,${part.inlineData.data}`;
+        break;
+      }
     }
 
-    return { imageUrl, modelUsed: model, rawData: data };
+    if (!imageUrl) {
+      const textContent = candidateParts.find((p: any) => p?.text)?.text;
+      console.error(`[generate-image] Google API returned no image. Model: ${googleModel}. Text: ${(textContent || "").substring(0, 500)}`);
+    }
+
+    return { imageUrl, modelUsed: googleModel, rawData: data };
   }
 
   throw new Error("Rate limits exceeded após múltiplas tentativas.");
 }
+
 
 async function callGeminiGateway(params: {
   promptUsed: string;
