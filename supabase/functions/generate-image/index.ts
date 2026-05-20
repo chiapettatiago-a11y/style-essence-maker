@@ -1123,6 +1123,7 @@ serve(async (req) => {
       modelUsed: result.modelUsed,
       attemptNumber: requestAttempt,
       engineUsed: parsedEngine,
+      seedUsed: numericSeed ?? null,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
