@@ -1671,7 +1671,7 @@ const ProductPage = () => {
                   onPromptChange={(v) => update("manualPrompt", v)}
                   referenceImages={activeVariant.uploadedImages}
                   onReferenceImagesChange={(imgs) => {
-                    updateVariant({ uploadedImages: imgs });
+                    setState((s) => ({ ...s, variants: s.variants.map((v) => v.id === activeVariant.id ? { ...v, uploadedImages: imgs } : v) }));
                     saveVariant(activeVariant.id, { uploadedImages: imgs });
                   }}
                   approvedCount={approvedCount}
