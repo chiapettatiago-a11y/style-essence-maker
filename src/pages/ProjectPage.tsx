@@ -873,10 +873,14 @@ const ProductPage = () => {
 
   const handleApproveImage = useCallback((id: string) => {
     let nextStatus: ApprovalStatus = "approved";
+    let approvedFrontUrl: string | null = null;
     for (const w of state.weeklyLaunches) {
       const img = w.images.find((i) => i.id === id);
       if (img) {
         nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        if (nextStatus === "approved" && img.type === "lookbook-front") {
+          approvedFrontUrl = img.originalUrl || img.imageUrl || null;
+        }
         break;
       }
     }
@@ -888,7 +892,12 @@ const ProductPage = () => {
       })),
     }));
     supabase.from("generated_images").update({ approval_status: nextStatus }).eq("id", id).then();
-  }, [state.weeklyLaunches]);
+    if (approvedFrontUrl && projectId) {
+      supabase.from("products").update({ model_reference_image: approvedFrontUrl }).eq("id", projectId).then(() => {
+        queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+      });
+    }
+  }, [state.weeklyLaunches, projectId, queryClient]);
 
   const handleUpscaleAndDownload = useCallback(async (image: GeneratedImage) => {
     const imageUrl = image.originalUrl || image.imageUrl;
