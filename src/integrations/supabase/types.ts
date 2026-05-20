@@ -69,6 +69,7 @@ export type Database = {
           prompt: string
           prompt_used: string | null
           raw_url: string | null
+          seed_used: number | null
           status: string
           type: string
           upscaled: boolean
@@ -94,6 +95,7 @@ export type Database = {
           prompt?: string
           prompt_used?: string | null
           raw_url?: string | null
+          seed_used?: number | null
           status?: string
           type: string
           upscaled?: boolean
@@ -119,6 +121,7 @@ export type Database = {
           prompt?: string
           prompt_used?: string | null
           raw_url?: string | null
+          seed_used?: number | null
           status?: string
           type?: string
           upscaled?: boolean
@@ -285,8 +288,10 @@ export type Database = {
           created_at: string
           featured_piece: string | null
           garment_analysis: Json | null
+          generation_seed: number | null
           id: string
           is_combo: boolean
+          locked_engine: string | null
           mannequin_arm_cm: number | null
           mannequin_bust_cm: number | null
           mannequin_height_cm: number | null
@@ -295,6 +300,7 @@ export type Database = {
           mannequin_waist_cm: number | null
           manual_prompt: string | null
           model_profile: Json | null
+          model_reference_image: string | null
           name: string
           product_code: string | null
           reference_photos: string[] | null
@@ -308,8 +314,10 @@ export type Database = {
           created_at?: string
           featured_piece?: string | null
           garment_analysis?: Json | null
+          generation_seed?: number | null
           id?: string
           is_combo?: boolean
+          locked_engine?: string | null
           mannequin_arm_cm?: number | null
           mannequin_bust_cm?: number | null
           mannequin_height_cm?: number | null
@@ -318,6 +326,7 @@ export type Database = {
           mannequin_waist_cm?: number | null
           manual_prompt?: string | null
           model_profile?: Json | null
+          model_reference_image?: string | null
           name: string
           product_code?: string | null
           reference_photos?: string[] | null
@@ -331,8 +340,10 @@ export type Database = {
           created_at?: string
           featured_piece?: string | null
           garment_analysis?: Json | null
+          generation_seed?: number | null
           id?: string
           is_combo?: boolean
+          locked_engine?: string | null
           mannequin_arm_cm?: number | null
           mannequin_bust_cm?: number | null
           mannequin_height_cm?: number | null
@@ -341,6 +352,7 @@ export type Database = {
           mannequin_waist_cm?: number | null
           manual_prompt?: string | null
           model_profile?: Json | null
+          model_reference_image?: string | null
           name?: string
           product_code?: string | null
           reference_photos?: string[] | null
