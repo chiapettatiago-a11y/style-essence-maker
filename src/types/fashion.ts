@@ -114,6 +114,7 @@ export interface GeneratedImage {
   attemptNumber?: number;
   approvalStatus?: ApprovalStatus;
   generationCostUsd?: number;
+  seedUsed?: number | null;
 }
 
 export interface WeeklyLaunch {
