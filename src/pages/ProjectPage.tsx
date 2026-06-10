@@ -2240,11 +2240,11 @@ const ProductPage = () => {
               ) : (
                 <div className="py-16 text-center text-muted-foreground text-sm">Faça a análise da peça para visualizar os campos técnicos.</div>
               )}
-            </TabsContent>
 
-            <TabsContent value="settings" className="mt-4 space-y-4">
+              {/* Produto: nome, manequim e exclusão */}
               <Card>
                 <CardContent className="pt-4 space-y-4">
+                  <h3 className="text-sm font-semibold">Produto e manequim</h3>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Nome do produto</Label>
                     <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
@@ -2277,10 +2277,10 @@ const ProductPage = () => {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" onClick={saveMannequin}>
-                      <Settings className="h-3.5 w-3.5 mr-1" /> Salvar configurações
+                      <Settings className="h-3.5 w-3.5 mr-1" /> Salvar
                     </Button>
                     <Button size="sm" variant="destructive" onClick={handleDeleteProduct}>
-                      Excluir produto
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir produto
                     </Button>
                   </div>
                 </CardContent>
@@ -2289,9 +2289,9 @@ const ProductPage = () => {
               {/* Reference Photos */}
               <Card>
                 <CardContent className="pt-4 space-y-4">
-                  <h3 className="text-sm font-semibold">Fotos de referência</h3>
+                  <h3 className="text-sm font-semibold">Fotos de referência adicionais</h3>
                   <p className="text-[10px] text-muted-foreground">
-                    Fotos usadas como referência para análise e geração. Máximo 3 fotos.
+                    Fotos extras usadas como referência de estilo/modelo. Máximo 3 fotos.
                   </p>
                   <ReferencePhotosSection
                     photos={(product as any)?.reference_photos || []}
