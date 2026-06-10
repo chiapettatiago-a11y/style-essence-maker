@@ -1531,27 +1531,49 @@ const ProductPage = () => {
             const pIsCombo = (p as any).is_combo;
             const pFeatured = (p as any).featured_piece;
             return (
-              <button
+              <div
                 key={p.id}
-                onClick={() => navigate(`/project/${p.id}`)}
                 className={cn(
-                  "w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-xs border transition-colors",
+                  "group/item w-full flex items-center gap-1 pr-1 rounded-md text-xs border transition-colors",
                   active ? "border-accent bg-accent/10 text-accent" : "border-transparent hover:bg-muted text-foreground"
                 )}
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{p.name}</span>
-                </span>
-                <span className="flex items-center gap-1 shrink-0">
-                  {pIsCombo && (
-                    <Badge variant="outline" className="text-[9px] h-4 px-1">
-                      Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
-                    </Badge>
-                  )}
-                  <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
-                </span>
-              </button>
+                <button
+                  onClick={() => navigate(`/project/${p.id}`)}
+                  className="flex-1 min-w-0 flex items-center justify-between gap-2 px-2.5 py-2 text-left"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{p.name}</span>
+                  </span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    {pIsCombo && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1">
+                        Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(`Excluir produto "${p.name}"? Esta ação não pode ser desfeita.`)) return;
+                    const { error } = await supabase.from("products").delete().eq("id", p.id);
+                    if (error) {
+                      toast({ title: "Erro", description: error.message, variant: "destructive" });
+                      return;
+                    }
+                    queryClient.invalidateQueries({ queryKey: ["products"] });
+                    if (p.id === projectId) navigate("/");
+                  }}
+                  className="opacity-0 group-hover/item:opacity-100 transition-opacity p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  title="Excluir produto"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
             );
           })}
         </div>
