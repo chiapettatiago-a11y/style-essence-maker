@@ -1128,6 +1128,7 @@ const ProductPage = () => {
           });
 
         if (error) throw error;
+        ensureGenerationResult(data);
 
         updateImageInState(img.id, {
           status: "done",
@@ -1182,6 +1183,7 @@ const ProductPage = () => {
             },
           });
           if (error) throw error;
+          ensureGenerationResult(data);
           updateImageInState(vid.id, {
             status: "done",
             imageUrl: data.originalUrl || data.imageUrl,
@@ -1293,6 +1295,7 @@ const ProductPage = () => {
         },
       });
       if (error) throw error;
+      ensureGenerationResult(data);
 
       updateImageInState(id, {
         status: "done",
@@ -1388,6 +1391,7 @@ const ProductPage = () => {
         },
       });
       if (error) throw error;
+      ensureGenerationResult(data);
 
       updateImageInState(id, {
         status: "done",
