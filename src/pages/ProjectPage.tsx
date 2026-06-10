@@ -109,6 +109,25 @@ const getAnalysisErrorMessage = (error: unknown) => {
   return rawMessage;
 };
 
+const ensureGenerationResult = (data: any) => {
+  if (data?.code === "rate_limited") {
+    throw new Error(data.error || "Limite de geração atingido. Aguarde um pouco e tente novamente.");
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  if (!data?.imageUrl && !data?.originalUrl && !data?.previewUrl) {
+    throw new Error("A geração não retornou uma imagem. Tente novamente em instantes.");
+  }
+};
+
+const matchesLockedEngine = (modelUsed: string | undefined, engine: GenerationEngine) => {
+  const model = (modelUsed || "").toLowerCase();
+  return engine === "gemini" ? model.includes("gemini") : model.includes("fal");
+};
+
 const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -1109,6 +1128,7 @@ const ProductPage = () => {
           });
 
         if (error) throw error;
+        ensureGenerationResult(data);
 
         updateImageInState(img.id, {
           status: "done",
@@ -1163,6 +1183,7 @@ const ProductPage = () => {
             },
           });
           if (error) throw error;
+          ensureGenerationResult(data);
           updateImageInState(vid.id, {
             status: "done",
             imageUrl: data.originalUrl || data.imageUrl,
@@ -1274,6 +1295,7 @@ const ProductPage = () => {
         },
       });
       if (error) throw error;
+      ensureGenerationResult(data);
 
       updateImageInState(id, {
         status: "done",
@@ -1369,6 +1391,7 @@ const ProductPage = () => {
         },
       });
       if (error) throw error;
+      ensureGenerationResult(data);
 
       updateImageInState(id, {
         status: "done",
@@ -1831,7 +1854,7 @@ const ProductPage = () => {
                               {img.approvalStatus === "approved" && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
                               <span className="text-xs font-medium truncate">{img.label}</span>
                               {img.status === "done" && productSeed != null && productLockedEngine && (
-                                (img.seedUsed === productSeed && img.modelUsed === productLockedEngine) ? (
+                                (img.seedUsed === productSeed && matchesLockedEngine(img.modelUsed, productLockedEngine)) ? (
                                   <Badge variant="outline" className="h-4 px-1 text-[8px] gap-0.5 border-green-500/40 text-green-600 dark:text-green-400 shrink-0" title={`Seed ${productSeed} • ${productLockedEngine}`}>
                                     <Check className="h-2 w-2" /> ok
                                   </Badge>

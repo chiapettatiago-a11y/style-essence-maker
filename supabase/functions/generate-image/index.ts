@@ -10,6 +10,30 @@ const corsHeaders = {
 type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-tr-detail" | "movement-shot" | "video-product" | "video-model";
 type GenerationEngine = "gemini" | "fal";
 
+class GenerationRateLimitError extends Error {
+  retryAfterMs: number;
+
+  constructor(message: string, retryAfterMs = 60_000) {
+    super(message);
+    this.name = "GenerationRateLimitError";
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+function isRateLimitError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return error instanceof GenerationRateLimitError || /429|rate.?limit|too many requests|excedido|quota exceeded/i.test(message);
+}
+
+function parseRetryAfterMs(response: Response) {
+  const retryAfter = response.headers.get("retry-after");
+  if (!retryAfter) return null;
+  const numeric = Number(retryAfter);
+  if (Number.isFinite(numeric)) return Math.max(1000, numeric * 1000);
+  const timestamp = Date.parse(retryAfter);
+  return Number.isFinite(timestamp) ? Math.max(1000, timestamp - Date.now()) : null;
+}
+
 type GarmentAnalysis = {
   type?: string;
   fabric?: string;
@@ -537,7 +561,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 5) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 7) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
@@ -561,8 +585,8 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      // Exponential backoff: 5s, 10s, 20s, 40s (+ jitter)
-      const delayMs = Math.min(5000 * Math.pow(2, attempt - 1), 45000) + Math.random() * 2000;
+      // Exponential backoff: 8s, 16s, 32s, 60s... (+ jitter)
+      const delayMs = Math.min(8000 * Math.pow(2, attempt - 1), 60_000) + Math.random() * 3000;
       console.log(`[generate-image] Rate limited, waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, delayMs));
     }
@@ -583,7 +607,8 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
 
     if (response.status === 429 || response.status === 503) {
       if (attempt < retries - 1) continue;
-      throw new Error("Google API rate limit excedido. Aguarde alguns segundos e tente novamente.");
+      const retryAfterMs = parseRetryAfterMs(response) ?? 90_000;
+      throw new GenerationRateLimitError("Google API rate limit excedido. Aguarde alguns segundos e tente novamente.", retryAfterMs);
     }
 
 
@@ -1061,6 +1086,22 @@ serve(async (req) => {
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
+      if (isRateLimitError(engineErr)) {
+        const retryAfterMs = engineErr instanceof GenerationRateLimitError ? engineErr.retryAfterMs : 90_000;
+        return new Response(JSON.stringify({
+          error: `Generation delayed for ${parsedAngle} (${parsedEngine}): ${errMsg}`,
+          code: "rate_limited",
+          retryable: true,
+          retryAfterMs,
+          promptUsed,
+          attemptNumber: requestAttempt,
+          engineUsed: parsedEngine,
+          seedUsed: numericSeed ?? null,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
 
@@ -1131,8 +1172,9 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
+    const status = isRateLimitError(error) ? 200 : 500;
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
