@@ -1704,10 +1704,10 @@ const ProductPage = () => {
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
             <TabsList>
-              <TabsTrigger value="photos">Fotos</TabsTrigger>
               <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
-              <TabsTrigger value="settings">Configurações</TabsTrigger>
+              <TabsTrigger value="photos">Fotos</TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="photos" className="mt-4 space-y-4">
               {activeVariant && (
