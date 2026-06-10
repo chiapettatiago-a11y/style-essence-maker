@@ -1086,6 +1086,22 @@ serve(async (req) => {
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
+      if (isRateLimitError(engineErr)) {
+        const retryAfterMs = engineErr instanceof GenerationRateLimitError ? engineErr.retryAfterMs : 90_000;
+        return new Response(JSON.stringify({
+          error: `Generation delayed for ${parsedAngle} (${parsedEngine}): ${errMsg}`,
+          code: "rate_limited",
+          retryable: true,
+          retryAfterMs,
+          promptUsed,
+          attemptNumber: requestAttempt,
+          engineUsed: parsedEngine,
+          seedUsed: numericSeed ?? null,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
 
@@ -1156,8 +1172,9 @@ serve(async (req) => {
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
+    const status = isRateLimitError(error) ? 200 : 500;
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
