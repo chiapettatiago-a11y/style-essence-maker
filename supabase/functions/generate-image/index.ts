@@ -10,6 +10,30 @@ const corsHeaders = {
 type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-tr-detail" | "movement-shot" | "video-product" | "video-model";
 type GenerationEngine = "gemini" | "fal";
 
+class GenerationRateLimitError extends Error {
+  retryAfterMs: number;
+
+  constructor(message: string, retryAfterMs = 60_000) {
+    super(message);
+    this.name = "GenerationRateLimitError";
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+function isRateLimitError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return error instanceof GenerationRateLimitError || /429|rate.?limit|too many requests|excedido|quota exceeded/i.test(message);
+}
+
+function parseRetryAfterMs(response: Response) {
+  const retryAfter = response.headers.get("retry-after");
+  if (!retryAfter) return null;
+  const numeric = Number(retryAfter);
+  if (Number.isFinite(numeric)) return Math.max(1000, numeric * 1000);
+  const timestamp = Date.parse(retryAfter);
+  return Number.isFinite(timestamp) ? Math.max(1000, timestamp - Date.now()) : null;
+}
+
 type GarmentAnalysis = {
   type?: string;
   fabric?: string;
