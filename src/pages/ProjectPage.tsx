@@ -48,7 +48,7 @@ const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: 
   },
 };
 
-type MainTab = "photos" | "analysis" | "settings";
+type MainTab = "analysis" | "photos";
 
 type MannequinData = {
   mannequin_height_cm: number | null;
