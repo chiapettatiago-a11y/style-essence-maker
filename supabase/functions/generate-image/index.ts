@@ -561,7 +561,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 7) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 4) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
@@ -585,11 +585,12 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      // Exponential backoff: 8s, 16s, 32s, 60s... (+ jitter)
-      const delayMs = Math.min(8000 * Math.pow(2, attempt - 1), 60_000) + Math.random() * 3000;
+      // Exponential backoff capped at 25s to stay within edge fn deadline
+      const delayMs = Math.min(6000 * Math.pow(2, attempt - 1), 25_000) + Math.random() * 2000;
       console.log(`[generate-image] Rate limited, waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, delayMs));
     }
+
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${googleModel}:generateContent?key=${GOOGLE_API_KEY}`;
     const generationConfig: Record<string, unknown> = { responseModalities: ["IMAGE", "TEXT"] };

@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
@@ -48,7 +48,7 @@ const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: 
   },
 };
 
-type MainTab = "photos" | "analysis" | "settings";
+type MainTab = "analysis" | "photos";
 
 type MannequinData = {
   mannequin_height_cm: number | null;
@@ -160,7 +160,7 @@ const ProductPage = () => {
   const [loaded, setLoaded] = useState(false);
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [launchModalStep, setLaunchModalStep] = useState(1);
-  const [activeTab, setActiveTab] = useState<MainTab>("photos");
+  const [activeTab, setActiveTab] = useState<MainTab>("analysis");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingVariantName, setEditingVariantName] = useState("");
   const [productName, setProductName] = useState("");
@@ -1531,27 +1531,49 @@ const ProductPage = () => {
             const pIsCombo = (p as any).is_combo;
             const pFeatured = (p as any).featured_piece;
             return (
-              <button
+              <div
                 key={p.id}
-                onClick={() => navigate(`/project/${p.id}`)}
                 className={cn(
-                  "w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-xs border transition-colors",
+                  "group/item w-full flex items-center gap-1 pr-1 rounded-md text-xs border transition-colors",
                   active ? "border-accent bg-accent/10 text-accent" : "border-transparent hover:bg-muted text-foreground"
                 )}
               >
-                <span className="flex items-center gap-2 min-w-0">
-                  <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{p.name}</span>
-                </span>
-                <span className="flex items-center gap-1 shrink-0">
-                  {pIsCombo && (
-                    <Badge variant="outline" className="text-[9px] h-4 px-1">
-                      Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
-                    </Badge>
-                  )}
-                  <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
-                </span>
-              </button>
+                <button
+                  onClick={() => navigate(`/project/${p.id}`)}
+                  className="flex-1 min-w-0 flex items-center justify-between gap-2 px-2.5 py-2 text-left"
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{p.name}</span>
+                  </span>
+                  <span className="flex items-center gap-1 shrink-0">
+                    {pIsCombo && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1">
+                        Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (!confirm(`Excluir produto "${p.name}"? Esta ação não pode ser desfeita.`)) return;
+                    const { error } = await supabase.from("products").delete().eq("id", p.id);
+                    if (error) {
+                      toast({ title: "Erro", description: error.message, variant: "destructive" });
+                      return;
+                    }
+                    queryClient.invalidateQueries({ queryKey: ["products"] });
+                    if (p.id === projectId) navigate("/");
+                  }}
+                  className="opacity-0 group-hover/item:opacity-100 transition-opacity p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  title="Excluir produto"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
             );
           })}
         </div>
@@ -1682,10 +1704,10 @@ const ProductPage = () => {
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
             <TabsList>
-              <TabsTrigger value="photos">Fotos</TabsTrigger>
               <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
-              <TabsTrigger value="settings">Configurações</TabsTrigger>
+              <TabsTrigger value="photos">Fotos</TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="photos" className="mt-4 space-y-4">
               {activeVariant && (
@@ -1947,10 +1969,48 @@ const ProductPage = () => {
 
 
 
-            <TabsContent value="analysis" className="mt-4">
+            <TabsContent value="analysis" className="mt-4 space-y-4">
+              {/* Imagens enviadas para análise */}
+              <Card>
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Imagens enviadas para análise</h3>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {(activeVariant?.uploadedImages?.length || 0)}/3
+                    </Badge>
+                  </div>
+                  {activeVariant && activeVariant.uploadedImages.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {activeVariant.uploadedImages.map((src, idx) => (
+                        <img
+                          key={idx}
+                          src={src}
+                          alt={`peça-${idx + 1}`}
+                          className="h-28 w-28 object-cover rounded-md border border-border"
+                        />
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-28 w-28 flex flex-col gap-1 text-[10px]"
+                        onClick={() => { setLaunchModalStep(1); setLaunchModalOpen(true); }}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Trocar / Re-analisar
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma imagem enviada. Use "Novo lançamento" para fazer o upload e a análise da peça.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {activeVariant?.garmentAnalysis ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-end">
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -2180,11 +2240,11 @@ const ProductPage = () => {
               ) : (
                 <div className="py-16 text-center text-muted-foreground text-sm">Faça a análise da peça para visualizar os campos técnicos.</div>
               )}
-            </TabsContent>
 
-            <TabsContent value="settings" className="mt-4 space-y-4">
+              {/* Produto: nome, manequim e exclusão */}
               <Card>
                 <CardContent className="pt-4 space-y-4">
+                  <h3 className="text-sm font-semibold">Produto e manequim</h3>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Nome do produto</Label>
                     <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
@@ -2217,10 +2277,10 @@ const ProductPage = () => {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" onClick={saveMannequin}>
-                      <Settings className="h-3.5 w-3.5 mr-1" /> Salvar configurações
+                      <Settings className="h-3.5 w-3.5 mr-1" /> Salvar
                     </Button>
                     <Button size="sm" variant="destructive" onClick={handleDeleteProduct}>
-                      Excluir produto
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir produto
                     </Button>
                   </div>
                 </CardContent>
@@ -2229,9 +2289,9 @@ const ProductPage = () => {
               {/* Reference Photos */}
               <Card>
                 <CardContent className="pt-4 space-y-4">
-                  <h3 className="text-sm font-semibold">Fotos de referência</h3>
+                  <h3 className="text-sm font-semibold">Fotos de referência adicionais</h3>
                   <p className="text-[10px] text-muted-foreground">
-                    Fotos usadas como referência para análise e geração. Máximo 3 fotos.
+                    Fotos extras usadas como referência de estilo/modelo. Máximo 3 fotos.
                   </p>
                   <ReferencePhotosSection
                     photos={(product as any)?.reference_photos || []}
