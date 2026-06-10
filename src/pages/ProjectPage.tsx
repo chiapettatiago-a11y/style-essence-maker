@@ -1854,7 +1854,7 @@ const ProductPage = () => {
                               {img.approvalStatus === "approved" && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
                               <span className="text-xs font-medium truncate">{img.label}</span>
                               {img.status === "done" && productSeed != null && productLockedEngine && (
-                                (img.seedUsed === productSeed && img.modelUsed === productLockedEngine) ? (
+                                (img.seedUsed === productSeed && matchesLockedEngine(img.modelUsed, productLockedEngine)) ? (
                                   <Badge variant="outline" className="h-4 px-1 text-[8px] gap-0.5 border-green-500/40 text-green-600 dark:text-green-400 shrink-0" title={`Seed ${productSeed} • ${productLockedEngine}`}>
                                     <Check className="h-2 w-2" /> ok
                                   </Badge>
