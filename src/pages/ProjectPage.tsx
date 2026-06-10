@@ -109,6 +109,25 @@ const getAnalysisErrorMessage = (error: unknown) => {
   return rawMessage;
 };
 
+const ensureGenerationResult = (data: any) => {
+  if (data?.code === "rate_limited") {
+    throw new Error(data.error || "Limite de geração atingido. Aguarde um pouco e tente novamente.");
+  }
+
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  if (!data?.imageUrl && !data?.originalUrl && !data?.previewUrl) {
+    throw new Error("A geração não retornou uma imagem. Tente novamente em instantes.");
+  }
+};
+
+const matchesLockedEngine = (modelUsed: string | undefined, engine: GenerationEngine) => {
+  const model = (modelUsed || "").toLowerCase();
+  return engine === "gemini" ? model.includes("gemini") : model.includes("fal");
+};
+
 const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
