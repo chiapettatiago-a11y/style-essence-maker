@@ -561,7 +561,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 7) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 4) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
