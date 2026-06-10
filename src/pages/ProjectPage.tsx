@@ -1969,10 +1969,48 @@ const ProductPage = () => {
 
 
 
-            <TabsContent value="analysis" className="mt-4">
+            <TabsContent value="analysis" className="mt-4 space-y-4">
+              {/* Imagens enviadas para análise */}
+              <Card>
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Imagens enviadas para análise</h3>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {(activeVariant?.uploadedImages?.length || 0)}/3
+                    </Badge>
+                  </div>
+                  {activeVariant && activeVariant.uploadedImages.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {activeVariant.uploadedImages.map((src, idx) => (
+                        <img
+                          key={idx}
+                          src={src}
+                          alt={`peça-${idx + 1}`}
+                          className="h-28 w-28 object-cover rounded-md border border-border"
+                        />
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-28 w-28 flex flex-col gap-1 text-[10px]"
+                        onClick={() => { setLaunchModalStep(1); setLaunchModalOpen(true); }}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                        Trocar / Re-analisar
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma imagem enviada. Use "Novo lançamento" para fazer o upload e a análise da peça.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {activeVariant?.garmentAnalysis ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-end">
+
                     <Button
                       variant="outline"
                       size="sm"
