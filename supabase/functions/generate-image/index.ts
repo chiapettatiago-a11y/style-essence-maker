@@ -537,7 +537,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 2) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 5) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
@@ -561,7 +561,8 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      const delayMs = Math.min(3000 * Math.pow(2, attempt - 1), 30000) + Math.random() * 2000;
+      // Exponential backoff: 5s, 10s, 20s, 40s (+ jitter)
+      const delayMs = Math.min(5000 * Math.pow(2, attempt - 1), 45000) + Math.random() * 2000;
       console.log(`[generate-image] Rate limited, waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, delayMs));
     }
@@ -580,10 +581,11 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
       }),
     });
 
-    if (response.status === 429) {
+    if (response.status === 429 || response.status === 503) {
       if (attempt < retries - 1) continue;
       throw new Error("Google API rate limit excedido. Aguarde alguns segundos e tente novamente.");
     }
+
 
     if (!response.ok) {
       const errText = await response.text();
