@@ -470,7 +470,7 @@ const ProductPage = () => {
       garmentAnalysis: hydratedActiveVariant?.garmentAnalysis || null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
-      selectedEngine: hydratedActiveWeek?.engineUsed || "seedream",
+      selectedEngine: hydratedActiveWeek?.engineUsed || "fal",
       manualPrompt: product.manual_prompt || "",
       generatedImages: [],
       weeklyLaunches,
