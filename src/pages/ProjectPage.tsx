@@ -1241,9 +1241,20 @@ const ProductPage = () => {
 
       try {
           const isFront = img.type === "lookbook-front";
-          const refImages = !isFront && productModelReferenceImage
-            ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
-            : activeVariant.uploadedImages.slice(0, 3);
+
+          let refImages: string[];
+          if (isFront) {
+            // Front view: use hanger photos as garment reference
+            refImages = activeVariant.uploadedImages.slice(0, 3);
+          } else if (imageUrl) {
+            // Secondary angles: use ONLY the generated front view
+            // Do NOT mix in hanger photos — they contaminate with the mannequin
+            refImages = [imageUrl];
+          } else {
+            // Fallback if no front view yet
+            refImages = activeVariant.uploadedImages.slice(0, 2);
+          }
+
           const { data, error } = await supabase.functions.invoke("generate-image", {
             body: {
               angleType: img.type,
@@ -1266,7 +1277,7 @@ const ProductPage = () => {
               },
               referenceImages: refImages,
               image_url: imageUrl,
-              frontViewUrl: img.type !== "lookbook-front" ? (imageUrl || null) : null,
+              frontViewUrl: isFront ? null : imageUrl,
               accessories: { footwear: selectedFootwear },
               imageId: img.id,
               background: true,

@@ -288,7 +288,13 @@ NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
 Lighting: soft even studio light, same temperature in all photos.`;
 
-const FULL_BODY_CRITICAL_BLOCK_FAL = `FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
+const FULL_BODY_CRITICAL_BLOCK_FAL = `SCENE ANCHOR — OVERRIDE EVERYTHING:
+Background: pure seamless white #FFFFFF studio cyclorama.
+NOT bege. NOT cream. NOT gray. NOT warm white.
+This overrides the reference image background.
+If background is not pure white — regenerate.
+
+FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
 Full body shot from head to toe. E-commerce product catalog photo.
 Model centered in frame, occupying 70-75% of frame height.
 Minimum 10% empty space above head, minimum 15% below feet.
