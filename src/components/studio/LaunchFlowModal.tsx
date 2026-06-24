@@ -390,6 +390,30 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                 </div>
               </div>
 
+              {/* Footwear selector */}
+              <div className="space-y-2">
+                <Label className="text-xs">Calçado</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {FOOTWEAR_CHOICES.map((f) => {
+                    const isSelected = selectedFootwear === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => onSelectedFootwearChange?.(f.id)}
+                        className={cn(
+                          "rounded-xl border p-3 text-left transition-all bg-card",
+                          isSelected ? "border-foreground border-2 shadow-sm" : "border-border hover:border-foreground/40",
+                        )}
+                      >
+                        <div className="text-xl mb-1">{f.emoji}</div>
+                        <p className="text-xs font-medium">{f.label}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Folder selector */}
               {productId && (
                 <div className="space-y-2">
