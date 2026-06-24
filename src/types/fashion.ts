@@ -122,6 +122,7 @@ export interface WeeklyLaunch {
   label: string;
   name?: string;
   variantId?: string;
+  folderId?: string | null;
   engineUsed?: GenerationEngine;
   images: GeneratedImage[];
   mannequinHeightCm?: number | null;
