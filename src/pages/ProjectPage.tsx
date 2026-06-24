@@ -250,6 +250,33 @@ const ProductPage = () => {
     enabled: !!user && !!projectId,
   });
 
+  const { data: folders } = useQuery({
+    queryKey: ["folders", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("id, name, folder_type, product_id")
+        .eq("product_id", projectId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as FolderRow[];
+    },
+    enabled: !!user && !!projectId,
+  });
+
+  const { data: allFolders } = useQuery({
+    queryKey: ["all-folders-for-sidebar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("id, product_id");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
+
   const { data: products } = useQuery({
     queryKey: ["products"],
     queryFn: async () => {
