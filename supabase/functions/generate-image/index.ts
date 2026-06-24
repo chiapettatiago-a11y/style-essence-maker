@@ -154,11 +154,23 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
   "movement-shot",
 ]);
 
- const FOOTWEAR_BLOCK = `FOOTWEAR — CRITICAL:
- The model MUST be wearing shoes. NEVER barefoot, NEVER without footwear.
- Default: nude-colored pointed-toe stiletto pumps matching skin tone.
- Shoes must be elegant, fashion-appropriate, and fully visible in full-body shots.
- Do NOT show bare feet under any circumstances.`;
+const FOOTWEAR_OPTIONS: Record<string, string> = {
+  scarpin_nude: "nude-colored pointed-toe stiletto pumps, skin-tone matching, elegant heel 8-10cm, fully visible",
+  scarpin_preto: "black pointed-toe stiletto pumps, polished leather, classic, heel 8-10cm, fully visible",
+  sandalia_tira: "strappy heeled sandals, delicate thin straps, nude or metallic, heel 7-9cm, fully visible",
+  mule_dourado: "gold metallic open-toe mule heels, fashion-forward, heel 6-8cm, fully visible",
+  bota_ankle: "black ankle boots, pointed toe, block heel 5-7cm, clean leather finish, fully visible",
+  sem_sapato: "barefoot, natural, pedicured feet with neutral nail color",
+};
+
+function getFootwearBlock(accessories?: { footwear?: string } | null): string {
+  const key = (accessories?.footwear as string) || "scarpin_nude";
+  const desc = FOOTWEAR_OPTIONS[key] || FOOTWEAR_OPTIONS.scarpin_nude;
+  return `FOOTWEAR — MANDATORY:
+The model MUST wear: ${desc}
+Shoes must be elegant, fashion-appropriate, fully visible in all full-body shots.
+${key === "sem_sapato" ? "" : "NEVER barefoot. NEVER without footwear."}`;
+}
  
  const GENDER_BLOCK = `GENDER — CRITICAL:
  The model is FEMALE. This is a WOMEN'S garment.
