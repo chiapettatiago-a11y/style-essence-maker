@@ -2759,6 +2759,8 @@ const ProductPage = () => {
           queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
         }}
         initialFolderId={pendingFolderId}
+        selectedFootwear={selectedFootwear}
+        onSelectedFootwearChange={setSelectedFootwear}
       />
 
       <ResultsGalleryDialog
