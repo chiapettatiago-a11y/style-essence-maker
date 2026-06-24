@@ -2191,7 +2191,7 @@ const ProductPage = () => {
                                         </p>
                                       ) : (
                                         <p className="text-[10px] text-muted-foreground">
-                                          {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "seedream"}
+                                          {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "fal"}
                                         </p>
                                       )}
                                       {/* Per-angle progress dots */}
