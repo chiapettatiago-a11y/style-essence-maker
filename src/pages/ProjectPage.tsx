@@ -378,6 +378,20 @@ const ProductPage = () => {
     return productCountMap;
   }, [allWeeks, allImages]);
 
+  const sidebarMeta = useMemo(() => {
+    const launchByProduct = new Map<string, number>();
+    (allWeeks || []).forEach((w) => {
+      launchByProduct.set(w.product_id, (launchByProduct.get(w.product_id) || 0) + 1);
+    });
+    const folderByProduct = new Map<string, number>();
+    (allFolders || []).forEach((f) => {
+      if (!f.product_id) return;
+      folderByProduct.set(f.product_id, (folderByProduct.get(f.product_id) || 0) + 1);
+    });
+    return { launchByProduct, folderByProduct };
+  }, [allWeeks, allFolders]);
+
+
   useEffect(() => {
     setLoaded(false);
   }, [projectId]);
