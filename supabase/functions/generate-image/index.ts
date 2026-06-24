@@ -624,8 +624,12 @@ Avoid: plastic skin, porcelain finish, overly smooth airbrushed look, CGI appear
     skirtLengthBlock = `SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`;
   }
 
-  const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
-  const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
+  const faceAnchorBlock = angleType !== "video-product"
+    ? buildFaceAnchorPrompt(modelProfile, angleType, !!hasFrontReference)
+    : "";
+  const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType)
+    ? getFootwearBlock(accessories)
+    : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
 
   // RULE 1: Bottom garment safety for upper-body pieces
