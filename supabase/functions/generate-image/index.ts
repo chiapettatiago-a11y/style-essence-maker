@@ -543,6 +543,21 @@ Construction details: ${garmentAnalysis?.details || "N/A"}${proportionsBlock}`;
   }
 
   // TR badge block removed from prompt — badge will be added in post-production
+  const hasTexturedKnit = /waffle|ridged|raised|dimensional|knit|textured knit|point|relevo|canelado/i.test(
+    [garmentAnalysis?.fabricTexture, garmentAnalysis?.fabric, garmentAnalysis?.details?.toString()].join(' ')
+  );
+
+  const knitTextureBlock = hasTexturedKnit
+    ? `FABRIC TEXTURE — MANDATORY REPLICATION:
+The knit fabric has a PRONOUNCED 3D SURFACE TEXTURE — raised ridged waffle-stitch pattern. Each stitch is individually visible and creates dimensional relief on the surface. This is NOT a smooth jersey or flat knit.
+- Texture depth: the ridges cast visible micro-shadows
+- Surface feel: chunky, dimensional, tactile — like a waffle weave
+- Light behavior: the raised stitches catch light on top, shadow in valleys
+- The texture must be visible and consistent across the entire garment
+- Do NOT render as smooth, flat, shiny, or jersey-like fabric
+HARD FAIL: if fabric appears smooth, silky, or flat — regenerate.`
+    : "";
+
   const trBadgeBlock = "";
 
   const modelIdentityBlock = modelProfile?.promptSeed
