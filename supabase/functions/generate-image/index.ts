@@ -197,23 +197,29 @@ FORBIDDEN in all generated images — zero tolerance:
 If ANY tag or label appears in the generated image, the image is REJECTED.`;
 
 // ─── RULE 4: TR CLOSE-UP QUALITY ───
-const TR_CLOSEUP_QUALITY_BLOCK = `TR MONOGRAM CLOSE-UP — MANDATORY QUALITY STANDARDS:
-This is a critical brand deliverable. Apply strict quality control:
+const TR_CLOSEUP_QUALITY_BLOCK = `TR MONOGRAM BUTTON — EXACT REPLICATION REQUIRED:
 
-MANDATORY — every element must pass:
-- TR golden metallic button MUST be tack-sharp, center frame, in perfect focus
-- Monogram engraving clearly legible: "TR" interlocking letters, each stroke distinguishable
-- Button surface: polished warm gold (#D4AF37 to #FFD700), realistic specular highlights, NO overexposure
-- Fabric surrounding the button: perfectly pressed, zero wrinkles, zero creases
-- Depth of field: button razor-sharp, fabric softly blurred behind — professional macro photography feel
-- Lighting: soft directional light catching the gold surface, warm tone
+BUTTON ANATOMY (replicate precisely from Figure 1 reference):
+- Shape: small flat circular metal disc, approximately 1.5cm diameter
+- Material: matte-oxidized aged gold metal, NOT shiny polished — warm dark gold tone, similar to antique brass (#8B6914 to #A07820)
+- Letters: "T" and "R" are CUT-THROUGH / DIE-CUT openings in the metal, NOT raised embossed — the fabric behind shows THROUGH the letter shapes
+- Letter style: serif typeface, the "R" has a curved serif leg, classic elegant typography
+- Thread: 4 visible thread holes at cardinal points (N, S, E, W edges), with white or cream thread visible passing through
+- No border rim engraving — the edge is a clean flat circle
 
-HARD FAIL — regenerate immediately if:
-- TR lettering is blurry, distorted, illegible, or abstracted
-- Button appears silver, dark, matte, brass, or any color other than polished gold
-- Button is off-center or partially cropped out of frame
-- Any wrinkle, crease, or fold appears near the button/cuff area
-- Button scale is wrong (too large or microscopic)`;
+PHOTOGRAPHY SPECS:
+- Macro shot, 100mm lens equivalent, f/2.8
+- Button fills 40-60% of frame, centered
+- Fabric texture visible and in soft focus around button
+- Lighting: soft directional from upper-left, catching the matte metal surface without overexposure
+- The cut-through letters must show fabric texture through them
+
+HARD FAILS — regenerate if:
+- Letters appear raised/embossed instead of cut-through
+- Button looks shiny polished gold instead of matte antique
+- "TR" letters are blurry or illegible
+- Thread holes not visible
+- Button appears silver, brass-bright, or any other color`;
 
  const TR_BADGE_DETAILED_BLOCK_FN = (signatureDetails?: string) => {
    const positionNotVisible = !signatureDetails || /not clearly visible/i.test(signatureDetails);
@@ -900,8 +906,9 @@ async function callSeedreamEngine(params: {
   promptUsed: string;
   imageUrls?: string[];
   angleType: AngleType;
+  trBadgeUrl?: string | null;
 }) {
-  console.log("[callSeedreamEngine] invoked", { angleType: params.angleType, refImages: params.imageUrls?.length || 0, promptLen: params.promptUsed?.length || 0 });
+  console.log("[callSeedreamEngine] invoked", { angleType: params.angleType, refImages: params.imageUrls?.length || 0, promptLen: params.promptUsed?.length || 0, hasTrBadge: !!params.trBadgeUrl });
   const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
   if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
 
@@ -910,7 +917,11 @@ async function callSeedreamEngine(params: {
   const isCloseUp = params.angleType === "close-tr-detail";
   const isFrontView = params.angleType === "lookbook-front";
   const hasRefs = params.imageUrls && params.imageUrls.length > 0;
-  const useEdit = hasRefs && !isFrontView;
+
+  // For close-up: force edit mode whenever any reference (badge or garment) is available
+  const useEdit = isCloseUp
+    ? (!!params.trBadgeUrl || hasRefs)
+    : (hasRefs && !isFrontView);
 
   const endpoint = useEdit
     ? "fal-ai/bytedance/seedream/v5/lite/edit"
@@ -918,22 +929,42 @@ async function callSeedreamEngine(params: {
 
   const imageSize = isCloseUp ? "square_hd" : "portrait_4_3";
 
+  // For close-up with badge reference, prepend instruction so the model treats Figure 1 as the canonical TR button
+  let finalPrompt = params.promptUsed;
+  if (isCloseUp && params.trBadgeUrl) {
+    finalPrompt =
+      "Figure 1 is the EXACT TR monogram button that must appear in this image. " +
+      "Replicate it with maximum fidelity — same cut-through letters, same matte gold finish, same thread holes, same proportions. " +
+      "Figure 2 shows the garment fabric context.\n\n" +
+      params.promptUsed;
+  }
+
   const input: Record<string, unknown> = {
-    prompt: params.promptUsed,
+    prompt: finalPrompt,
     image_size: imageSize,
     num_images: 1,
     enable_safety_checker: false,
   };
 
-  if (useEdit && params.imageUrls) {
+  if (useEdit) {
+    let sourceUrls: string[] = [];
+    if (isCloseUp && params.trBadgeUrl) {
+      // Badge first, then up to 2 garment context images
+      sourceUrls = [params.trBadgeUrl, ...((params.imageUrls || []).slice(0, 2))];
+    } else if (params.imageUrls) {
+      sourceUrls = params.imageUrls.slice(0, 10);
+    }
     const publicUrls: string[] = [];
-    for (const url of params.imageUrls.slice(0, 10)) {
+    for (const url of sourceUrls) {
+      if (!url) continue;
       publicUrls.push(url.startsWith("data:") ? await ensurePublicUrl(url) : url);
     }
-    input.image_urls = publicUrls;
+    if (publicUrls.length > 0) {
+      input.image_urls = publicUrls;
+    }
   }
 
-  console.log(`[seedream5] endpoint=${endpoint}, angle=${params.angleType}, refs=${params.imageUrls?.length ?? 0}`);
+  console.log(`[seedream5] endpoint=${endpoint}, angle=${params.angleType}, refs=${(input.image_urls as string[] | undefined)?.length ?? 0}, badgeFirst=${isCloseUp && !!params.trBadgeUrl}`);
 
   try {
     const result = await fal.subscribe(endpoint, { input });
@@ -1190,6 +1221,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
               ? [falReferenceImage, ...(Array.isArray(referenceImages) ? referenceImages.slice(0, 2) : [])]
               : (Array.isArray(referenceImages) ? referenceImages.slice(0, 3) : []),
             angleType: parsedAngle,
+            trBadgeUrl: (body as any)?.trBadgeUrl || null,
           })
         : parsedEngine === "fal"
           ? await callFalEngine({
