@@ -1821,6 +1821,7 @@ const ProductPage = () => {
               size="sm"
               className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
+                setPendingFolderId(null);
                 setLaunchModalStep(1);
                 setLaunchModalOpen(true);
               }}
