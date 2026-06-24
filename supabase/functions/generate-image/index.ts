@@ -197,37 +197,31 @@ FORBIDDEN in all generated images — zero tolerance:
 If ANY tag or label appears in the generated image, the image is REJECTED.`;
 
 // ─── RULE 4: TR CLOSE-UP QUALITY ───
-const TR_CLOSEUP_QUALITY_BLOCK = `TR MONOGRAM BUTTON — EXACT REPLICATION REQUIRED:
+const TR_CLOSEUP_QUALITY_BLOCK = `TR BADGE CLOSE-UP — BRAND DETAIL SHOT:
 
-BUTTON ANATOMY (replicate precisely from Figure 1 reference):
-- Shape: small flat circular metal disc, approximately 1.5cm diameter
-- Material: matte-oxidized aged gold metal, NOT shiny polished — warm dark gold tone, similar to antique brass (#8B6914 to #A07820)
-- Letters: "T" and "R" are CUT-THROUGH / DIE-CUT openings in the metal, NOT raised embossed — the fabric behind shows THROUGH the letter shapes
-- Letter style: serif typeface, the "R" has a curved serif leg, classic elegant typography
-- Thread: 4 visible thread holes at cardinal points (N, S, E, W edges), with white or cream thread visible passing through
-- No border rim engraving — the edge is a clean flat circle
+WHAT TO SHOW: A macro photograph of the garment cuff area.
+The TR button appears as a TINY DETAIL on the sleeve — like a shirt button.
 
-BUTTON SCALE — CRITICAL:
-The TR button is VERY SMALL — approximately 1.5cm diameter in real life.
-On the wrist/cuff it appears as a TINY DISCRETE DETAIL, not a prominent element. It should occupy no more than 8-10% of the total image area.
-The fabric and knit texture must be the dominant visual element.
-The button is a subtle brand signature, NOT a large medallion.
-Reference: imagine a shirt button — that is the correct scale.
-HARD FAIL: if the button appears larger than a shirt button relative to the fabric, regenerate.
+BUTTON SPECIFICATIONS (exact):
+- Shape: flat circular metal disc
+- Size: VERY SMALL — no larger than a shirt button, ~1.5cm real diameter
+- In the image it should occupy maximum 10% of frame area — it is a SUBTLE detail
+- Material: matte antique gold metal, NOT shiny, NOT embroidered, NOT stitched
+- The letters T and R are DIE-CUT through the metal — fabric shows through the gaps
+- Letter style: classic serif, T slightly larger overlapping R
+- 4 small thread holes visible at edges with white thread
 
-PHOTOGRAPHY SPECS:
-- Macro shot, 100mm lens equivalent, f/2.8
-- Button centered in frame
-- Fabric texture visible and in soft focus around button
-- Lighting: soft directional from upper-left, catching the matte metal surface without overexposure
-- The cut-through letters must show fabric texture through them
+COMPOSITION:
+- Show 60-70% fabric texture, 30-40% button area
+- Button positioned in lower portion of frame
+- Fabric in soft focus, button in sharp focus
+- Macro lens feel, shallow depth of field
 
-HARD FAILS — regenerate if:
-- Letters appear raised/embossed instead of cut-through
-- Button looks shiny polished gold instead of matte antique
-- "TR" letters are blurry or illegible
-- Thread holes not visible
-- Button appears silver, brass-bright, or any other color`;
+ABSOLUTE PROHIBITIONS:
+- Do NOT make letters embroidered or stitched on fabric
+- Do NOT make the button large or dominant in frame
+- Do NOT make the metal shiny/polished — matte antique gold only
+- Do NOT make letters raised/embossed — they are cut-through openings`;
 
  const TR_BADGE_DETAILED_BLOCK_FN = (signatureDetails?: string) => {
    const positionNotVisible = !signatureDetails || /not clearly visible/i.test(signatureDetails);
