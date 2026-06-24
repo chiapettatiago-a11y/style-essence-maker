@@ -34,6 +34,69 @@ function parseRetryAfterMs(response: Response) {
   return Number.isFinite(timestamp) ? Math.max(1000, timestamp - Date.now()) : null;
 }
 
+function jsonResponse(payload: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function getAdminClient() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceRoleKey) return null;
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+async function updateGeneratedImageRow(imageId: string | undefined, updates: Record<string, unknown>) {
+  if (!imageId) return;
+  const admin = getAdminClient();
+  if (!admin) return;
+
+  const { error } = await admin.from("generated_images").update(updates).eq("id", imageId);
+  if (error) console.error(`[generate-image] Failed to update generated_images ${imageId}: ${error.message}`);
+}
+
+function waitUntilBackground(task: Promise<unknown>) {
+  const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
+  if (edgeRuntime?.waitUntil) {
+    edgeRuntime.waitUntil(task);
+    return;
+  }
+
+  task.catch((error) => console.error("[generate-image] Background task failed:", error));
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`[generate-image] ${label} timed out after ${ms}ms; continuing without it.`);
+      resolve(null);
+    }, ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 type GarmentAnalysis = {
   type?: string;
   fabric?: string;
@@ -561,7 +624,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 4) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 2) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
@@ -585,8 +648,8 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      // Exponential backoff capped at 25s to stay within edge fn deadline
-      const delayMs = Math.min(6000 * Math.pow(2, attempt - 1), 25_000) + Math.random() * 2000;
+      // Keep retries short and return a retryable response instead of risking the 150s idle timeout.
+      const delayMs = Math.min(5000 * Math.pow(2, attempt - 1), 10_000) + Math.random() * 1000;
       console.log(`[generate-image] Rate limited, waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, delayMs));
     }
@@ -597,14 +660,14 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
     if (typeof seed === "number" && Number.isFinite(seed)) {
       generationConfig.seed = Math.floor(seed);
     }
-    const response = await fetch(endpoint, {
+    const response = await fetchWithTimeout(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts }],
         generationConfig,
       }),
-    });
+    }, 75_000);
 
     if (response.status === 429 || response.status === 503) {
       if (attempt < retries - 1) continue;
@@ -693,9 +756,8 @@ async function ensurePublicUrl(imageUrl: string): Promise<string> {
       throw new Error("Cannot convert base64 to public URL: missing Supabase credentials");
     }
 
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
+    const admin = getAdminClient();
+    if (!admin) throw new Error("Cannot convert base64 to public URL: missing Supabase credentials");
 
     const match = imageUrl.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
     if (!match) throw new Error("Invalid base64 image format");
@@ -1006,12 +1068,7 @@ async function uploadGeneratedVideo(params: {
   return { originalUrl, imageUrl: originalUrl };
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
+async function runGenerationPipeline(body: Record<string, any>) {
     const {
       angleType,
       angle,
@@ -1028,7 +1085,8 @@ serve(async (req) => {
       attemptNumber,
       launchId,
       seed,
-    } = await req.json();
+      autoUpscale,
+    } = body;
 
     const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
 
@@ -1055,15 +1113,12 @@ serve(async (req) => {
 
     if (isVideoRequest) {
       // Video generation is temporarily disabled
-      return new Response(JSON.stringify({
+      return {
         error: "Geração de vídeo temporariamente desativada. Apenas prompts de texto são gerados.",
         code: "video_disabled",
         promptUsed,
         attemptNumber: requestAttempt,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      };
     }
 
     let result: { imageUrl: string; modelUsed: string };
@@ -1089,7 +1144,7 @@ serve(async (req) => {
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
       if (isRateLimitError(engineErr)) {
         const retryAfterMs = engineErr instanceof GenerationRateLimitError ? engineErr.retryAfterMs : 90_000;
-        return new Response(JSON.stringify({
+        return {
           error: `Generation delayed for ${parsedAngle} (${parsedEngine}): ${errMsg}`,
           code: "rate_limited",
           retryable: true,
@@ -1098,10 +1153,7 @@ serve(async (req) => {
           attemptNumber: requestAttempt,
           engineUsed: parsedEngine,
           seedUsed: numericSeed ?? null,
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        };
       }
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
@@ -1113,12 +1165,20 @@ serve(async (req) => {
 
     if (shouldFaceSwap) {
       console.log(`[generate-image] Applying face swap for angle=${parsedAngle}, model=${modelProfile?.name || "unknown"}`);
-      const swappedUrl = await callFaceSwap({
-        generatedImageUrl: result.imageUrl,
-        faceReferenceUrl: faceImageUrl!,
-      });
-      result.imageUrl = swappedUrl;
-      result.modelUsed = `${result.modelUsed} + face-swap`;
+      const swappedUrl = await withTimeout(
+        callFaceSwap({
+          generatedImageUrl: result.imageUrl,
+          faceReferenceUrl: faceImageUrl!,
+        }),
+        45_000,
+        "face-swap",
+      );
+      if (swappedUrl) {
+        result.imageUrl = swappedUrl;
+        result.modelUsed = `${result.modelUsed} + face-swap`;
+      } else {
+        result.modelUsed = `${result.modelUsed} + face-swap-timeout-skipped`;
+      }
     }
 
     // Save raw (pre-upscale) image to storage as JPG
@@ -1130,17 +1190,19 @@ serve(async (req) => {
     });
     const rawUrl = rawAsset.originalUrl;
 
-    // UPSCALE with clarity-upscaler (2x)
+    // Auto-upscale can push the request beyond the 150s idle limit. Keep HD upscale on-demand at download time.
     let upscaled = false;
     let finalImageUrl = result.imageUrl;
-    try {
-      const upscaledUrl = await callUpscaler(result.imageUrl);
-      if (upscaledUrl !== result.imageUrl) {
-        finalImageUrl = upscaledUrl;
-        upscaled = true;
+    if (autoUpscale === true) {
+      try {
+        const upscaledUrl = await withTimeout(callUpscaler(result.imageUrl), 25_000, "upscale");
+        if (upscaledUrl && upscaledUrl !== result.imageUrl) {
+          finalImageUrl = upscaledUrl;
+          upscaled = true;
+        }
+      } catch (upErr) {
+        console.error(`[generate-image] Upscale failed, using original:`, upErr);
       }
-    } catch (upErr) {
-      console.error(`[generate-image] Upscale failed, using original:`, upErr);
     }
 
     // Upload upscaled (or original if upscale failed) as the main HD asset — JPG
@@ -1157,7 +1219,7 @@ serve(async (req) => {
       storedAsset = rawAsset;
     }
 
-    return new Response(JSON.stringify({
+    return {
       imageUrl: storedAsset.imageUrl,
       originalUrl: storedAsset.originalUrl,
       previewUrl: storedAsset.previewUrl,
@@ -1168,15 +1230,71 @@ serve(async (req) => {
       attemptNumber: requestAttempt,
       engineUsed: parsedEngine,
       seedUsed: numericSeed ?? null,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    };
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const body = await req.json();
+    const imageId = typeof body?.imageId === "string" ? body.imageId : undefined;
+    const runInBackground = body?.background === true && !!imageId;
+
+    if (runInBackground) {
+      await updateGeneratedImageRow(imageId, { status: "generating", error: null });
+      waitUntilBackground(
+        runGenerationPipeline(body)
+          .then(async (payload) => {
+            if (payload?.code || payload?.error) {
+              await updateGeneratedImageRow(imageId, {
+                status: "error",
+                error: payload.error || "A geração não retornou imagem.",
+                prompt_used: payload.promptUsed || body.prompt || body.basePrompt || null,
+                attempt_number: payload.attemptNumber || body.attemptNumber || 1,
+                model_used: payload.engineUsed || body.engine || null,
+                seed_used: payload.seedUsed ?? body.seed ?? null,
+              });
+              return;
+            }
+
+            await updateGeneratedImageRow(imageId, {
+              status: "done",
+              error: null,
+              image_url: payload.imageUrl || null,
+              original_url: payload.originalUrl || payload.imageUrl || null,
+              preview_url: payload.previewUrl || payload.imageUrl || null,
+              raw_url: payload.rawUrl || null,
+              upscaled: payload.upscaled || false,
+              model_used: payload.modelUsed || null,
+              attempt_number: payload.attemptNumber || body.attemptNumber || 1,
+              prompt_used: payload.promptUsed || body.prompt || body.basePrompt || null,
+              seed_used: payload.seedUsed ?? body.seed ?? null,
+            });
+          })
+          .catch(async (error: unknown) => {
+            const msg = error instanceof Error ? error.message : "Unknown error";
+            console.error(`[generate-image] Background generation failed for ${imageId}: ${msg}`);
+            await updateGeneratedImageRow(imageId, {
+              status: "error",
+              error: msg,
+              attempt_number: body.attemptNumber || 1,
+              prompt_used: body.prompt || body.basePrompt || null,
+              seed_used: body.seed ?? null,
+            });
+          }),
+      );
+
+      return jsonResponse({ code: "processing", status: "generating", imageId }, 202);
+    }
+
+    const payload = await runGenerationPipeline(body);
+    return jsonResponse(payload);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     const status = isRateLimitError(error) ? 200 : 500;
-    return new Response(JSON.stringify({ error: msg }), {
-      status,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: msg }, status);
   }
 });
