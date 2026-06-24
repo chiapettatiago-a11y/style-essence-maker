@@ -690,7 +690,7 @@ const ProductPage = () => {
       uploadedImages: variant.uploadedImages,
       garmentAnalysis: variant.garmentAnalysis,
       activeWeek: nextActiveLaunch?.id || "",
-      selectedEngine: nextActiveLaunch?.engineUsed || "seedream",
+      selectedEngine: nextActiveLaunch?.engineUsed || "fal",
     }));
   };
 
