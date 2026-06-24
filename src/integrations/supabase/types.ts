@@ -343,6 +343,7 @@ export type Database = {
           product_code: string | null
           reference_photos: string[] | null
           selected_presets: Json | null
+          tr_badge_reference_url: string | null
           updated_at: string
           uploaded_images: string[] | null
           user_id: string
@@ -369,6 +370,7 @@ export type Database = {
           product_code?: string | null
           reference_photos?: string[] | null
           selected_presets?: Json | null
+          tr_badge_reference_url?: string | null
           updated_at?: string
           uploaded_images?: string[] | null
           user_id: string
@@ -395,6 +397,7 @@ export type Database = {
           product_code?: string | null
           reference_photos?: string[] | null
           selected_presets?: Json | null
+          tr_badge_reference_url?: string | null
           updated_at?: string
           uploaded_images?: string[] | null
           user_id?: string
