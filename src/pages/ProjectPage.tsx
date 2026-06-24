@@ -1667,7 +1667,8 @@ const ProductPage = () => {
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-2">Produtos</p>
           {(products || []).map((p) => {
             const active = p.id === projectId;
-            const count = sidebarPhotoCounts.get(p.id) || 0;
+            const folderCount = sidebarMeta.folderByProduct.get(p.id) || 0;
+            const launchCount = sidebarMeta.launchByProduct.get(p.id) || 0;
             const pIsCombo = (p as any).is_combo;
             const pFeatured = (p as any).featured_piece;
             return (
@@ -1680,20 +1681,22 @@ const ProductPage = () => {
               >
                 <button
                   onClick={() => navigate(`/project/${p.id}`)}
-                  className="flex-1 min-w-0 flex items-center justify-between gap-2 px-2.5 py-2 text-left"
+                  className="flex-1 min-w-0 flex items-start gap-2 px-2.5 py-2 text-left"
                 >
-                  <span className="flex items-center gap-2 min-w-0">
-                    <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{p.name}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 mt-0.5 opacity-80">
+                    <path d="M3 21h18" /><path d="M12 7v14" /><path d="M5 21V11l7-5 7 5v10" />
+                  </svg>
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate font-medium">{p.name}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">
+                      {folderCount} pasta{folderCount === 1 ? "" : "s"} · {launchCount} lançamento{launchCount === 1 ? "" : "s"}
+                    </span>
                   </span>
-                  <span className="flex items-center gap-1 shrink-0">
-                    {pIsCombo && (
-                      <Badge variant="outline" className="text-[9px] h-4 px-1">
-                        Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
-                      </Badge>
-                    )}
-                    <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
-                  </span>
+                  {pIsCombo && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
+                      {pFeatured === "bottom" ? "Baixo" : "Cima"}
+                    </Badge>
+                  )}
                 </button>
                 <button
                   type="button"
