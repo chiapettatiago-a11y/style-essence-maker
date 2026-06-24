@@ -2576,6 +2576,7 @@ const ProductPage = () => {
           queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
           queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
         }}
+        initialFolderId={pendingFolderId}
       />
 
       <ResultsGalleryDialog
