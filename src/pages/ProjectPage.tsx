@@ -705,7 +705,7 @@ const ProductPage = () => {
       uploadedImages: newVariant.uploadedImages,
       garmentAnalysis: newVariant.garmentAnalysis,
       activeWeek: "",
-      selectedEngine: "seedream",
+      selectedEngine: "fal",
     }));
   };
 
