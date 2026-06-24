@@ -900,6 +900,40 @@ const ProductPage = () => {
     updateImageDb(id, updates);
   };
 
+  // Polling fallback: when the edge function returns processing,
+  // poll generated_images directly so we don't depend solely on realtime.
+  const startImageStatusPolling = (imageId: string) => {
+    let elapsed = 0;
+    const intervalMs = 5_000;
+    const maxMs = 180_000;
+    const pollInterval = setInterval(async () => {
+      elapsed += intervalMs;
+      const { data } = await supabase
+        .from("generated_images")
+        .select("status,image_url,original_url,preview_url,model_used,error")
+        .eq("id", imageId)
+        .single();
+      if (!data) {
+        if (elapsed >= maxMs) clearInterval(pollInterval);
+        return;
+      }
+      if (data.status === "done" || data.status === "error") {
+        clearInterval(pollInterval);
+        updateImageInState(imageId, {
+          status: data.status as GeneratedImage["status"],
+          imageUrl: data.preview_url || data.original_url || data.image_url || undefined,
+          originalUrl: data.original_url || data.image_url || undefined,
+          previewUrl: data.preview_url || data.image_url || undefined,
+          modelUsed: data.model_used || undefined,
+          error: data.error || undefined,
+        });
+      } else if (elapsed >= maxMs) {
+        clearInterval(pollInterval);
+      }
+    }, intervalMs);
+  };
+
+
   const handleApproveImage = useCallback((id: string) => {
     let nextStatus: ApprovalStatus = "approved";
     let approvedFrontUrl: string | null = null;
