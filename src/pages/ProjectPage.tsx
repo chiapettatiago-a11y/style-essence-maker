@@ -1569,8 +1569,11 @@ const ProductPage = () => {
     startCooldown();
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
-  const handleDownloadZip = async () => {
-    const approvedImages = variantWeeklyLaunches
+  const handleDownloadZip = async (scopeLaunchId?: string) => {
+    const sourceLaunches = scopeLaunchId
+      ? variantWeeklyLaunches.filter((w) => w.id === scopeLaunchId)
+      : variantWeeklyLaunches;
+    const approvedImages = sourceLaunches
       .flatMap((w) => w.images)
       .filter((img) => img.status === "done" && img.approvalStatus === "approved" && img.type !== "video-product" && img.type !== "video-model")
       .map((img) => ({ label: img.label, url: img.originalUrl || img.imageUrl }))
