@@ -613,7 +613,7 @@ Apply this while maintaining all garment fidelity rules.`
     : "";
 
   return [
-    blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock,
+    blockA, blockB, knitTextureBlock, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock,
     bottomBlock, innerLayerBlock, NO_TAGS_BLOCK,
     blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE,
   ]
