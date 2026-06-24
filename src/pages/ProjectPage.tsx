@@ -26,6 +26,7 @@ import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
 import PromptAndRefsEditor, { RegenScope } from "@/components/studio/PromptAndRefsEditor";
 import ResultsGalleryDialog from "@/components/studio/ResultsGalleryDialog";
+import { compressImage, blobToDataUrl } from "@/lib/image-compress";
 
 type FolderType = "week" | "editorial" | "campaign";
 type FolderRow = { id: string; name: string; folder_type: FolderType; product_id: string | null };
