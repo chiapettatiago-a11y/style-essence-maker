@@ -920,7 +920,15 @@ async function callFalEngine(params: {
     output_format: "jpeg",
   };
 
-  if (usingLoraEndpoint) {
+  if (isCloseUp) {
+    // flux-2-pro: text-to-image only, no reference images, no loras
+    input.image_size = { width: 2048, height: 2048 };
+    input.num_inference_steps = 28;
+    input.guidance_scale = 3.5;
+    input.output_quality = 95;
+    delete (input as any).image_url;
+    delete (input as any).loras;
+  } else if (usingLoraEndpoint) {
     input.loras = [{ path: params.loraUrl!, scale: loraScale }];
     input.num_inference_steps = 28;
     input.guidance_scale = guidanceScale;
