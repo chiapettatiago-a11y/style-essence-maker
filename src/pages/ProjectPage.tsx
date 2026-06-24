@@ -2390,6 +2390,7 @@ const ProductPage = () => {
       <LaunchFlowModal
         open={launchModalOpen}
         onOpenChange={setLaunchModalOpen}
+        productId={projectId}
         startStep={launchModalStep}
         uploadedImages={activeVariant?.uploadedImages || []}
         onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
