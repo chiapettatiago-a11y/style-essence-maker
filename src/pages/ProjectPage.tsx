@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, Home, ChevronDown, ChevronRight, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle, Trash2, Calendar, BookOpen, Megaphone, FolderPlus, Filter } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
@@ -25,6 +25,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
 import PromptAndRefsEditor, { RegenScope } from "@/components/studio/PromptAndRefsEditor";
+import ResultsGalleryDialog from "@/components/studio/ResultsGalleryDialog";
+
+type FolderType = "week" | "editorial" | "campaign";
+type FolderRow = { id: string; name: string; folder_type: FolderType; product_id: string | null };
+
+const FOLDER_META: Record<FolderType, { label: string; icon: React.ComponentType<{ className?: string }>; tint: string; iconColor: string }> = {
+  week: { label: "Semana", icon: Calendar, tint: "bg-blue-500/10 border-blue-500/30", iconColor: "text-blue-600 dark:text-blue-400" },
+  editorial: { label: "Editorial", icon: BookOpen, tint: "bg-amber-500/10 border-amber-500/30", iconColor: "text-amber-600 dark:text-amber-400" },
+  campaign: { label: "Campanha", icon: Megaphone, tint: "bg-fuchsia-500/10 border-fuchsia-500/30", iconColor: "text-fuchsia-600 dark:text-fuchsia-400" },
+};
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
