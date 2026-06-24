@@ -1320,16 +1320,46 @@ const ProductPage = () => {
     const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
     const frontImage = imageItems.find((img) => img.type === "lookbook-front");
 
+    if (!state.selectedProfile?.lora_url) {
+      console.warn("[generate] No model profile with LoRA selected.");
+    }
+    console.log("[generate] modelProfile being sent:", {
+      name: state.selectedProfile?.name,
+      hasLoraUrl: !!state.selectedProfile?.lora_url,
+      loraUrl: state.selectedProfile?.lora_url?.substring(0, 60),
+      guidanceScale: state.selectedProfile?.guidance_scale,
+    });
+
+    const isValidImageUrl = (url: string | undefined): boolean => {
+      if (!url) return false;
+      return url.startsWith("https://") &&
+        !url.includes(".html") &&
+        (url.includes(".jpg") || url.includes(".jpeg") ||
+         url.includes(".png") || url.includes(".webp") ||
+         url.includes("storage.googleapis") ||
+         url.includes("fal.media") ||
+         url.includes("supabase"));
+    };
+
     // Generate front first to use as reference, then trigger every remaining angle in parallel.
-    let frontReferenceUrl = "";
+    let frontReferenceUrl: string | undefined;
     if (frontImage) {
-      frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
+      const frontResult = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
+      frontReferenceUrl = isValidImageUrl(frontResult) ? frontResult : undefined;
+      if (!frontReferenceUrl) {
+        console.error("[generate] Front view failed — skipping secondary angles");
+        const remaining = imageItems.filter((img) => img.type !== "lookbook-front");
+        remaining.forEach((img) =>
+          updateImageInState(img.id, { status: "error", error: "Front view falhou — ângulos secundários ignorados" }),
+        );
+        return;
+      }
     }
 
     const remainingImages = imageItems.filter((img) => img.type !== "lookbook-front");
     if (remainingImages.length > 0) {
       await Promise.allSettled(
-        remainingImages.map((img) => runImageGeneration(img, frontReferenceUrl || undefined)),
+        remainingImages.map((img) => runImageGeneration(img, frontReferenceUrl)),
       );
     }
 
