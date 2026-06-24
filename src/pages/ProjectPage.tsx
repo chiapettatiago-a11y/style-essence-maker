@@ -1266,6 +1266,8 @@ const ProductPage = () => {
               },
               referenceImages: refImages,
               image_url: imageUrl,
+              frontViewUrl: img.type !== "lookbook-front" ? (imageUrl || null) : null,
+              accessories: { footwear: selectedFootwear },
               imageId: img.id,
               background: true,
               launchId: activeWeekId,
