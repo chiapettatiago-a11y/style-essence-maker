@@ -38,13 +38,17 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
 };
 
 const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: string }> = {
+  seedream: {
+    label: "Estimativa: ~$0.04/foto",
+    detail: "Seedream 5.0 Lite via fal.ai. Bom custo/qualidade para lookbooks completos.",
+  },
   gemini: {
     label: "Estimativa: consumo baixo",
-    detail: "Lovable não expõe crédito exato por geração; Gemini tende a consumir menos IA.",
+    detail: "Engine legado — uso ocasional para regenerar imagens antigas.",
   },
   fal: {
     label: "Estimativa: consumo alto",
-    detail: "Lovable não expõe crédito exato por geração; fal.ai tende a consumir mais IA.",
+    detail: "Fallback premium quando precisar de Flux Kontext.",
   },
 };
 
@@ -129,7 +133,9 @@ const ensureGenerationResult = (data: any) => {
 
 const matchesLockedEngine = (modelUsed: string | undefined, engine: GenerationEngine) => {
   const model = (modelUsed || "").toLowerCase();
-  return engine === "gemini" ? model.includes("gemini") : model.includes("fal");
+  if (engine === "seedream") return model.includes("seedream") || model.includes("bytedance");
+  if (engine === "fal") return model.includes("fal") || model.includes("flux");
+  return model.includes("gemini");
 };
 
 const ProductPage = () => {
@@ -148,7 +154,7 @@ const ProductPage = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
-    selectedEngine: "gemini",
+    selectedEngine: "seedream",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [],
@@ -356,7 +362,7 @@ const ProductPage = () => {
       label: w.label,
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
-      engineUsed: (w.engine_used as GenerationEngine | null) || "gemini",
+      engineUsed: (w.engine_used as GenerationEngine | null) || "seedream",
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
       mannequinWaistCm: w.mannequin_waist_cm,
@@ -400,7 +406,7 @@ const ProductPage = () => {
       garmentAnalysis: hydratedActiveVariant?.garmentAnalysis || null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
-      selectedEngine: hydratedActiveWeek?.engineUsed || "gemini",
+      selectedEngine: hydratedActiveWeek?.engineUsed || "seedream",
       manualPrompt: product.manual_prompt || "",
       generatedImages: [],
       weeklyLaunches,
@@ -620,7 +626,7 @@ const ProductPage = () => {
       uploadedImages: variant.uploadedImages,
       garmentAnalysis: variant.garmentAnalysis,
       activeWeek: nextActiveLaunch?.id || "",
-      selectedEngine: nextActiveLaunch?.engineUsed || "gemini",
+      selectedEngine: nextActiveLaunch?.engineUsed || "seedream",
     }));
   };
 
@@ -635,7 +641,7 @@ const ProductPage = () => {
       uploadedImages: newVariant.uploadedImages,
       garmentAnalysis: newVariant.garmentAnalysis,
       activeWeek: "",
-      selectedEngine: "gemini",
+      selectedEngine: "seedream",
     }));
   };
 
@@ -655,7 +661,7 @@ const ProductPage = () => {
         garmentAnalysis: newActive?.garmentAnalysis || null,
         weeklyLaunches: s.weeklyLaunches.filter((w) => w.variantId !== variantId),
         activeWeek: launchesForActive[0]?.id || "",
-        selectedEngine: launchesForActive[0]?.engineUsed || "gemini",
+        selectedEngine: launchesForActive[0]?.engineUsed || "seedream",
       };
     });
   };
@@ -893,6 +899,40 @@ const ProductPage = () => {
 
     updateImageDb(id, updates);
   };
+
+  // Polling fallback: when the edge function returns processing,
+  // poll generated_images directly so we don't depend solely on realtime.
+  const startImageStatusPolling = (imageId: string) => {
+    let elapsed = 0;
+    const intervalMs = 5_000;
+    const maxMs = 180_000;
+    const pollInterval = setInterval(async () => {
+      elapsed += intervalMs;
+      const { data } = await supabase
+        .from("generated_images")
+        .select("status,image_url,original_url,preview_url,model_used,error")
+        .eq("id", imageId)
+        .single();
+      if (!data) {
+        if (elapsed >= maxMs) clearInterval(pollInterval);
+        return;
+      }
+      if (data.status === "done" || data.status === "error") {
+        clearInterval(pollInterval);
+        updateImageInState(imageId, {
+          status: data.status as GeneratedImage["status"],
+          imageUrl: data.preview_url || data.original_url || data.image_url || undefined,
+          originalUrl: data.original_url || data.image_url || undefined,
+          previewUrl: data.preview_url || data.image_url || undefined,
+          modelUsed: data.model_used || undefined,
+          error: data.error || undefined,
+        });
+      } else if (elapsed >= maxMs) {
+        clearInterval(pollInterval);
+      }
+    }, intervalMs);
+  };
+
 
   const handleApproveImage = useCallback((id: string) => {
     let nextStatus: ApprovalStatus = "approved";
@@ -1137,6 +1177,7 @@ const ProductPage = () => {
         ensureGenerationResult(data);
 
         if (data?.code === "processing") {
+          startImageStatusPolling(img.id);
           return "";
         }
 
@@ -1165,11 +1206,19 @@ const ProductPage = () => {
     const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
     const frontImage = imageItems.find((img) => img.type === "lookbook-front");
 
-    // Only generate the front view initially — other angles stay pending for individual generation
+    // Generate front first to use as reference, then trigger every remaining angle in parallel.
     let frontReferenceUrl = "";
     if (frontImage) {
       frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
     }
+
+    const remainingImages = imageItems.filter((img) => img.type !== "lookbook-front");
+    if (remainingImages.length > 0) {
+      await Promise.allSettled(
+        remainingImages.map((img) => runImageGeneration(img, frontReferenceUrl || undefined)),
+      );
+    }
+
 
     // Generate videos using front_view as starting frame
     const videoItems = initial.filter((img) => img.type === "video-product" || img.type === "video-model");
@@ -1196,7 +1245,7 @@ const ProductPage = () => {
           });
           if (error) throw error;
           ensureGenerationResult(data);
-          if (data?.code === "processing") continue;
+          if (data?.code === "processing") { startImageStatusPolling(vid.id); continue; }
           updateImageInState(vid.id, {
             status: "done",
             imageUrl: data.originalUrl || data.imageUrl,
@@ -1313,6 +1362,7 @@ const ProductPage = () => {
       ensureGenerationResult(data);
 
       if (data?.code === "processing") {
+        startImageStatusPolling(id);
         startCooldown();
         return;
       }
@@ -1416,6 +1466,7 @@ const ProductPage = () => {
       ensureGenerationResult(data);
 
       if (data?.code === "processing") {
+        startImageStatusPolling(id);
         startCooldown();
         return;
       }
@@ -1796,7 +1847,7 @@ const ProductPage = () => {
                             <Lock className="h-2.5 w-2.5" /> Proporções travadas
                           </Badge>
                         )}
-                        <Badge variant="outline">{launch.engineUsed || "gemini"}</Badge>
+                        <Badge variant="outline">{launch.engineUsed || "seedream"}</Badge>
                         <Badge variant="secondary">{photos.length} ângulos</Badge>
                       </div>
                     </div>
@@ -2339,6 +2390,7 @@ const ProductPage = () => {
       <LaunchFlowModal
         open={launchModalOpen}
         onOpenChange={setLaunchModalOpen}
+        productId={projectId}
         startStep={launchModalStep}
         uploadedImages={activeVariant?.uploadedImages || []}
         onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
