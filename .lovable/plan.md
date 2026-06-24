@@ -1,86 +1,54 @@
-# Plano: Consistência de Modelo + Fluxo Simplificado
+# Refactor — phased delivery
 
-Duas frentes de trabalho que tocam banco, edge function de geração e UI da página do produto.
+Section 1 (database) is already applied: 5 new model profiles seeded, `folders` table created with RLS, `weekly_launches.folder_id` added.
 
----
-
-## Parte A — Consistência de modelo entre shots
-
-### A1. Seed fixo por produto
-- **Migration**: adicionar `generation_seed bigint` em `products` (nullable).
-- Ao iniciar a geração do **primeiro shot** de um produto, se `generation_seed` for null, gerar um inteiro aleatório (`Math.floor(Math.random()*2_000_000_000)`) e persistir.
-- Frontend envia `seed` no payload de `generate-image`. Edge function repassa para o Gemini (`generationConfig.seed`) e demais engines que suportarem.
-
-### A2. Engine travada por sessão
-- **Migration**: adicionar `locked_engine text` em `products`.
-- Ao gerar o frontal, gravar a engine escolhida em `locked_engine`. Próximos shots usam essa engine; o seletor no UI fica desabilitado com badge "🔒 Travada para consistência".
-- No edge function, remover o auto-fallback por timeout/crédito. Só faz fallback em erro 5xx/auth real.
-
-### A3. Frontal obrigatório antes dos demais
-- **Migration**: adicionar `model_reference_image text` em `products`.
-- Tipo `GeneratedImage.approval_status` já existe ('pending'|'approved'|'rejected'). Botões de gerar lateral/costas/close ficam `disabled` enquanto não houver pelo menos um shot frontal com `approval_status='approved'`. Tooltip + texto inline: "Gere e aprove o frontal antes de continuar."
-
-### A4. Referência de modelo via imagem
-- Ao aprovar (✓) um shot frontal, atualizar `products.model_reference_image` com a `image_url` desse shot.
-- Frontend inclui essa URL em `referenceImages` no payload dos shots não-frontais (em primeiro lugar do array). Edge function já aceita `referenceImages[]`.
-
-### A5. Indicador visual de consistência
-- Em `PhotoViewer`/`ResultsGrid`, cada shot mostra um badge:
-  - ✅ verde "Consistente" quando `model_used == locked_engine` **e** `seed_used == generation_seed`.
-  - ⚠️ amarelo "Reger. recomendada" caso contrário, com tooltip mostrando a divergência.
-- **Migration**: adicionar `seed_used bigint` em `generated_images` (já tem `model_used`).
+The remaining work splits cleanly into two phases. Phase A is mechanical and low-risk; Phase B is a real UI rewrite of a 2500-line file and deserves its own deployment so I can verify each piece.
 
 ---
 
-## Parte B — Simplificação do fluxo
+## Phase A — this deployment
 
-### B1. Remover aba Vídeos
-- Excluir `src/components/studio/VeoVideoSection.tsx`.
-- Remover import e tab "Vídeos" de `ProjectPage.tsx`.
-- Manter: Fotos, Análise técnica, Configurações.
-- **Não** removo a edge function `generate-video` nesse passo (apenas UI). Posso remover depois se confirmado.
+Focused changes that don't reshape the existing UI.
 
-### B2. Etapa única — sem wizard bloqueado
-- Na aba **Fotos** o prompt e as imagens de referência ficam sempre acessíveis, independente de já ter gerado ou não.
-- Eliminar qualquer guard que esconda o prompt/imagens após a primeira geração.
+**Section 2 — Seedream 5.0 engine** (`supabase/functions/generate-image/index.ts`)
+- Expand `GenerationEngine` to `"seedream" | "fal" | "gemini"`.
+- Add `callSeedreamEngine()` using `fal-ai/bytedance/seedream/v5/lite/{edit,text-to-image}`.
+- Route engine dispatch in `runGenerationPipeline()` so `seedream` is the default branch; `fal` and `gemini` stay as-is.
+- Inject the Seedream-specific `blockA` in `buildPrompt()` (Brazilian biotipo + studio white).
+- Remove the face-swap block from `runGenerationPipeline()`.
+- Default `parsedEngine` to `"seedream"`.
+- All garment blocks (BOTTOM/TR/NO_TAGS/etc.) and the upscale + analyze functions remain untouched.
 
-### B3 + B4. Layout da edição (colapsáveis no topo da aba Fotos)
-- Adicionar 2 `<Collapsible>` acima do grid de fotos:
-  1. **📝 Prompt** — `Textarea` com prompt atual + botão "Salvar e Regenerar".
-  2. **🖼️ Imagens de referência** — thumbs com botão remover + uploader + botão "Salvar e Regenerar".
-- Edição persiste no banco (`products.manual_prompt` e `products.uploaded_images`/`product_variants.uploaded_images`).
+**Section 7 — defaults & labels**
+- `GenerateSection.tsx`: replace `ENGINE_LABELS` with Seedream/fal/gemini entries.
+- `ProjectPage.tsx`: replace literal `"gemini"` defaults with `"seedream"` (engine selection only — no layout changes here).
 
-### B5. Proteção de shots aprovados
-- Ao clicar "Salvar e Regenerar", abre `AlertDialog`:
-  - "Regerar **todos** os shots" 
-  - "Regerar **apenas os não aprovados**" (default)
-- Shots com `approval_status='approved'` só são regerados na opção 1.
+**Section 8 — parallel generation + polling fallback** (`ProjectPage.tsx`)
+- After the front reference resolves, fire the remaining angles with `Promise.allSettled`.
+- After each background invoke, start a 5s polling interval against `generated_images` and clear at 180s.
+
+**Section 3 — `LaunchFlowModal.tsx` 3-step rewrite**
+- Step 1 Fotos da peça: upload (1–6), thumbnails, green analysis row, dots `1●2○3○`, next disabled until analyzed.
+- Step 2 Modelo: 5 model cards in a grid with skin-tone avatar circles (color map provided), selected state, dots `1✓2●3○`.
+- Step 3 Cenário e geração: 4 background cards, folder dropdown (existing + "Nova pasta…" inline form with type pills), cost row "Seedream 5.0 · ~$0.24 · ~40s", primary "Gerar pacote completo — 6 fotos" button, dots `1✓2✓3●`.
+- Voltar / Próximo footer, no X during generation.
 
 ---
 
-## Detalhes técnicos
+## Phase B — next deployment
 
-**Migrations SQL**
-```sql
-ALTER TABLE products
-  ADD COLUMN generation_seed bigint,
-  ADD COLUMN locked_engine text,
-  ADD COLUMN model_reference_image text;
+Full ProjectPage UI rewrite that introduces the folders model end-to-end.
 
-ALTER TABLE generated_images
-  ADD COLUMN seed_used bigint;
-```
+**Section 4 — Sidebar**: MONOGRAMA logo + "Novo produto" dark button, product list with hanger icon + "N pastas · N lançamentos" meta, active highlight, Configurações footer. No nested launches.
 
-**Arquivos tocados**
-- `supabase/functions/generate-image/index.ts` — aceitar `seed`, repassar a Gemini, remover auto-fallback.
-- `src/pages/ProjectPage.tsx` — remover tab Vídeos, orquestrar lock de engine, seed, model_reference, fluxo de aprovação do frontal.
-- `src/components/studio/GenerateSection.tsx` (ou equivalente da aba Fotos) — colapsáveis Prompt + Referências, botão Salvar e Regenerar com diálogo de confirmação, disable de ângulos não-frontais.
-- `src/components/studio/PhotoViewer.tsx` + `ResultsGrid.tsx` — badge de consistência.
-- `src/components/studio/EngineSelector.tsx` — estado disabled + badge "Travada".
-- Deletar `src/components/studio/VeoVideoSection.tsx`.
+**Section 5 — Main area**: header with action buttons + tabs (Lançamentos / Análise técnica / Fotos aprovadas), toolbar (Por pasta / Todos + status filter), stats row (3 metric cards), collapsible folder sections with colored type icons (week/editorial/campaign), 3-column launch card grid, empty "Novo lançamento" slot card, inline folder-creation form.
 
-**Fora de escopo**
-- Não vou alterar o `generate-video` nem outros wizards (`Index.tsx`).
-- Não vou mexer em billing/credits além do que já é gravado.
+**Section 6 — Results gallery**: 2×3 photo grid with PT-BR angle labels, per-photo Aprovar / Reprovar with green/red states and Regenerar on rejection, header badges (aprovadas/gerando/pendentes), "Regenerar selecionadas" + "Baixar aprovadas HD" actions.
 
-Confirme para eu seguir — começo pelas migrations.
+---
+
+## Why split
+
+Phase A is ~600 lines of focused edits across 3 files — testable end-to-end (generate a photo with Seedream, see polling work, open the new modal). Phase B requires re-architecting how launches are listed and grouped, including a new `folders` data layer (CRUD, queries, cache invalidation) that touches most of `ProjectPage.tsx`. Doing both at once would land 2500+ lines of churn untested.
+
+If you'd rather I attempt everything in one pass anyway, say "tudo junto" and I'll proceed — but I recommend the split.
