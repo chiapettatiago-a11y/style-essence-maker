@@ -366,18 +366,36 @@ function isOpenFrontGarment(garmentAnalysis?: GarmentAnalysis | null): boolean {
   return /(jacket|jaqueta|blazer|cardigan|coat|casaco|vest|colete|open.?front|kimono)/.test(text);
 }
 
-function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
+function buildFaceAnchorPrompt(
+  modelProfile?: ModelProfile | null,
+  angleType?: AngleType,
+  hasFrontReference?: boolean,
+): string {
   if (!modelProfile) return "";
+  if (angleType === "close-tr-detail") return "";
+
+  const isFront = angleType === "lookbook-front";
 
   return [
-    "FACE ANCHOR — CRITICAL:",
-    `Identity anchor: ${modelProfile.promptSeed || modelProfile.name || "Brazilian model"}`,
-    "Use the exact same woman across all images.",
-    "Maintain identical facial structure, eye spacing, nose, lips, jawline and bone structure in every angle.",
-    modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone} — keep unchanged.` : "",
-    modelProfile.hairType ? `Hair texture/style: ${modelProfile.hairType} — keep unchanged.` : "",
-    modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same shade in every image.` : "",
-    "Do NOT drift identity between shots.",
+    "IDENTITY LOCK — CRITICAL:",
+    "This is ONE woman photographed from multiple angles.",
+    "Every image in this set features the EXACT SAME person.",
+    `Identity: ${modelProfile.promptSeed || modelProfile.name || "Brazilian model"}`,
+    "Facial structure must be IDENTICAL across all angles:",
+    "same bone structure, same eye shape, same nose bridge,",
+    "same lips, same jawline. NO variation whatsoever.",
+    modelProfile.skinTone
+      ? `Skin tone: ${modelProfile.skinTone} — unchanged in every image.`
+      : "",
+    modelProfile.hairType
+      ? `Hair: ${modelProfile.hairType}, ${modelProfile.hairColor || ""} — same style, same length.`
+      : "",
+    isFront
+      ? "ESTABLISHING SHOT: capture the model's face clearly."
+      : hasFrontReference
+        ? "MATCH EXACTLY the face shown in the provided reference image."
+        : "Maintain absolute consistency with the front view.",
+    "HARD FAIL: generating a different woman's face → regenerate.",
   ].filter(Boolean).join("\n");
 }
 
