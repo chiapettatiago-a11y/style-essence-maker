@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-tr-detail" | "movement-shot" | "video-product" | "video-model";
-type GenerationEngine = "gemini" | "fal";
+type GenerationEngine = "seedream" | "fal" | "gemini";
 
 class GenerationRateLimitError extends Error {
   retryAfterMs: number;
@@ -451,6 +451,7 @@ function buildPrompt(params: {
   } = params;
 
   const isFal = engine === "fal";
+  const isSeedream = engine === "seedream";
   const isCloseDetail = angleType === "close-tr-detail";
 
   const blockA = isFal
@@ -460,6 +461,14 @@ Lighting: soft diffused studio lighting, high-key, color-accurate.
 Clean white studio cyclorama background. Centered model. Symmetrical framing.
 Format: portrait orientation, high resolution, JPG 300 DPI sRGB.
 Style: clean e-commerce catalog photo like ZARA, NET-A-PORTER, Farfetch.`
+    : isSeedream
+    ? `Cinematic fashion editorial photography for a Brazilian womenswear brand.
+Studio DSLR quality, 85mm lens, f/5.6, soft diffused studio lighting.
+Pure white seamless cyclorama background #FFFFFF, no exceptions.
+Portrait orientation 3:4, high resolution, photorealistic quality.
+The model is a Brazilian latina woman. ${modelProfile?.promptSeed || 'warm morena skin tone, dark hair, defined Brazilian features'}.
+NOT Asian features. NOT pale European skin. Brazilian biotipo mandatory.
+Photo-realistic skin with natural pores and texture. Real person, not CGI.`
     : `Professional fashion photography, editorial quality.
 Camera: Sony A7R V equivalent, 85mm f/1.8.
 Lighting: natural key light + soft fill, no harsh shadows.
@@ -887,6 +896,56 @@ async function callFalEngine(params: {
   }
 }
 
+async function callSeedreamEngine(params: {
+  promptUsed: string;
+  imageUrls?: string[];
+  angleType: AngleType;
+}) {
+  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
+
+  fal.config({ credentials: FAL_API_KEY });
+
+  const isCloseUp = params.angleType === "close-tr-detail";
+  const isFrontView = params.angleType === "lookbook-front";
+  const hasRefs = params.imageUrls && params.imageUrls.length > 0;
+  const useEdit = hasRefs && !isFrontView;
+
+  const endpoint = useEdit
+    ? "fal-ai/bytedance/seedream/v5/lite/edit"
+    : "fal-ai/bytedance/seedream/v5/lite/text-to-image";
+
+  const imageSize = isCloseUp ? "square_hd" : "portrait_4_3";
+
+  const input: Record<string, unknown> = {
+    prompt: params.promptUsed,
+    image_size: imageSize,
+    num_images: 1,
+    enable_safety_checker: false,
+  };
+
+  if (useEdit && params.imageUrls) {
+    const publicUrls: string[] = [];
+    for (const url of params.imageUrls.slice(0, 10)) {
+      publicUrls.push(url.startsWith("data:") ? await ensurePublicUrl(url) : url);
+    }
+    input.image_urls = publicUrls;
+  }
+
+  console.log(`[seedream5] endpoint=${endpoint}, angle=${params.angleType}, refs=${params.imageUrls?.length ?? 0}`);
+
+  try {
+    const result = await fal.subscribe(endpoint, { input });
+    const imageUrl = extractFalImageUrl(result);
+    if (!imageUrl) throw new Error("No image in Seedream 5.0 response");
+    return { imageUrl, modelUsed: endpoint };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[seedream5] ERROR angle=${params.angleType}:`, msg);
+    throw new Error(`Seedream 5.0 ${endpoint} failed: ${msg}`);
+  }
+}
+
 async function callUpscaler(imageUrl: string): Promise<string> {
   const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
   if (!FAL_API_KEY) {
@@ -1091,7 +1150,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
     const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
 
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
-    const parsedEngine = (engine || "gemini") as GenerationEngine;
+    const parsedEngine = (engine || "seedream") as GenerationEngine;
     const requestAttempt = Number(attemptNumber || 1);
     const promptUsed = basePrompt || manualPrompt || garmentAnalysis
       ? buildPrompt({
@@ -1123,22 +1182,32 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
 
     let result: { imageUrl: string; modelUsed: string };
     try {
-      result = parsedEngine === "fal"
-        ? await callFalEngine({
+      result = parsedEngine === "seedream"
+        ? await callSeedreamEngine({
             promptUsed,
-            imageUrl: falReferenceImage,
+            imageUrls: falReferenceImage
+              ? [falReferenceImage, ...(Array.isArray(referenceImages) ? referenceImages.slice(0, 2) : [])]
+              : (Array.isArray(referenceImages) ? referenceImages.slice(0, 3) : []),
             angleType: parsedAngle,
-            loraUrl: modelProfile?.lora_url,
-            loraTriggerWord: modelProfile?.lora_trigger_word,
-            loraScale: modelProfile?.lora_scale ?? 1.0,
-            guidanceScale: modelProfile?.guidance_scale ?? 3.5,
           })
-        : await callGeminiGateway({
-            promptUsed,
-            referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
-            attemptNumber: requestAttempt,
-            seed: numericSeed,
-          });
+        : parsedEngine === "fal"
+          ? await callFalEngine({
+              promptUsed,
+              imageUrl: falReferenceImage,
+              angleType: parsedAngle,
+              loraUrl: modelProfile?.lora_url,
+              loraTriggerWord: modelProfile?.lora_trigger_word,
+              loraScale: modelProfile?.lora_scale ?? 1.0,
+              guidanceScale: modelProfile?.guidance_scale ?? 3.5,
+            })
+          : await callGeminiGateway({
+              promptUsed,
+              referenceImages: Array.isArray(referenceImages)
+                ? referenceImages
+                : firstReferenceImage ? [firstReferenceImage] : [],
+              attemptNumber: requestAttempt,
+              seed: numericSeed,
+            });
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
@@ -1158,28 +1227,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
 
-    // Face swap pipeline — only for front-facing angles to preserve natural skin texture
-    const FACE_SWAP_ANGLES = new Set<AngleType>(["lookbook-front", "lookbook-three-quarter"]);
-    const faceImageUrl = modelProfile?.face_image_url;
-    const shouldFaceSwap = !!faceImageUrl && FACE_SWAP_ANGLES.has(parsedAngle);
-
-    if (shouldFaceSwap) {
-      console.log(`[generate-image] Applying face swap for angle=${parsedAngle}, model=${modelProfile?.name || "unknown"}`);
-      const swappedUrl = await withTimeout(
-        callFaceSwap({
-          generatedImageUrl: result.imageUrl,
-          faceReferenceUrl: faceImageUrl!,
-        }),
-        45_000,
-        "face-swap",
-      );
-      if (swappedUrl) {
-        result.imageUrl = swappedUrl;
-        result.modelUsed = `${result.modelUsed} + face-swap`;
-      } else {
-        result.modelUsed = `${result.modelUsed} + face-swap-timeout-skipped`;
-      }
-    }
+    // Face swap removed — Seedream/fal handle identity via prompt + references.
 
     // Save raw (pre-upscale) image to storage as JPG
     const rawAsset = await uploadGeneratedAsset({
