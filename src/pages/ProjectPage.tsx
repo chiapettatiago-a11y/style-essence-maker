@@ -1083,6 +1083,20 @@ const ProductPage = () => {
     toast({ title: "Proporções atualizadas" });
   }, [activeVariant, toast]);
 
+  const handleMoveLaunchToFolder = useCallback(async (launchId: string, folderId: string | null) => {
+    setState((s) => ({
+      ...s,
+      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === launchId ? { ...w, folderId } : w),
+    }));
+    const { error } = await supabase.from("weekly_launches").update({ folder_id: folderId } as any).eq("id", launchId);
+    if (error) {
+      toast({ title: "Não foi possível mover", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (folderId) setExpandedFolders((m) => ({ ...m, [folderId]: true }));
+    toast({ title: folderId ? "Lançamento movido" : "Removido da pasta" });
+  }, [toast]);
+
   const productSeed = (product as any)?.generation_seed != null ? Number((product as any).generation_seed) : null;
   const rawLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
   // Force legacy "gemini" locks to "seedream" — new default engine.
