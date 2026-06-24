@@ -996,13 +996,18 @@ const ProductPage = () => {
   };
 
 
-  const handleApproveImage = useCallback((id: string) => {
+  const handleApproveImage = useCallback((id: string, explicit?: "approved" | "rejected") => {
     let nextStatus: ApprovalStatus = "approved";
     let approvedFrontUrl: string | null = null;
     for (const w of state.weeklyLaunches) {
       const img = w.images.find((i) => i.id === id);
       if (img) {
-        nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        if (explicit) {
+          // Toggle off if clicking the same state.
+          nextStatus = img.approvalStatus === explicit ? "pending" : explicit;
+        } else {
+          nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        }
         if (nextStatus === "approved" && img.type === "lookbook-front") {
           approvedFrontUrl = img.originalUrl || img.imageUrl || null;
         }
