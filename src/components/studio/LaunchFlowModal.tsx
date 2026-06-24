@@ -161,6 +161,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   productId,
   onFolderSelected,
   initialFolderId,
+  selectedFootwear = "scarpin_nude",
+  onSelectedFootwearChange,
 }) => {
   const { user } = useAuth();
   const [step, setStep] = useState(startStep);
