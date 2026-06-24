@@ -362,7 +362,7 @@ const ProductPage = () => {
       label: w.label,
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
-      engineUsed: (w.engine_used as GenerationEngine | null) || "gemini",
+      engineUsed: (w.engine_used as GenerationEngine | null) || "seedream",
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
       mannequinWaistCm: w.mannequin_waist_cm,
@@ -406,7 +406,7 @@ const ProductPage = () => {
       garmentAnalysis: hydratedActiveVariant?.garmentAnalysis || null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
-      selectedEngine: hydratedActiveWeek?.engineUsed || "gemini",
+      selectedEngine: hydratedActiveWeek?.engineUsed || "seedream",
       manualPrompt: product.manual_prompt || "",
       generatedImages: [],
       weeklyLaunches,
@@ -626,7 +626,7 @@ const ProductPage = () => {
       uploadedImages: variant.uploadedImages,
       garmentAnalysis: variant.garmentAnalysis,
       activeWeek: nextActiveLaunch?.id || "",
-      selectedEngine: nextActiveLaunch?.engineUsed || "gemini",
+      selectedEngine: nextActiveLaunch?.engineUsed || "seedream",
     }));
   };
 
@@ -641,7 +641,7 @@ const ProductPage = () => {
       uploadedImages: newVariant.uploadedImages,
       garmentAnalysis: newVariant.garmentAnalysis,
       activeWeek: "",
-      selectedEngine: "gemini",
+      selectedEngine: "seedream",
     }));
   };
 
@@ -661,7 +661,7 @@ const ProductPage = () => {
         garmentAnalysis: newActive?.garmentAnalysis || null,
         weeklyLaunches: s.weeklyLaunches.filter((w) => w.variantId !== variantId),
         activeWeek: launchesForActive[0]?.id || "",
-        selectedEngine: launchesForActive[0]?.engineUsed || "gemini",
+        selectedEngine: launchesForActive[0]?.engineUsed || "seedream",
       };
     });
   };
@@ -1802,7 +1802,7 @@ const ProductPage = () => {
                             <Lock className="h-2.5 w-2.5" /> Proporções travadas
                           </Badge>
                         )}
-                        <Badge variant="outline">{launch.engineUsed || "gemini"}</Badge>
+                        <Badge variant="outline">{launch.engineUsed || "seedream"}</Badge>
                         <Badge variant="secondary">{photos.length} ângulos</Badge>
                       </div>
                     </div>
