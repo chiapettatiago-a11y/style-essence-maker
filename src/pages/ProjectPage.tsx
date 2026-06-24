@@ -2058,7 +2058,7 @@ const ProductPage = () => {
                 });
                 const orphan = variantWeeklyLaunches.filter((w) => !w.folderId).filter(matchesFilter);
                 if (orphan.length > 0 || sections.length === 0) {
-                  sections.push({ id: null, name: "Sem pasta", type: null, launches: orphan });
+                  sections.push({ id: null, name: "Sem organização", type: null, launches: orphan });
                 }
 
                 if (sections.every((s) => s.launches.length === 0) && variantWeeklyLaunches.length === 0) {
@@ -2077,16 +2077,26 @@ const ProductPage = () => {
                   );
                 }
 
+                const PHOTO_ANGLES: GenerationRequest["type"][] = ["lookbook-front", "lookbook-back", "lookbook-left", "lookbook-three-quarter", "close-tr-detail", "movement-shot"];
+
                 return sections.map((section) => {
+                  const isOrphan = section.id === null;
                   const Meta = section.type ? FOLDER_META[section.type] : null;
-                  const Icon = Meta?.icon || FolderOpen;
+                  const Icon = Meta?.icon || (isOrphan ? Folder : FolderOpen);
                   const sectionKey = section.id || "__orphan";
-                  const isExpanded = expandedFolders[sectionKey] !== false; // default open
+                  // Orphan section is collapsed by default; folders open by default.
+                  const isExpanded = isOrphan
+                    ? expandedFolders[sectionKey] === true
+                    : expandedFolders[sectionKey] !== false;
                   const totalPhotos = section.launches.reduce((acc, l) => acc + l.images.filter((i) => i.status === "done" && i.type !== "video-product" && i.type !== "video-model").length, 0);
                   const totalApproved = section.launches.reduce((acc, l) => acc + l.images.filter((i) => i.approvalStatus === "approved" && i.type !== "video-product" && i.type !== "video-model").length, 0);
+                  const realFolders = (folders || []).filter((f) => f.id !== section.id);
 
                   return (
-                    <div key={sectionKey} className={cn("rounded-xl border", Meta?.tint || "border-border bg-card")}>
+                    <div key={sectionKey} className={cn(
+                      "rounded-xl border",
+                      isOrphan ? "border-dashed border-border bg-muted/20" : (Meta?.tint || "border-border bg-card"),
+                    )}>
                       <button
                         type="button"
                         onClick={() => setExpandedFolders((m) => ({ ...m, [sectionKey]: !isExpanded }))}
@@ -2095,7 +2105,7 @@ const ProductPage = () => {
                         <div className="flex items-center gap-2.5 min-w-0">
                           {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                           <Icon className={cn("h-4 w-4 shrink-0", Meta?.iconColor || "text-muted-foreground")} />
-                          <span className="font-medium text-sm truncate">{section.name}</span>
+                          <span className={cn("font-medium text-sm truncate", isOrphan && "text-muted-foreground")}>{section.name}</span>
                           {Meta && (
                             <Badge variant="outline" className={cn("text-[9px] h-4", Meta.iconColor)}>{Meta.label}</Badge>
                           )}
@@ -2115,41 +2125,120 @@ const ProductPage = () => {
                               const cover = photos.find((p) => p.status === "done" && p.imageUrl);
                               const approvedHere = photos.filter((p) => p.approvalStatus === "approved").length;
                               const generatingHere = photos.filter((p) => p.status === "generating" || p.status === "pending").length;
+                              const totalSlots = Math.max(photos.length, PHOTO_ANGLES.length);
+                              const doneCount = photos.filter((p) => p.status === "done").length;
+                              const isGeneratingCard = generatingHere > 0;
+                              const isComplete = !isGeneratingCard && doneCount >= PHOTO_ANGLES.length;
+                              // Per-angle dot state
+                              const angleDots = PHOTO_ANGLES.map((t) => {
+                                const img = photos.find((p) => p.type === t);
+                                if (!img) return "missing" as const;
+                                if (img.status === "done") return "done" as const;
+                                if (img.status === "generating" || img.status === "pending") return "loading" as const;
+                                return "missing" as const;
+                              });
                               return (
-                                <button
+                                <div
                                   key={launch.id}
-                                  type="button"
-                                  onClick={() => setGalleryLaunchId(launch.id)}
-                                  className="text-left rounded-xl border border-border bg-background hover:border-accent transition-colors overflow-hidden group"
+                                  className={cn(
+                                    "rounded-xl border bg-background hover:border-accent transition-colors overflow-hidden group relative",
+                                    isGeneratingCard ? "border-emerald-500/40 animate-launch-pulse" : "border-border",
+                                  )}
                                 >
-                                  <div className="aspect-[4/3] bg-muted relative">
-                                    {cover ? (
-                                      <img src={cover.imageUrl} alt={launch.name || launch.label} className="w-full h-full object-cover" loading="lazy" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center">
-                                        {generatingHere > 0 ? <Loader2 className="h-5 w-5 animate-spin text-accent" /> : <ImageIcon className="h-8 w-8 text-muted-foreground/40" />}
-                                      </div>
-                                    )}
-                                    <div className="absolute top-2 right-2 flex items-center gap-1">
-                                      {approvedHere > 0 && (
-                                        <Badge className="bg-green-600 hover:bg-green-700 text-white text-[10px] h-5 gap-1">
-                                          <Check className="h-2.5 w-2.5" /> {approvedHere}
-                                        </Badge>
+                                  <button
+                                    type="button"
+                                    onClick={() => setGalleryLaunchId(launch.id)}
+                                    className="text-left w-full"
+                                  >
+                                    <div className="aspect-[4/3] bg-muted relative">
+                                      {cover ? (
+                                        <img src={cover.imageUrl} alt={launch.name || launch.label} className="w-full h-full object-cover" loading="lazy" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center">
+                                          {isGeneratingCard ? <Loader2 className="h-5 w-5 animate-spin text-emerald-600" /> : <ImageIcon className="h-8 w-8 text-muted-foreground/40" />}
+                                        </div>
                                       )}
-                                      {generatingHere > 0 && (
-                                        <Badge variant="secondary" className="text-[10px] h-5 gap-1">
-                                          <Loader2 className="h-2.5 w-2.5 animate-spin" /> {generatingHere}
-                                        </Badge>
+                                      <div className="absolute top-2 right-2 flex items-center gap-1">
+                                        {isComplete && (
+                                          <Badge className="bg-green-600 hover:bg-green-700 text-white text-[10px] h-5 gap-1">
+                                            <CheckCircle2 className="h-2.5 w-2.5" /> {doneCount} de {PHOTO_ANGLES.length}
+                                          </Badge>
+                                        )}
+                                        {approvedHere > 0 && !isComplete && (
+                                          <Badge className="bg-green-600 hover:bg-green-700 text-white text-[10px] h-5 gap-1">
+                                            <Check className="h-2.5 w-2.5" /> {approvedHere}
+                                          </Badge>
+                                        )}
+                                        {isGeneratingCard && (
+                                          <Badge variant="secondary" className="text-[10px] h-5 gap-1">
+                                            <Loader2 className="h-2.5 w-2.5 animate-spin" /> {generatingHere}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="px-3 py-2.5 space-y-1.5">
+                                      <p className="text-sm font-medium truncate">{launch.name || launch.label}</p>
+                                      {isGeneratingCard ? (
+                                        <p className="text-[10px] text-emerald-600 font-medium">
+                                          Gerando {doneCount} de {PHOTO_ANGLES.length} fotos…
+                                        </p>
+                                      ) : isComplete ? (
+                                        <p className="text-[10px] text-emerald-600 font-medium">
+                                          {PHOTO_ANGLES.length} de {PHOTO_ANGLES.length} · Ver fotos
+                                        </p>
+                                      ) : (
+                                        <p className="text-[10px] text-muted-foreground">
+                                          {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "seedream"}
+                                        </p>
+                                      )}
+                                      {/* Per-angle progress dots */}
+                                      {(isGeneratingCard || (!isComplete && doneCount > 0)) && (
+                                        <div className="flex items-center gap-1 pt-0.5">
+                                          {angleDots.map((s, i) => (
+                                            <span
+                                              key={i}
+                                              className={cn(
+                                                "h-1.5 w-1.5 rounded-full transition-colors",
+                                                s === "done" && "bg-emerald-500",
+                                                s === "loading" && "bg-amber-400 animate-pulse",
+                                                s === "missing" && "bg-muted-foreground/20",
+                                              )}
+                                            />
+                                          ))}
+                                        </div>
                                       )}
                                     </div>
-                                  </div>
-                                  <div className="px-3 py-2.5 space-y-1">
-                                    <p className="text-sm font-medium truncate">{launch.name || launch.label}</p>
-                                    <p className="text-[10px] text-muted-foreground">
-                                      {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "seedream"}
-                                    </p>
-                                  </div>
-                                </button>
+                                  </button>
+
+                                  {/* Move-to-folder for orphan section */}
+                                  {isOrphan && realFolders.length > 0 && (
+                                    <div className="px-3 pb-2.5">
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-6 w-full text-[10px] gap-1"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <FolderInput className="h-3 w-3" /> Mover para pasta
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48">
+                                          {realFolders.map((f) => (
+                                            <DropdownMenuItem
+                                              key={f.id}
+                                              onClick={(e) => { e.stopPropagation(); handleMoveLaunchToFolder(launch.id, f.id); }}
+                                              className="text-xs gap-2"
+                                            >
+                                              <FolderOpen className="h-3 w-3" /> {f.name}
+                                            </DropdownMenuItem>
+                                          ))}
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                  )}
+                                </div>
                               );
                             })}
 
@@ -2167,7 +2256,7 @@ const ProductPage = () => {
                                 <Plus className="h-5 w-5" />
                               </div>
                               <span className="text-xs font-medium">Novo lançamento</span>
-                              {section.name !== "Sem pasta" && (
+                              {!isOrphan && (
                                 <span className="text-[10px] text-muted-foreground">em {section.name}</span>
                               )}
                             </button>
