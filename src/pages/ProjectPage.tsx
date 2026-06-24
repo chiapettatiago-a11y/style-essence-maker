@@ -1255,6 +1255,7 @@ const ProductPage = () => {
               background: true,
               launchId: activeWeekId,
               seed: productGenSeed,
+              trBadgeUrl: (product as any)?.tr_badge_reference_url || null,
             },
           });
 
@@ -1442,6 +1443,7 @@ const ProductPage = () => {
           attemptNumber: nextAttempt,
           launchId: sourceLaunch?.id,
           seed: regenSeed,
+          trBadgeUrl: (product as any)?.tr_badge_reference_url || null,
         },
       });
       if (error) throw error;
@@ -1546,6 +1548,7 @@ const ProductPage = () => {
           attemptNumber: 1,
           launchId: sourceLaunch?.id,
           seed: singleSeed,
+          trBadgeUrl: (product as any)?.tr_badge_reference_url || null,
         },
       });
       if (error) throw error;
