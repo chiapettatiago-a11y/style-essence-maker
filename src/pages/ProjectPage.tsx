@@ -1368,6 +1368,7 @@ const ProductPage = () => {
     state.selectedPresets,
     state.selectedProfile,
     variantWeeklyLaunches,
+    pendingFolderId,
   ]);
 
   const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine, modelOverride?: ModelProfile | null) => {
