@@ -476,6 +476,8 @@ function buildPrompt(params: {
   modelProfile?: ModelProfile | null;
   mannequin?: Record<string, unknown> | null;
   engine?: GenerationEngine;
+  accessories?: { footwear?: string } | null;
+  hasFrontReference?: boolean;
 }) {
   const {
     basePrompt,
@@ -486,6 +488,8 @@ function buildPrompt(params: {
     modelProfile,
     mannequin,
     engine,
+    accessories,
+    hasFrontReference,
   } = params;
 
   const isFal = engine === "fal";
