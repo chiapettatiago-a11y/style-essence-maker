@@ -1267,8 +1267,13 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
         })
       : (prompt || "");
 
-    const firstReferenceImage = image_url || referenceImages?.[0] || undefined;
-    const falReferenceImage = shouldUseFalReferenceImage(parsedAngle) ? firstReferenceImage : undefined;
+    const hangerPhoto = image_url || referenceImages?.[0] || undefined;
+    // Front view uses hanger photo as reference.
+    // Secondary angles use the generated front view as reference for image-to-image anchoring.
+    const falReferenceImage = isFrontAngle
+      ? hangerPhoto
+      : (resolvedFrontViewUrl || hangerPhoto);
+    const firstReferenceImage = hangerPhoto;
 
     const isVideoRequest = parsedAngle === "video-model" || parsedAngle === "video-product";
 
