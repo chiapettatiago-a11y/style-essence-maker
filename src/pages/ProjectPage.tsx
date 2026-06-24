@@ -110,6 +110,10 @@ const getAnalysisErrorMessage = (error: unknown) => {
 };
 
 const ensureGenerationResult = (data: any) => {
+  if (data?.code === "processing") {
+    return;
+  }
+
   if (data?.code === "rate_limited") {
     throw new Error(data.error || "Limite de geração atingido. Aguarde um pouco e tente novamente.");
   }
@@ -1122,6 +1126,8 @@ const ProductPage = () => {
               },
               referenceImages: refImages,
               image_url: imageUrl,
+              imageId: img.id,
+              background: true,
               launchId: activeWeekId,
               seed: productGenSeed,
             },
@@ -1129,6 +1135,10 @@ const ProductPage = () => {
 
         if (error) throw error;
         ensureGenerationResult(data);
+
+        if (data?.code === "processing") {
+          return "";
+        }
 
         updateImageInState(img.id, {
           status: "done",
@@ -1179,11 +1189,14 @@ const ProductPage = () => {
               garmentAnalysis: activeVariant.garmentAnalysis,
               modelProfile: state.selectedProfile,
               image_url: frontReferenceUrl,
+              imageId: vid.id,
+              background: true,
               launchId: activeWeekId,
             },
           });
           if (error) throw error;
           ensureGenerationResult(data);
+          if (data?.code === "processing") continue;
           updateImageInState(vid.id, {
             status: "done",
             imageUrl: data.originalUrl || data.imageUrl,
@@ -1289,6 +1302,8 @@ const ProductPage = () => {
           },
           referenceImages: refImages,
           image_url: referenceImageUrl,
+          imageId: id,
+          background: true,
           attemptNumber: nextAttempt,
           launchId: sourceLaunch?.id,
           seed: regenSeed,
@@ -1296,6 +1311,11 @@ const ProductPage = () => {
       });
       if (error) throw error;
       ensureGenerationResult(data);
+
+      if (data?.code === "processing") {
+        startCooldown();
+        return;
+      }
 
       updateImageInState(id, {
         status: "done",
@@ -1385,6 +1405,8 @@ const ProductPage = () => {
           },
           referenceImages: refImages,
           image_url: referenceImageUrl,
+          imageId: id,
+          background: true,
           attemptNumber: 1,
           launchId: sourceLaunch?.id,
           seed: singleSeed,
@@ -1392,6 +1414,11 @@ const ProductPage = () => {
       });
       if (error) throw error;
       ensureGenerationResult(data);
+
+      if (data?.code === "processing") {
+        startCooldown();
+        return;
+      }
 
       updateImageInState(id, {
         status: "done",
