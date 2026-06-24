@@ -1239,6 +1239,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       launchId,
       seed,
       autoUpscale,
+      frontViewUrl,
     } = body;
 
     const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
@@ -1246,6 +1247,11 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
     const parsedEngine = (engine || "seedream") as GenerationEngine;
     const requestAttempt = Number(attemptNumber || 1);
+
+    const isFrontAngle = parsedAngle === "lookbook-front";
+    const resolvedFrontViewUrl: string | null = (frontViewUrl as string | null) || null;
+    const hasFrontReference = !isFrontAngle && !!resolvedFrontViewUrl;
+
     const promptUsed = basePrompt || manualPrompt || garmentAnalysis
       ? buildPrompt({
           basePrompt: basePrompt || prompt,
@@ -1256,6 +1262,8 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
           modelProfile,
           mannequin,
           engine: parsedEngine,
+          accessories: body.accessories || null,
+          hasFrontReference,
         })
       : (prompt || "");
 
@@ -1274,14 +1282,24 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       };
     }
 
+    // Hanger photos = original reference images uploaded for the product.
+    const hangerPhotos: string[] = Array.isArray(referenceImages)
+      ? referenceImages.slice(0, 2)
+      : (firstReferenceImage ? [firstReferenceImage] : []);
+
+    // Front view goes FIRST as the identity/garment anchor for secondary angles.
+    const seedreamImageUrls = isFrontAngle
+      ? hangerPhotos
+      : resolvedFrontViewUrl
+        ? [resolvedFrontViewUrl, ...hangerPhotos]
+        : hangerPhotos;
+
     let result: { imageUrl: string; modelUsed: string };
     try {
       result = parsedEngine === "seedream"
         ? await callSeedreamEngine({
             promptUsed,
-            imageUrls: falReferenceImage
-              ? [falReferenceImage, ...(Array.isArray(referenceImages) ? referenceImages.slice(0, 2) : [])]
-              : (Array.isArray(referenceImages) ? referenceImages.slice(0, 3) : []),
+            imageUrls: seedreamImageUrls,
             angleType: parsedAngle,
             trBadgeUrl: (body as any)?.trBadgeUrl || null,
           })
