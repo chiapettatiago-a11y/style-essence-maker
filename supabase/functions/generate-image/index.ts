@@ -1315,7 +1315,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
             loraUrl: modelProfile?.lora_url,
             loraTriggerWord: modelProfile?.lora_trigger_word,
             loraScale: modelProfile?.lora_scale ?? 1.0,
-            guidanceScale: modelProfile?.guidance_scale ?? 3.5,
+            guidanceScale: modelProfile?.guidance_scale ?? 9.0,
           })
         : await callGeminiGateway({
             promptUsed,
