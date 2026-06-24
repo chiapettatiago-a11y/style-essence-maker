@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
+import { Loader2, Home, ChevronDown, ChevronRight, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle, Trash2, Calendar, BookOpen, Megaphone, FolderPlus, Filter } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
@@ -25,6 +25,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
 import PromptAndRefsEditor, { RegenScope } from "@/components/studio/PromptAndRefsEditor";
+import ResultsGalleryDialog from "@/components/studio/ResultsGalleryDialog";
+
+type FolderType = "week" | "editorial" | "campaign";
+type FolderRow = { id: string; name: string; folder_type: FolderType; product_id: string | null };
+
+const FOLDER_META: Record<FolderType, { label: string; icon: React.ComponentType<{ className?: string }>; tint: string; iconColor: string }> = {
+  week: { label: "Semana", icon: Calendar, tint: "bg-blue-500/10 border-blue-500/30", iconColor: "text-blue-600 dark:text-blue-400" },
+  editorial: { label: "Editorial", icon: BookOpen, tint: "bg-amber-500/10 border-amber-500/30", iconColor: "text-amber-600 dark:text-amber-400" },
+  campaign: { label: "Campanha", icon: Megaphone, tint: "bg-fuchsia-500/10 border-fuchsia-500/30", iconColor: "text-fuchsia-600 dark:text-fuchsia-400" },
+};
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -220,6 +230,16 @@ const ProductPage = () => {
   const [isDownloadingHd, setIsDownloadingHd] = useState(false);
   const { isCoolingDown, remaining, startCooldown } = useCooldownTimer();
 
+  // Phase B state
+  const [pendingFolderId, setPendingFolderId] = useState<string | null>(null);
+  const [galleryLaunchId, setGalleryLaunchId] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "generating">("all");
+  const [inlineFolderOpen, setInlineFolderOpen] = useState(false);
+  const [inlineFolderName, setInlineFolderName] = useState("");
+  const [inlineFolderType, setInlineFolderType] = useState<FolderType>("week");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
     queryFn: async () => {
@@ -229,6 +249,33 @@ const ProductPage = () => {
     },
     enabled: !!user && !!projectId,
   });
+
+  const { data: folders } = useQuery({
+    queryKey: ["folders", projectId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("id, name, folder_type, product_id")
+        .eq("product_id", projectId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as FolderRow[];
+    },
+    enabled: !!user && !!projectId,
+  });
+
+  const { data: allFolders } = useQuery({
+    queryKey: ["all-folders-for-sidebar"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("folders")
+        .select("id, product_id");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -331,6 +378,20 @@ const ProductPage = () => {
     return productCountMap;
   }, [allWeeks, allImages]);
 
+  const sidebarMeta = useMemo(() => {
+    const launchByProduct = new Map<string, number>();
+    (allWeeks || []).forEach((w) => {
+      launchByProduct.set(w.product_id, (launchByProduct.get(w.product_id) || 0) + 1);
+    });
+    const folderByProduct = new Map<string, number>();
+    (allFolders || []).forEach((f) => {
+      if (!f.product_id) return;
+      folderByProduct.set(f.product_id, (folderByProduct.get(f.product_id) || 0) + 1);
+    });
+    return { launchByProduct, folderByProduct };
+  }, [allWeeks, allFolders]);
+
+
   useEffect(() => {
     setLoaded(false);
   }, [projectId]);
@@ -362,6 +423,7 @@ const ProductPage = () => {
       label: w.label,
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
+      folderId: (w as any).folder_id || null,
       engineUsed: (w.engine_used as GenerationEngine | null) || "seedream",
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
@@ -934,13 +996,18 @@ const ProductPage = () => {
   };
 
 
-  const handleApproveImage = useCallback((id: string) => {
+  const handleApproveImage = useCallback((id: string, explicit?: "approved" | "rejected") => {
     let nextStatus: ApprovalStatus = "approved";
     let approvedFrontUrl: string | null = null;
     for (const w of state.weeklyLaunches) {
       const img = w.images.find((i) => i.id === id);
       if (img) {
-        nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        if (explicit) {
+          // Toggle off if clicking the same state.
+          nextStatus = img.approvalStatus === explicit ? "pending" : explicit;
+        } else {
+          nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
+        }
         if (nextStatus === "approved" && img.type === "lookbook-front") {
           approvedFrontUrl = img.originalUrl || img.imageUrl || null;
         }
@@ -1060,9 +1127,9 @@ const ProductPage = () => {
       // keep flow running
     }
 
-    let activeWeekId = variantWeeklyLaunches.find((w) => w.variantId === state.activeVariantId)?.id;
-
-    if (!activeWeekId) {
+    // Each "Novo lançamento" run always creates a new launch row (folder model).
+    let activeWeekId: string | undefined;
+    {
       const { data, error } = await supabase
         .from("weekly_launches")
         .insert({
@@ -1071,6 +1138,7 @@ const ProductPage = () => {
           name: `Lançamento ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
+          folder_id: pendingFolderId,
           mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
           mannequin_bust_cm: normalizedMannequin.mannequin_bust_cm,
           mannequin_waist_cm: normalizedMannequin.mannequin_waist_cm,
@@ -1080,7 +1148,7 @@ const ProductPage = () => {
           reference_photos: activeVariant.uploadedImages,
           locked_proportion_json: (activeVariant.proportionJson || null) as any,
         })
-        .select("id,label,variant_id,engine_used")
+        .select("id,label,variant_id,engine_used,folder_id")
         .single();
 
       if (error || !data?.id) {
@@ -1092,17 +1160,27 @@ const ProductPage = () => {
       activeWeekId = data.id;
       setState((s) => ({
         ...s,
-        weeklyLaunches: [...s.weeklyLaunches, { id: activeWeekId!, label: data.label, variantId: data.variant_id || s.activeVariantId, engineUsed: (data.engine_used as GenerationEngine | null) || s.selectedEngine, images: [] }],
+        weeklyLaunches: [
+          ...s.weeklyLaunches,
+          {
+            id: activeWeekId!,
+            label: data.label,
+            variantId: data.variant_id || s.activeVariantId,
+            folderId: (data as any).folder_id || null,
+            engineUsed: (data.engine_used as GenerationEngine | null) || s.selectedEngine,
+            images: [],
+          },
+        ],
         activeWeek: activeWeekId!,
       }));
-    } else {
-      await supabase.from("weekly_launches").update({ engine_used: state.selectedEngine }).eq("id", activeWeekId);
-      setState((s) => ({
-        ...s,
-        weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, engineUsed: s.selectedEngine } : w)),
-        activeWeek: activeWeekId!,
-      }));
+      // Clear pending folder selection so it doesn't carry over.
+      setPendingFolderId(null);
+      // Make sure the freshly-created folder section is expanded.
+      if ((data as any).folder_id) {
+        setExpandedFolders((m) => ({ ...m, [(data as any).folder_id as string]: true }));
+      }
     }
+
 
     const initial: GeneratedImage[] = requests.map((r) => ({
       id: crypto.randomUUID(),
@@ -1491,8 +1569,11 @@ const ProductPage = () => {
     startCooldown();
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
-  const handleDownloadZip = async () => {
-    const approvedImages = variantWeeklyLaunches
+  const handleDownloadZip = async (scopeLaunchId?: string) => {
+    const sourceLaunches = scopeLaunchId
+      ? variantWeeklyLaunches.filter((w) => w.id === scopeLaunchId)
+      : variantWeeklyLaunches;
+    const approvedImages = sourceLaunches
       .flatMap((w) => w.images)
       .filter((img) => img.status === "done" && img.approvalStatus === "approved" && img.type !== "video-product" && img.type !== "video-model")
       .map((img) => ({ label: img.label, url: img.originalUrl || img.imageUrl }))
@@ -1605,7 +1686,8 @@ const ProductPage = () => {
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-2">Produtos</p>
           {(products || []).map((p) => {
             const active = p.id === projectId;
-            const count = sidebarPhotoCounts.get(p.id) || 0;
+            const folderCount = sidebarMeta.folderByProduct.get(p.id) || 0;
+            const launchCount = sidebarMeta.launchByProduct.get(p.id) || 0;
             const pIsCombo = (p as any).is_combo;
             const pFeatured = (p as any).featured_piece;
             return (
@@ -1618,20 +1700,22 @@ const ProductPage = () => {
               >
                 <button
                   onClick={() => navigate(`/project/${p.id}`)}
-                  className="flex-1 min-w-0 flex items-center justify-between gap-2 px-2.5 py-2 text-left"
+                  className="flex-1 min-w-0 flex items-start gap-2 px-2.5 py-2 text-left"
                 >
-                  <span className="flex items-center gap-2 min-w-0">
-                    <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{p.name}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 mt-0.5 opacity-80">
+                    <path d="M3 21h18" /><path d="M12 7v14" /><path d="M5 21V11l7-5 7 5v10" />
+                  </svg>
+                  <span className="flex-1 min-w-0">
+                    <span className="block truncate font-medium">{p.name}</span>
+                    <span className="block text-[10px] text-muted-foreground mt-0.5">
+                      {folderCount} pasta{folderCount === 1 ? "" : "s"} · {launchCount} lançamento{launchCount === 1 ? "" : "s"}
+                    </span>
                   </span>
-                  <span className="flex items-center gap-1 shrink-0">
-                    {pIsCombo && (
-                      <Badge variant="outline" className="text-[9px] h-4 px-1">
-                        Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
-                      </Badge>
-                    )}
-                    <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
-                  </span>
+                  {pIsCombo && (
+                    <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
+                      {pFeatured === "bottom" ? "Baixo" : "Cima"}
+                    </Badge>
+                  )}
                 </button>
                 <button
                   type="button"
@@ -1656,8 +1740,11 @@ const ProductPage = () => {
           })}
         </div>
 
-        <div className="mt-auto p-3 border-t border-border">
-          <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
+        <div className="mt-auto p-3 border-t border-border space-y-2">
+          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs" onClick={() => navigate("/")}>
+            <Settings className="h-3.5 w-3.5" /> Configurações
+          </Button>
+          <div className="text-[11px] text-muted-foreground truncate px-2">{user.email}</div>
         </div>
       </aside>
 
@@ -1691,7 +1778,7 @@ const ProductPage = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handleDownloadZip} disabled={isDownloadingHd}>
+            <Button variant="outline" size="sm" onClick={() => handleDownloadZip()} disabled={isDownloadingHd}>
               {isDownloadingHd ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1" />}
               {isDownloadingHd ? "Preparando HD..." : "Baixar ZIP"}
             </Button>
@@ -1787,8 +1874,287 @@ const ProductPage = () => {
             </TabsList>
 
 
-            <TabsContent value="photos" className="mt-4 space-y-4">
-              {activeVariant && (
+            <TabsContent value="photos" className="mt-4 space-y-5">
+              {/* Stats row */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total de fotos</p>
+                    <p className="text-2xl font-semibold mt-1">{donePhotoCount}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Aprovadas</p>
+                    <p className="text-2xl font-semibold mt-1 flex items-center gap-2">
+                      {approvedCount}
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-4">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Lançamentos</p>
+                    <p className="text-2xl font-semibold mt-1">{variantWeeklyLaunches.length}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                  {([
+                    ["all", "Todos"],
+                    ["approved", "Aprovados"],
+                    ["pending", "Pendentes"],
+                    ["generating", "Gerando"],
+                  ] as const).map(([val, label]) => (
+                    <button
+                      key={val}
+                      onClick={() => setStatusFilter(val)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-full border transition-colors",
+                        statusFilter === val
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => { setInlineFolderOpen((v) => !v); setInlineFolderName(""); setInlineFolderType("week"); }}
+                >
+                  <FolderPlus className="h-3.5 w-3.5" />
+                  Nova pasta
+                </Button>
+              </div>
+
+              {/* Inline new folder form */}
+              {inlineFolderOpen && (
+                <Card className="border-dashed">
+                  <CardContent className="pt-4 pb-4 space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        autoFocus
+                        value={inlineFolderName}
+                        onChange={(e) => setInlineFolderName(e.target.value)}
+                        placeholder="Nome da pasta (ex: Semana 23/06)"
+                        className="h-8 text-xs flex-1 min-w-[200px]"
+                      />
+                      <div className="flex items-center gap-1">
+                        {(Object.keys(FOLDER_META) as FolderType[]).map((t) => {
+                          const Meta = FOLDER_META[t];
+                          const Icon = Meta.icon;
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setInlineFolderType(t)}
+                              className={cn(
+                                "px-2 py-1 rounded-md border text-[11px] flex items-center gap-1 transition-colors",
+                                inlineFolderType === t ? Meta.tint + " " + Meta.iconColor : "border-border text-muted-foreground hover:text-foreground",
+                              )}
+                            >
+                              <Icon className="h-3 w-3" /> {Meta.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        size="sm"
+                        className="h-8"
+                        disabled={!inlineFolderName.trim() || creatingFolder || !user}
+                        onClick={async () => {
+                          if (!user || !projectId) return;
+                          setCreatingFolder(true);
+                          const { error } = await supabase.from("folders").insert({
+                            product_id: projectId,
+                            user_id: user.id,
+                            name: inlineFolderName.trim(),
+                            folder_type: inlineFolderType,
+                          });
+                          setCreatingFolder(false);
+                          if (error) {
+                            toast({ title: "Erro", description: error.message, variant: "destructive" });
+                            return;
+                          }
+                          setInlineFolderName("");
+                          setInlineFolderOpen(false);
+                          queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
+                          queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
+                        }}
+                      >
+                        {creatingFolder && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+                        Criar
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-8" onClick={() => setInlineFolderOpen(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {!hasApprovedFrontal && variantWeeklyLaunches.some((w) => w.images.length > 0) && (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Gere e aprove o frontal antes de gerar laterais, costas ou close-ups (garante consistência da modelo).
+                </div>
+              )}
+
+              {/* Folder sections */}
+              {(() => {
+                // Decide which launches match the status filter.
+                const matchesFilter = (launch: WeeklyLaunch) => {
+                  if (statusFilter === "all") return true;
+                  const photos = launch.images.filter((i) => i.type !== "video-product" && i.type !== "video-model");
+                  if (statusFilter === "approved") return photos.some((p) => p.approvalStatus === "approved");
+                  if (statusFilter === "pending") return photos.some((p) => p.status === "done" && p.approvalStatus !== "approved" && p.approvalStatus !== "rejected");
+                  if (statusFilter === "generating") return photos.some((p) => p.status === "generating" || p.status === "pending");
+                  return true;
+                };
+
+                type Section = { id: string | null; name: string; type: FolderType | null; launches: WeeklyLaunch[] };
+                const sections: Section[] = [];
+                (folders || []).forEach((f) => {
+                  sections.push({
+                    id: f.id,
+                    name: f.name,
+                    type: f.folder_type,
+                    launches: variantWeeklyLaunches.filter((w) => w.folderId === f.id).filter(matchesFilter),
+                  });
+                });
+                const orphan = variantWeeklyLaunches.filter((w) => !w.folderId).filter(matchesFilter);
+                if (orphan.length > 0 || sections.length === 0) {
+                  sections.push({ id: null, name: "Sem pasta", type: null, launches: orphan });
+                }
+
+                if (sections.every((s) => s.launches.length === 0) && variantWeeklyLaunches.length === 0) {
+                  return (
+                    <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
+                      <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
+                        <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                          <Sparkles className="h-6 w-6 text-accent" />
+                        </div>
+                        <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return sections.map((section) => {
+                  const Meta = section.type ? FOLDER_META[section.type] : null;
+                  const Icon = Meta?.icon || FolderOpen;
+                  const sectionKey = section.id || "__orphan";
+                  const isExpanded = expandedFolders[sectionKey] !== false; // default open
+                  const totalPhotos = section.launches.reduce((acc, l) => acc + l.images.filter((i) => i.status === "done" && i.type !== "video-product" && i.type !== "video-model").length, 0);
+                  const totalApproved = section.launches.reduce((acc, l) => acc + l.images.filter((i) => i.approvalStatus === "approved" && i.type !== "video-product" && i.type !== "video-model").length, 0);
+
+                  return (
+                    <div key={sectionKey} className={cn("rounded-xl border", Meta?.tint || "border-border bg-card")}>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedFolders((m) => ({ ...m, [sectionKey]: !isExpanded }))}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                          <Icon className={cn("h-4 w-4 shrink-0", Meta?.iconColor || "text-muted-foreground")} />
+                          <span className="font-medium text-sm truncate">{section.name}</span>
+                          {Meta && (
+                            <Badge variant="outline" className={cn("text-[9px] h-4", Meta.iconColor)}>{Meta.label}</Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground shrink-0">
+                          <span>{section.launches.length} lançamento{section.launches.length === 1 ? "" : "s"}</span>
+                          <span>·</span>
+                          <span>{totalApproved}/{totalPhotos} aprovadas</span>
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="px-4 pb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {[...section.launches].reverse().map((launch) => {
+                              const photos = launch.images.filter((i) => i.type !== "video-product" && i.type !== "video-model");
+                              const cover = photos.find((p) => p.status === "done" && p.imageUrl);
+                              const approvedHere = photos.filter((p) => p.approvalStatus === "approved").length;
+                              const generatingHere = photos.filter((p) => p.status === "generating" || p.status === "pending").length;
+                              return (
+                                <button
+                                  key={launch.id}
+                                  type="button"
+                                  onClick={() => setGalleryLaunchId(launch.id)}
+                                  className="text-left rounded-xl border border-border bg-background hover:border-accent transition-colors overflow-hidden group"
+                                >
+                                  <div className="aspect-[4/3] bg-muted relative">
+                                    {cover ? (
+                                      <img src={cover.imageUrl} alt={launch.name || launch.label} className="w-full h-full object-cover" loading="lazy" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center">
+                                        {generatingHere > 0 ? <Loader2 className="h-5 w-5 animate-spin text-accent" /> : <ImageIcon className="h-8 w-8 text-muted-foreground/40" />}
+                                      </div>
+                                    )}
+                                    <div className="absolute top-2 right-2 flex items-center gap-1">
+                                      {approvedHere > 0 && (
+                                        <Badge className="bg-green-600 hover:bg-green-700 text-white text-[10px] h-5 gap-1">
+                                          <Check className="h-2.5 w-2.5" /> {approvedHere}
+                                        </Badge>
+                                      )}
+                                      {generatingHere > 0 && (
+                                        <Badge variant="secondary" className="text-[10px] h-5 gap-1">
+                                          <Loader2 className="h-2.5 w-2.5 animate-spin" /> {generatingHere}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="px-3 py-2.5 space-y-1">
+                                    <p className="text-sm font-medium truncate">{launch.name || launch.label}</p>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "seedream"}
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            })}
+
+                            {/* Empty "Novo lançamento" slot */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPendingFolderId(section.id);
+                                setLaunchModalStep(1);
+                                setLaunchModalOpen(true);
+                              }}
+                              className="rounded-xl border-2 border-dashed border-border hover:border-accent hover:bg-accent/5 transition-colors flex flex-col items-center justify-center gap-2 min-h-[220px] text-muted-foreground hover:text-accent"
+                            >
+                              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                                <Plus className="h-5 w-5" />
+                              </div>
+                              <span className="text-xs font-medium">Novo lançamento</span>
+                              {section.name !== "Sem pasta" && (
+                                <span className="text-[10px] text-muted-foreground">em {section.name}</span>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+
+              {/* Prompt editor for regenerating across launches */}
+              {activeVariant && variantWeeklyLaunches.some((w) => w.images.length > 0) && (
                 <PromptAndRefsEditor
                   prompt={state.manualPrompt}
                   onPromptChange={(v) => update("manualPrompt", v)}
@@ -1812,237 +2178,8 @@ const ProductPage = () => {
                   }}
                 />
               )}
-              {!hasApprovedFrontal && (
-                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Gere e aprove o frontal antes de gerar laterais, costas ou close-ups (garante consistência da modelo).
-                </div>
-              )}
-              {[...variantWeeklyLaunches].reverse().map((launch) => {
-                const photos = launch.images.filter((img) => img.type !== "video-product" && img.type !== "video-model");
-                if (photos.length === 0) return null;
-                return (
-                  <div key={launch.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      {editingLaunchId === launch.id ? (
-                        <Input
-                          value={editingLaunchName}
-                          onChange={(e) => setEditingLaunchName(e.target.value)}
-                          onBlur={() => handleSaveLaunchName(launch.id, editingLaunchName)}
-                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveLaunchName(launch.id, editingLaunchName); if (e.key === "Escape") setEditingLaunchId(null); }}
-                          className="h-7 text-sm w-48"
-                          autoFocus
-                        />
-                      ) : (
-                        <h3
-                          className="text-sm font-semibold cursor-pointer hover:text-accent transition-colors"
-                          onClick={() => { setEditingLaunchId(launch.id); setEditingLaunchName(launch.name || launch.label); }}
-                        >
-                          {launch.name || launch.label}
-                        </h3>
-                      )}
-                      <div className="flex items-center gap-2">
-                        {launch.lockedProportionJson && (
-                          <Badge variant="outline" className="text-[9px] gap-1">
-                            <Lock className="h-2.5 w-2.5" /> Proporções travadas
-                          </Badge>
-                        )}
-                        <Badge variant="outline">{launch.engineUsed || "seedream"}</Badge>
-                        <Badge variant="secondary">{photos.length} ângulos</Badge>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                      {photos.map((img) => (
-                        <div key={img.id} className={cn("group rounded-xl border bg-card overflow-hidden", img.approvalStatus === "approved" ? "border-green-500" : "border-border")}>
-                          <div className="aspect-[9/16] bg-muted relative flex items-center justify-center">
-                            {img.status === "done" && img.imageUrl && (
-                              <>
-                                <img
-                                  src={img.imageUrl}
-                                  alt={img.label}
-                                  className="w-full h-full object-cover cursor-pointer"
-                                  loading="lazy"
-                                  onClick={async () => {
-                                    try {
-                                      const resp = await fetch(img.originalUrl || img.imageUrl!);
-                                      const blob = await resp.blob();
-                                      const url = URL.createObjectURL(blob);
-                                      const a = document.createElement("a");
-                                      a.href = url;
-                                      a.download = `${img.label}.png`;
-                                      a.click();
-                                      URL.revokeObjectURL(url);
-                                    } catch {
-                                      window.open(img.originalUrl || img.imageUrl!, "_blank");
-                                    }
-                                  }}
-                                  onError={(e) => {
-                                    const target = e.currentTarget;
-                                    const fallback = img.originalUrl || img.previewUrl;
-                                    if (fallback && target.src !== fallback) {
-                                      target.src = fallback;
-                                    }
-                                  }}
-                                />
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); setLightboxImage(img); }}
-                                  className="absolute top-1 right-1 bg-background/80 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
-                                  title="Ampliar"
-                                >
-                                  <ZoomIn className="h-4 w-4 text-foreground" />
-                                </button>
-                              </>
-                            )}
-                            {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
-                            {img.status === "pending" && (() => {
-                              const isFront = img.type === "lookbook-front";
-                              const blocked = !isFront && !hasApprovedFrontal;
-                              return (
-                              <div className="flex flex-col items-center gap-2 p-3">
-                                <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-                                <span className="text-[10px] text-muted-foreground text-center">
-                                  {blocked ? "Aprove o frontal primeiro" : "Aguardando"}
-                                </span>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button size="sm" disabled={blocked} className="h-7 text-[10px] gap-1">
-                                      <Sparkles className="h-3 w-3" /> Gerar
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="center" className="w-52">
-                                    <DropdownMenuItem className="text-[10px] text-muted-foreground font-medium" disabled>Escolha o cenário</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-branco")} className="gap-2 text-xs">
-                                      <span>⬜</span> Estúdio Branco Puro
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-neutro-bege")} className="gap-2 text-xs">
-                                      <span>🟫</span> Estúdio Neutro Bege
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "urbano-contemporaneo")} className="gap-2 text-xs">
-                                      <span>🏙️</span> Urbano Contemporâneo
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "natureza-suave")} className="gap-2 text-xs">
-                                      <span>🌿</span> Natureza Suave
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                              );
-                            })()}
-                            {img.status === "error" && (
-                              <div className="text-center p-2">
-                                <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button size="sm" variant="outline" className="h-7 mt-2 text-xs">
-                                      <RefreshCw className="h-3 w-3 mr-1" /> Regenerar
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
-                                      <Sparkles className="h-3.5 w-3.5" /> Gemini
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
-                                      <ArrowRight className="h-3.5 w-3.5" /> fal.ai Flux
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            )}
-                          </div>
-                          <div className="px-2.5 py-2 flex items-center justify-between">
-                            <div className="flex items-center gap-1 min-w-0">
-                              {img.approvalStatus === "approved" && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
-                              <span className="text-xs font-medium truncate">{img.label}</span>
-                              {img.status === "done" && productSeed != null && productLockedEngine && (
-                                (img.seedUsed === productSeed && matchesLockedEngine(img.modelUsed, productLockedEngine)) ? (
-                                  <Badge variant="outline" className="h-4 px-1 text-[8px] gap-0.5 border-green-500/40 text-green-600 dark:text-green-400 shrink-0" title={`Seed ${productSeed} • ${productLockedEngine}`}>
-                                    <Check className="h-2 w-2" /> ok
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="h-4 px-1 text-[8px] gap-0.5 border-yellow-500/40 text-yellow-600 dark:text-yellow-400 shrink-0" title={`Esperado seed ${productSeed}/${productLockedEngine} — recebido seed ${img.seedUsed ?? "?"}/${img.modelUsed ?? "?"}`}>
-                                    <AlertTriangle className="h-2 w-2" /> reger.
-                                  </Badge>
-                                )
-                              )}
-                            </div>
-                            {img.status === "done" && (
-                              <div className="flex items-center gap-0.5">
-                                <Button
-                                  variant={img.approvalStatus === "approved" ? "default" : "outline"}
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  title={img.approvalStatus === "approved" ? "Aprovada" : "Aprovar"}
-                                  onClick={(e) => { e.stopPropagation(); handleApproveImage(img.id); }}
-                                >
-                                  <Check className="h-3 w-3" />
-                                </Button>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Trocar modelo">
-                                      <UserRound className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-48">
-                                    {MODEL_GALLERY.map((m) => (
-                                      <DropdownMenuItem key={m.id} onClick={() => handleRegenerate(img.id, undefined, m)} className="gap-2 text-xs">
-                                        <img src={m.faceImage} alt={m.name} className="h-5 w-5 rounded-full object-cover" />
-                                        {m.name}
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7">
-                                      <RefreshCw className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
-                                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
-                                      <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-              {/* Generate more button */}
-              {variantWeeklyLaunches.some((w) => w.images.some((img) => img.status === "done")) && (
-                <div className="flex justify-center pt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => { setLaunchModalStep(3); setLaunchModalOpen(true); }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Gerar mais fotos
-                  </Button>
-                </div>
-              )}
-              {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type !== "video-product" && img.type !== "video-model").length === 0) && (
-                <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-                  <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
-                    <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                      <Sparkles className="h-6 w-6 text-accent" />
-                    </div>
-                    <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
-                    </p>
-                  </div>
-                </div>
-              )}
             </TabsContent>
+
 
 
 
@@ -2427,6 +2564,24 @@ const ProductPage = () => {
           update("featuredPiece", v || null);
           saveProductMeta({ featured_piece: v || null });
         }}
+        onFolderSelected={(folderId) => {
+          setPendingFolderId(folderId);
+          queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
+          queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
+        }}
+      />
+
+      <ResultsGalleryDialog
+        open={!!galleryLaunchId}
+        onOpenChange={(o) => { if (!o) setGalleryLaunchId(null); }}
+        launch={variantWeeklyLaunches.find((w) => w.id === galleryLaunchId) || null}
+        hasApprovedFrontal={hasApprovedFrontal}
+        isDownloadingHd={isDownloadingHd}
+        onApprove={(id, value) => handleApproveImage(id, value)}
+        onRegenerate={(id, engine, model) => handleRegenerate(id, engine, model)}
+        onGenerateSingle={(id, scene) => handleGenerateSingle(id, scene)}
+        onDownloadHd={(launchId) => handleDownloadZip(launchId)}
+        onZoom={(img) => setLightboxImage(img)}
       />
 
       {/* Lightbox Modal */}
