@@ -485,13 +485,15 @@ Format: 9:16 portrait.`;
 
   const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garmentAnalysis?.type || "");
   const twoPieceBlock = isTwoPieceSet
-    ? `TWO-PIECE SET RULE — CRITICAL:
-This garment is a TWO-PIECE SET (top + bottom sold together).
-- Show BOTH pieces worn together in all body shots.
-- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.
-- Do NOT merge into a single dress silhouette.
-- Maintain visible separation line between top and bottom at waist.
-- Each piece must maintain its own construction and proportions.`
+    ? `TWO-PIECE SET — CRITICAL STYLING RULE:
+This is a coordinated two-piece set (top + skirt) worn as a COMPLETE LOOK.
+The pieces are worn TOGETHER with NO visible skin between them.
+- The cropped top hem sits exactly at the skirt waistband — zero gap
+- The wide elastic waistband of the skirt meets the top hem flush
+- NO midriff visible. NO belly. NO skin between top and skirt. Ever.
+- The set reads as ONE unified outfit, not two separate pieces
+- The transition between top and skirt waistband must be seamless
+HARD FAIL: if any skin is visible between top and skirt — regenerate.`
     : "";
 
   // Resolve mannequin with fallback to defaults
