@@ -2514,6 +2514,25 @@ const ProductPage = () => {
           update("featuredPiece", v || null);
           saveProductMeta({ featured_piece: v || null });
         }}
+        productId={projectId}
+        onFolderSelected={(folderId) => {
+          setPendingFolderId(folderId);
+          queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
+          queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
+        }}
+      />
+
+      <ResultsGalleryDialog
+        open={!!galleryLaunchId}
+        onOpenChange={(o) => { if (!o) setGalleryLaunchId(null); }}
+        launch={variantWeeklyLaunches.find((w) => w.id === galleryLaunchId) || null}
+        hasApprovedFrontal={hasApprovedFrontal}
+        isDownloadingHd={isDownloadingHd}
+        onApprove={(id, value) => handleApproveImage(id, value)}
+        onRegenerate={(id, engine, model) => handleRegenerate(id, engine, model)}
+        onGenerateSingle={(id, scene) => handleGenerateSingle(id, scene)}
+        onDownloadHd={(launchId) => handleDownloadZip(launchId)}
+        onZoom={(img) => setLightboxImage(img)}
       />
 
       {/* Lightbox Modal */}
