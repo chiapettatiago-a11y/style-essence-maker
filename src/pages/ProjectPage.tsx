@@ -165,7 +165,7 @@ const ProductPage = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
-    selectedEngine: "seedream",
+    selectedEngine: "fal",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [],
