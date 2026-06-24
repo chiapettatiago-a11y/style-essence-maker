@@ -1177,6 +1177,7 @@ const ProductPage = () => {
         ensureGenerationResult(data);
 
         if (data?.code === "processing") {
+          startImageStatusPolling(img.id);
           return "";
         }
 
@@ -1205,11 +1206,19 @@ const ProductPage = () => {
     const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
     const frontImage = imageItems.find((img) => img.type === "lookbook-front");
 
-    // Only generate the front view initially — other angles stay pending for individual generation
+    // Generate front first to use as reference, then trigger every remaining angle in parallel.
     let frontReferenceUrl = "";
     if (frontImage) {
       frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
     }
+
+    const remainingImages = imageItems.filter((img) => img.type !== "lookbook-front");
+    if (remainingImages.length > 0) {
+      await Promise.allSettled(
+        remainingImages.map((img) => runImageGeneration(img, frontReferenceUrl || undefined)),
+      );
+    }
+
 
     // Generate videos using front_view as starting frame
     const videoItems = initial.filter((img) => img.type === "video-product" || img.type === "video-model");
@@ -1236,7 +1245,7 @@ const ProductPage = () => {
           });
           if (error) throw error;
           ensureGenerationResult(data);
-          if (data?.code === "processing") continue;
+          if (data?.code === "processing") { startImageStatusPolling(vid.id); continue; }
           updateImageInState(vid.id, {
             status: "done",
             imageUrl: data.originalUrl || data.imageUrl,
