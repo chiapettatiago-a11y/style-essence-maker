@@ -644,10 +644,17 @@ Avoid: plastic skin, porcelain finish, overly smooth airbrushed look, CGI appear
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
+  const globalNegative = `NEVER GENERATE:
+bare feet (unless sem_sapato selected), visible midriff between
+top and skirt, skin gap at waist, oversized buttons, shiny jewelry
+buttons, embroidered TR letters, Asian facial features, pale
+European skin, different face between angles, male model.`;
+
   return [
-    blockA, blockB, knitTextureBlock, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock,
-    bottomBlock, innerLayerBlock, NO_TAGS_BLOCK,
-    blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE,
+    blockA, blockB, knitTextureBlock, trBadgeBlock, genderBlock,
+    blockC, faceAnchorBlock, footwearBlock, bottomBlock,
+    innerLayerBlock, NO_TAGS_BLOCK, blockD, fullBodyBlock,
+    skirtLengthBlock, basePrompt || "", blockE, globalNegative,
   ]
     .filter(Boolean)
     .join("\n\n");
