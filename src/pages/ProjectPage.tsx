@@ -2233,6 +2233,77 @@ const ProductPage = () => {
                 </CardContent>
               </Card>
 
+              {/* TR badge reference uploader (per product, optional) */}
+              <Card>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">Foto do botão TR (opcional)</h3>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Enviada uma vez por produto. Usada em todos os close-ups.
+                      </p>
+                    </div>
+                    {(product as any)?.tr_badge_reference_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-[11px] text-destructive hover:text-destructive"
+                        onClick={async () => {
+                          await supabase.from("products").update({ tr_badge_reference_url: null } as any).eq("id", projectId!);
+                          queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+                        }}
+                      >
+                        Remover
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {(product as any)?.tr_badge_reference_url ? (
+                      <img
+                        src={(product as any).tr_badge_reference_url}
+                        alt="Botão TR de referência"
+                        className="h-24 w-24 object-cover rounded-md border border-border"
+                      />
+                    ) : (
+                      <div className="h-24 w-24 rounded-md border border-dashed border-border flex items-center justify-center text-[10px] text-muted-foreground">
+                        Sem foto
+                      </div>
+                    )}
+                    <label className="inline-flex">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file || !projectId) return;
+                          try {
+                            const blob = await compressImage(file);
+                            const dataUrl = await blobToDataUrl(blob);
+                            const { error } = await supabase
+                              .from("products")
+                              .update({ tr_badge_reference_url: dataUrl } as any)
+                              .eq("id", projectId);
+                            if (error) throw error;
+                            queryClient.invalidateQueries({ queryKey: ["product", projectId] });
+                            toast({ title: "Botão TR salvo", description: "Será usado em todos os close-ups." });
+                          } catch (err: unknown) {
+                            const msg = err instanceof Error ? err.message : "Falha no upload";
+                            toast({ title: "Erro", description: msg, variant: "destructive" });
+                          } finally {
+                            e.target.value = "";
+                          }
+                        }}
+                      />
+                      <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-background hover:bg-accent/10 text-xs cursor-pointer">
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        {(product as any)?.tr_badge_reference_url ? "Substituir foto" : "Enviar foto"}
+                      </span>
+                    </label>
+                  </div>
+                </CardContent>
+              </Card>
+
               {activeVariant?.garmentAnalysis ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-end">
