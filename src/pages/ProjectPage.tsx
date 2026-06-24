@@ -2514,7 +2514,6 @@ const ProductPage = () => {
           update("featuredPiece", v || null);
           saveProductMeta({ featured_piece: v || null });
         }}
-        productId={projectId}
         onFolderSelected={(folderId) => {
           setPendingFolderId(folderId);
           queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
