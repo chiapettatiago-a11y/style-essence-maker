@@ -901,6 +901,7 @@ async function callSeedreamEngine(params: {
   imageUrls?: string[];
   angleType: AngleType;
 }) {
+  console.log("[callSeedreamEngine] invoked", { angleType: params.angleType, refImages: params.imageUrls?.length || 0, promptLen: params.promptUsed?.length || 0 });
   const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
   if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
 

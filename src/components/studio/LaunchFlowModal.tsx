@@ -96,6 +96,8 @@ interface LaunchFlowModalProps {
   productId?: string;
   /** Optional callback fired with the selected folder id when the user generates. */
   onFolderSelected?: (folderId: string | null) => void;
+  /** Pre-fills the folder selection in step 3 when the modal is opened from a folder slot. */
+  initialFolderId?: string | null;
 }
 
 const Dot: React.FC<{ index: number; state: StepDot }> = ({ index, state }) => (
@@ -146,6 +148,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onFeaturedPieceChange,
   productId,
   onFolderSelected,
+  initialFolderId,
 }) => {
   const { user } = useAuth();
   const [step, setStep] = useState(startStep);
@@ -160,6 +163,12 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   useEffect(() => {
     if (open) setStep(startStep);
   }, [open, startStep]);
+
+  // Pre-fill folder selection when opened from a folder slot.
+  useEffect(() => {
+    if (open && initialFolderId) setSelectedFolderId(initialFolderId);
+  }, [open, initialFolderId]);
+
 
   // Sync selected background into selectedPresets so the prompt-builder sees it.
   useEffect(() => {
@@ -227,7 +236,9 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   const imageCount = requests.filter((r) => r.type !== "video-product" && r.type !== "video-model").length;
 
   const handleGenerate = () => {
-    if (onFolderSelected) onFolderSelected(selectedFolderId || null);
+    const folderId = selectedFolderId || initialFolderId || null;
+    console.log("[LaunchFlowModal] Gerar pacote completo", { requestCount: requests.length, engine: selectedEngine, folderId });
+    if (onFolderSelected) onFolderSelected(folderId);
     onGenerate(requests);
     onOpenChange(false);
   };

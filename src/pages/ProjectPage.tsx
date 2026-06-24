@@ -424,7 +424,7 @@ const ProductPage = () => {
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
       folderId: (w as any).folder_id || null,
-      engineUsed: (w.engine_used as GenerationEngine | null) || "seedream",
+      engineUsed: (() => { const e = w.engine_used as GenerationEngine | null; return !e || e === "gemini" ? "seedream" : e; })(),
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
       mannequinWaistCm: w.mannequin_waist_cm,
@@ -1083,7 +1083,9 @@ const ProductPage = () => {
   }, [activeVariant, toast]);
 
   const productSeed = (product as any)?.generation_seed != null ? Number((product as any).generation_seed) : null;
-  const productLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
+  const rawLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
+  // Force legacy "gemini" locks to "seedream" — new default engine.
+  const productLockedEngine: GenerationEngine | null = rawLockedEngine === "gemini" ? "seedream" : rawLockedEngine;
   const productModelReferenceImage = ((product as any)?.model_reference_image as string | null) || null;
 
   const hasApprovedFrontal = useMemo(() => {
@@ -1113,7 +1115,11 @@ const ProductPage = () => {
   }, [productLockedEngine, toast]);
 
   const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
-    if (!activeVariant || !projectId) return;
+    console.log("[handleGenerate] fired", { requestCount: requests.length, engine: state.selectedEngine, pendingFolderId, projectId, activeVariantId: activeVariant?.id });
+    if (!activeVariant || !projectId) {
+      console.warn("[handleGenerate] aborted — missing activeVariant or projectId");
+      return;
+    }
 
     setIsGenerating(true);
     const normalizedMannequin = normalizeMannequinData(mannequin);
@@ -1362,6 +1368,7 @@ const ProductPage = () => {
     state.selectedPresets,
     state.selectedProfile,
     variantWeeklyLaunches,
+    pendingFolderId,
   ]);
 
   const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine, modelOverride?: ModelProfile | null) => {
@@ -2569,6 +2576,7 @@ const ProductPage = () => {
           queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
           queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
         }}
+        initialFolderId={pendingFolderId}
       />
 
       <ResultsGalleryDialog
