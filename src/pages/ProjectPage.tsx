@@ -1115,7 +1115,11 @@ const ProductPage = () => {
   }, [productLockedEngine, toast]);
 
   const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
-    if (!activeVariant || !projectId) return;
+    console.log("[handleGenerate] fired", { requestCount: requests.length, engine: state.selectedEngine, pendingFolderId, projectId, activeVariantId: activeVariant?.id });
+    if (!activeVariant || !projectId) {
+      console.warn("[handleGenerate] aborted — missing activeVariant or projectId");
+      return;
+    }
 
     setIsGenerating(true);
     const normalizedMannequin = normalizeMannequinData(mannequin);
