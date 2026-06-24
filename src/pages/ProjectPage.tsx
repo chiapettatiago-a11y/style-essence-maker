@@ -1122,9 +1122,9 @@ const ProductPage = () => {
       // keep flow running
     }
 
-    let activeWeekId = variantWeeklyLaunches.find((w) => w.variantId === state.activeVariantId)?.id;
-
-    if (!activeWeekId) {
+    // Each "Novo lançamento" run always creates a new launch row (folder model).
+    let activeWeekId: string | undefined;
+    {
       const { data, error } = await supabase
         .from("weekly_launches")
         .insert({
@@ -1133,6 +1133,7 @@ const ProductPage = () => {
           name: `Lançamento ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
+          folder_id: pendingFolderId,
           mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
           mannequin_bust_cm: normalizedMannequin.mannequin_bust_cm,
           mannequin_waist_cm: normalizedMannequin.mannequin_waist_cm,
@@ -1142,7 +1143,7 @@ const ProductPage = () => {
           reference_photos: activeVariant.uploadedImages,
           locked_proportion_json: (activeVariant.proportionJson || null) as any,
         })
-        .select("id,label,variant_id,engine_used")
+        .select("id,label,variant_id,engine_used,folder_id")
         .single();
 
       if (error || !data?.id) {
@@ -1154,17 +1155,27 @@ const ProductPage = () => {
       activeWeekId = data.id;
       setState((s) => ({
         ...s,
-        weeklyLaunches: [...s.weeklyLaunches, { id: activeWeekId!, label: data.label, variantId: data.variant_id || s.activeVariantId, engineUsed: (data.engine_used as GenerationEngine | null) || s.selectedEngine, images: [] }],
+        weeklyLaunches: [
+          ...s.weeklyLaunches,
+          {
+            id: activeWeekId!,
+            label: data.label,
+            variantId: data.variant_id || s.activeVariantId,
+            folderId: (data as any).folder_id || null,
+            engineUsed: (data.engine_used as GenerationEngine | null) || s.selectedEngine,
+            images: [],
+          },
+        ],
         activeWeek: activeWeekId!,
       }));
-    } else {
-      await supabase.from("weekly_launches").update({ engine_used: state.selectedEngine }).eq("id", activeWeekId);
-      setState((s) => ({
-        ...s,
-        weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, engineUsed: s.selectedEngine } : w)),
-        activeWeek: activeWeekId!,
-      }));
+      // Clear pending folder selection so it doesn't carry over.
+      setPendingFolderId(null);
+      // Make sure the freshly-created folder section is expanded.
+      if ((data as any).folder_id) {
+        setExpandedFolders((m) => ({ ...m, [(data as any).folder_id as string]: true }));
+      }
     }
+
 
     const initial: GeneratedImage[] = requests.map((r) => ({
       id: crypto.randomUUID(),
