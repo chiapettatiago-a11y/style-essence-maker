@@ -98,7 +98,19 @@ interface LaunchFlowModalProps {
   onFolderSelected?: (folderId: string | null) => void;
   /** Pre-fills the folder selection in step 3 when the modal is opened from a folder slot. */
   initialFolderId?: string | null;
+  /** Footwear selection (controlled by parent so it can be injected into the generation request). */
+  selectedFootwear?: string;
+  onSelectedFootwearChange?: (footwear: string) => void;
 }
+
+const FOOTWEAR_CHOICES: Array<{ id: string; label: string; emoji: string }> = [
+  { id: "scarpin_nude", label: "Scarpin nude", emoji: "👠" },
+  { id: "scarpin_preto", label: "Scarpin preto", emoji: "🖤" },
+  { id: "sandalia_tira", label: "Sandália tira", emoji: "👡" },
+  { id: "mule_dourado", label: "Mule dourado", emoji: "✨" },
+  { id: "bota_ankle", label: "Bota ankle", emoji: "🥾" },
+  { id: "sem_sapato", label: "Sem sapato", emoji: "🦶" },
+];
 
 const Dot: React.FC<{ index: number; state: StepDot }> = ({ index, state }) => (
   <div className="flex items-center gap-2 text-xs">
