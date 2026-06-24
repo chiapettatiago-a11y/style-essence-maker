@@ -96,6 +96,8 @@ interface LaunchFlowModalProps {
   productId?: string;
   /** Optional callback fired with the selected folder id when the user generates. */
   onFolderSelected?: (folderId: string | null) => void;
+  /** Pre-fills the folder selection in step 3 when the modal is opened from a folder slot. */
+  initialFolderId?: string | null;
 }
 
 const Dot: React.FC<{ index: number; state: StepDot }> = ({ index, state }) => (
