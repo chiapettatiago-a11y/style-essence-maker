@@ -1301,31 +1301,24 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
 
     let result: { imageUrl: string; modelUsed: string };
     try {
-      result = parsedEngine === "seedream"
-        ? await callSeedreamEngine({
+      result = (parsedEngine === "fal" || parsedEngine === "seedream")
+        ? await callFalEngine({
             promptUsed,
-            imageUrls: seedreamImageUrls,
+            imageUrl: falReferenceImage,
             angleType: parsedAngle,
-            trBadgeUrl: (body as any)?.trBadgeUrl || null,
+            loraUrl: modelProfile?.lora_url,
+            loraTriggerWord: modelProfile?.lora_trigger_word,
+            loraScale: modelProfile?.lora_scale ?? 1.0,
+            guidanceScale: modelProfile?.guidance_scale ?? 3.5,
           })
-        : parsedEngine === "fal"
-          ? await callFalEngine({
-              promptUsed,
-              imageUrl: falReferenceImage,
-              angleType: parsedAngle,
-              loraUrl: modelProfile?.lora_url,
-              loraTriggerWord: modelProfile?.lora_trigger_word,
-              loraScale: modelProfile?.lora_scale ?? 1.0,
-              guidanceScale: modelProfile?.guidance_scale ?? 3.5,
-            })
-          : await callGeminiGateway({
-              promptUsed,
-              referenceImages: Array.isArray(referenceImages)
-                ? referenceImages
-                : firstReferenceImage ? [firstReferenceImage] : [],
-              attemptNumber: requestAttempt,
-              seed: numericSeed,
-            });
+        : await callGeminiGateway({
+            promptUsed,
+            referenceImages: Array.isArray(referenceImages)
+              ? referenceImages
+              : firstReferenceImage ? [firstReferenceImage] : [],
+            attemptNumber: requestAttempt,
+            seed: numericSeed,
+          });
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
