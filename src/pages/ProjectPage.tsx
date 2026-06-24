@@ -1721,8 +1721,11 @@ const ProductPage = () => {
           })}
         </div>
 
-        <div className="mt-auto p-3 border-t border-border">
-          <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
+        <div className="mt-auto p-3 border-t border-border space-y-2">
+          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs" onClick={() => navigate("/")}>
+            <Settings className="h-3.5 w-3.5" /> Configurações
+          </Button>
+          <div className="text-[11px] text-muted-foreground truncate px-2">{user.email}</div>
         </div>
       </aside>
 
