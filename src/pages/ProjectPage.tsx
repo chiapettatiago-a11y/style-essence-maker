@@ -1100,8 +1100,8 @@ const ProductPage = () => {
 
   const productSeed = (product as any)?.generation_seed != null ? Number((product as any).generation_seed) : null;
   const rawLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
-  // Force legacy "gemini" locks to "seedream" — new default engine.
-  const productLockedEngine: GenerationEngine | null = rawLockedEngine === "gemini" ? "seedream" : rawLockedEngine;
+  // Force legacy "gemini"/"seedream" locks to "fal" — new default engine.
+  const productLockedEngine: GenerationEngine | null = (rawLockedEngine === "gemini" || rawLockedEngine === "seedream") ? "fal" : rawLockedEngine;
   const productModelReferenceImage = ((product as any)?.model_reference_image as string | null) || null;
 
   const hasApprovedFrontal = useMemo(() => {
