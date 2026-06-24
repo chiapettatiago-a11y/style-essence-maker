@@ -1245,7 +1245,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
     const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
 
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
-    const parsedEngine = (engine || "seedream") as GenerationEngine;
+    const parsedEngine = (engine || "fal") as GenerationEngine;
     const requestAttempt = Number(attemptNumber || 1);
 
     const isFrontAngle = parsedAngle === "lookbook-front";
