@@ -1778,7 +1778,7 @@ const ProductPage = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={handleDownloadZip} disabled={isDownloadingHd}>
+            <Button variant="outline" size="sm" onClick={() => handleDownloadZip()} disabled={isDownloadingHd}>
               {isDownloadingHd ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1" />}
               {isDownloadingHd ? "Preparando HD..." : "Baixar ZIP"}
             </Button>
