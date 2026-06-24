@@ -905,7 +905,7 @@ async function callFalEngine(params: {
 
   const imageSize = getImageSize(params.angleType);
   const loraScale = params.loraScale ?? 1.0;
-  const guidanceScale = params.guidanceScale ?? 3.5;
+  const guidanceScale = params.guidanceScale ?? 9.0;
 
   const usingLoraEndpoint = endpoint === "fal-ai/flux-lora";
   const finalPrompt = usingLoraEndpoint && params.loraTriggerWord
