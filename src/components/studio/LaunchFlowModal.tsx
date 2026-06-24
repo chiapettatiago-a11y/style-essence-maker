@@ -164,6 +164,12 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
     if (open) setStep(startStep);
   }, [open, startStep]);
 
+  // Pre-fill folder selection when opened from a folder slot.
+  useEffect(() => {
+    if (open && initialFolderId) setSelectedFolderId(initialFolderId);
+  }, [open, initialFolderId]);
+
+
   // Sync selected background into selectedPresets so the prompt-builder sees it.
   useEffect(() => {
     const bg = BACKGROUNDS.find((b) => b.id === selectedBg);
