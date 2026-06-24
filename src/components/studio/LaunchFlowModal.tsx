@@ -236,7 +236,9 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   const imageCount = requests.filter((r) => r.type !== "video-product" && r.type !== "video-model").length;
 
   const handleGenerate = () => {
-    if (onFolderSelected) onFolderSelected(selectedFolderId || null);
+    const folderId = selectedFolderId || initialFolderId || null;
+    console.log("[LaunchFlowModal] Gerar pacote completo", { requestCount: requests.length, engine: selectedEngine, folderId });
+    if (onFolderSelected) onFolderSelected(folderId);
     onGenerate(requests);
     onOpenChange(false);
   };
