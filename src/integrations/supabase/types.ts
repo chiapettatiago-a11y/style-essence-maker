@@ -47,6 +47,44 @@ export type Database = {
         }
         Relationships: []
       }
+      folders: {
+        Row: {
+          created_at: string
+          folder_type: string
+          id: string
+          name: string
+          product_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_type?: string
+          id?: string
+          name: string
+          product_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_type?: string
+          id?: string
+          name?: string
+          product_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       generated_images: {
         Row: {
           approval_status: string
@@ -447,6 +485,7 @@ export type Database = {
         Row: {
           created_at: string
           engine_used: string
+          folder_id: string | null
           id: string
           label: string
           locked_proportion_json: Json | null
@@ -465,6 +504,7 @@ export type Database = {
         Insert: {
           created_at?: string
           engine_used?: string
+          folder_id?: string | null
           id?: string
           label: string
           locked_proportion_json?: Json | null
@@ -483,6 +523,7 @@ export type Database = {
         Update: {
           created_at?: string
           engine_used?: string
+          folder_id?: string | null
           id?: string
           label?: string
           locked_proportion_json?: Json | null
@@ -499,6 +540,13 @@ export type Database = {
           variant_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "weekly_launches_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "weekly_launches_product_id_fkey"
             columns: ["product_id"]
