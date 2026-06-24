@@ -409,6 +409,7 @@ const ProductPage = () => {
       label: w.label,
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
+      folderId: (w as any).folder_id || null,
       engineUsed: (w.engine_used as GenerationEngine | null) || "seedream",
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
