@@ -1362,6 +1362,7 @@ const ProductPage = () => {
       ensureGenerationResult(data);
 
       if (data?.code === "processing") {
+        startImageStatusPolling(id);
         startCooldown();
         return;
       }
@@ -1465,6 +1466,7 @@ const ProductPage = () => {
       ensureGenerationResult(data);
 
       if (data?.code === "processing") {
+        startImageStatusPolling(id);
         startCooldown();
         return;
       }
