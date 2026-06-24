@@ -165,7 +165,7 @@ const ProductPage = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
-    selectedEngine: "seedream",
+    selectedEngine: "fal",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [],
@@ -426,7 +426,7 @@ const ProductPage = () => {
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
       folderId: (w as any).folder_id || null,
-      engineUsed: (() => { const e = w.engine_used as GenerationEngine | null; return !e || e === "gemini" ? "seedream" : e; })(),
+      engineUsed: (() => { const e = w.engine_used as GenerationEngine | null; return !e || e === "gemini" || e === "seedream" ? "fal" : e; })(),
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
       mannequinWaistCm: w.mannequin_waist_cm,
@@ -470,7 +470,7 @@ const ProductPage = () => {
       garmentAnalysis: hydratedActiveVariant?.garmentAnalysis || null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
-      selectedEngine: hydratedActiveWeek?.engineUsed || "seedream",
+      selectedEngine: hydratedActiveWeek?.engineUsed || "fal",
       manualPrompt: product.manual_prompt || "",
       generatedImages: [],
       weeklyLaunches,
@@ -690,7 +690,7 @@ const ProductPage = () => {
       uploadedImages: variant.uploadedImages,
       garmentAnalysis: variant.garmentAnalysis,
       activeWeek: nextActiveLaunch?.id || "",
-      selectedEngine: nextActiveLaunch?.engineUsed || "seedream",
+      selectedEngine: nextActiveLaunch?.engineUsed || "fal",
     }));
   };
 
@@ -705,7 +705,7 @@ const ProductPage = () => {
       uploadedImages: newVariant.uploadedImages,
       garmentAnalysis: newVariant.garmentAnalysis,
       activeWeek: "",
-      selectedEngine: "seedream",
+      selectedEngine: "fal",
     }));
   };
 
@@ -725,7 +725,7 @@ const ProductPage = () => {
         garmentAnalysis: newActive?.garmentAnalysis || null,
         weeklyLaunches: s.weeklyLaunches.filter((w) => w.variantId !== variantId),
         activeWeek: launchesForActive[0]?.id || "",
-        selectedEngine: launchesForActive[0]?.engineUsed || "seedream",
+        selectedEngine: launchesForActive[0]?.engineUsed || "fal",
       };
     });
   };
@@ -1100,8 +1100,8 @@ const ProductPage = () => {
 
   const productSeed = (product as any)?.generation_seed != null ? Number((product as any).generation_seed) : null;
   const rawLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
-  // Force legacy "gemini" locks to "seedream" — new default engine.
-  const productLockedEngine: GenerationEngine | null = rawLockedEngine === "gemini" ? "seedream" : rawLockedEngine;
+  // Force legacy "gemini"/"seedream" locks to "fal" — new default engine.
+  const productLockedEngine: GenerationEngine | null = (rawLockedEngine === "gemini" || rawLockedEngine === "seedream") ? "fal" : rawLockedEngine;
   const productModelReferenceImage = ((product as any)?.model_reference_image as string | null) || null;
 
   const hasApprovedFrontal = useMemo(() => {
@@ -2191,7 +2191,7 @@ const ProductPage = () => {
                                         </p>
                                       ) : (
                                         <p className="text-[10px] text-muted-foreground">
-                                          {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "seedream"}
+                                          {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "fal"}
                                         </p>
                                       )}
                                       {/* Per-angle progress dots */}
