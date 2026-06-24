@@ -2631,8 +2631,8 @@ const ProductPage = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "gemini"); setLightboxImage(null); }} className="gap-2 text-xs">
-                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
+                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "seedream"); setLightboxImage(null); }} className="gap-2 text-xs">
+                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Seedream
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "fal"); setLightboxImage(null); }} className="gap-2 text-xs">
                       <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
