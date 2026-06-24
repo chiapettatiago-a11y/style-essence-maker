@@ -1252,7 +1252,7 @@ const ProductPage = () => {
             refImages = [imageUrl];
           } else {
             // Fallback if no front view yet
-            refImages = activeVariant.uploadedImages.slice(0, 2);
+            refImages = activeVariant.uploadedImages.slice(0, 1);
           }
 
           const { data, error } = await supabase.functions.invoke("generate-image", {

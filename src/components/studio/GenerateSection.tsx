@@ -22,8 +22,8 @@ interface GenerateSectionProps {
 }
 
 const ENGINE_LABELS: Record<GenerationEngine, string> = {
-  fal: "fal.ai — Flux (ativo)",
-  seedream: "Seedream 5.0 (pausado)",
+  fal: "fal.ai Flux + LoRA",
+  seedream: "Seedream 5.0",
   gemini: "Gemini (legado)",
 };
 

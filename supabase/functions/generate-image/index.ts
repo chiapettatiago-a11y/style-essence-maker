@@ -905,7 +905,7 @@ async function callFalEngine(params: {
 
   const imageSize = getImageSize(params.angleType);
   const loraScale = params.loraScale ?? 1.0;
-  const guidanceScale = params.guidanceScale ?? 3.5;
+  const guidanceScale = params.guidanceScale ?? 9.0;
 
   const usingLoraEndpoint = endpoint === "fal-ai/flux-lora";
   const finalPrompt = usingLoraEndpoint && params.loraTriggerWord
@@ -1315,7 +1315,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
             loraUrl: modelProfile?.lora_url,
             loraTriggerWord: modelProfile?.lora_trigger_word,
             loraScale: modelProfile?.lora_scale ?? 1.0,
-            guidanceScale: modelProfile?.guidance_scale ?? 3.5,
+            guidanceScale: modelProfile?.guidance_scale ?? 9.0,
           })
         : await callGeminiGateway({
             promptUsed,
