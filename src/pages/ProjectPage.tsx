@@ -424,7 +424,7 @@ const ProductPage = () => {
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
       folderId: (w as any).folder_id || null,
-      engineUsed: (w.engine_used as GenerationEngine | null) || "seedream",
+      engineUsed: (() => { const e = w.engine_used as GenerationEngine | null; return !e || e === "gemini" ? "seedream" : e; })(),
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
       mannequinWaistCm: w.mannequin_waist_cm,
