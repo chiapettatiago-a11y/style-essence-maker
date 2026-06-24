@@ -178,6 +178,7 @@ const ProductPage = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [selectedFootwear, setSelectedFootwear] = useState<string>("scarpin_nude");
   const [loaded, setLoaded] = useState(false);
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [launchModalStep, setLaunchModalStep] = useState(1);
@@ -1265,6 +1266,8 @@ const ProductPage = () => {
               },
               referenceImages: refImages,
               image_url: imageUrl,
+              frontViewUrl: img.type !== "lookbook-front" ? (imageUrl || null) : null,
+              accessories: { footwear: selectedFootwear },
               imageId: img.id,
               background: true,
               launchId: activeWeekId,
@@ -2756,6 +2759,8 @@ const ProductPage = () => {
           queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
         }}
         initialFolderId={pendingFolderId}
+        selectedFootwear={selectedFootwear}
+        onSelectedFootwearChange={setSelectedFootwear}
       />
 
       <ResultsGalleryDialog

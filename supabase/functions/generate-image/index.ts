@@ -154,11 +154,23 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
   "movement-shot",
 ]);
 
- const FOOTWEAR_BLOCK = `FOOTWEAR — CRITICAL:
- The model MUST be wearing shoes. NEVER barefoot, NEVER without footwear.
- Default: nude-colored pointed-toe stiletto pumps matching skin tone.
- Shoes must be elegant, fashion-appropriate, and fully visible in full-body shots.
- Do NOT show bare feet under any circumstances.`;
+const FOOTWEAR_OPTIONS: Record<string, string> = {
+  scarpin_nude: "nude-colored pointed-toe stiletto pumps, skin-tone matching, elegant heel 8-10cm, fully visible",
+  scarpin_preto: "black pointed-toe stiletto pumps, polished leather, classic, heel 8-10cm, fully visible",
+  sandalia_tira: "strappy heeled sandals, delicate thin straps, nude or metallic, heel 7-9cm, fully visible",
+  mule_dourado: "gold metallic open-toe mule heels, fashion-forward, heel 6-8cm, fully visible",
+  bota_ankle: "black ankle boots, pointed toe, block heel 5-7cm, clean leather finish, fully visible",
+  sem_sapato: "barefoot, natural, pedicured feet with neutral nail color",
+};
+
+function getFootwearBlock(accessories?: { footwear?: string } | null): string {
+  const key = (accessories?.footwear as string) || "scarpin_nude";
+  const desc = FOOTWEAR_OPTIONS[key] || FOOTWEAR_OPTIONS.scarpin_nude;
+  return `FOOTWEAR — MANDATORY:
+The model MUST wear: ${desc}
+Shoes must be elegant, fashion-appropriate, fully visible in all full-body shots.
+${key === "sem_sapato" ? "" : "NEVER barefoot. NEVER without footwear."}`;
+}
  
  const GENDER_BLOCK = `GENDER — CRITICAL:
  The model is FEMALE. This is a WOMEN'S garment.
@@ -354,18 +366,36 @@ function isOpenFrontGarment(garmentAnalysis?: GarmentAnalysis | null): boolean {
   return /(jacket|jaqueta|blazer|cardigan|coat|casaco|vest|colete|open.?front|kimono)/.test(text);
 }
 
-function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
+function buildFaceAnchorPrompt(
+  modelProfile?: ModelProfile | null,
+  angleType?: AngleType,
+  hasFrontReference?: boolean,
+): string {
   if (!modelProfile) return "";
+  if (angleType === "close-tr-detail") return "";
+
+  const isFront = angleType === "lookbook-front";
 
   return [
-    "FACE ANCHOR — CRITICAL:",
-    `Identity anchor: ${modelProfile.promptSeed || modelProfile.name || "Brazilian model"}`,
-    "Use the exact same woman across all images.",
-    "Maintain identical facial structure, eye spacing, nose, lips, jawline and bone structure in every angle.",
-    modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone} — keep unchanged.` : "",
-    modelProfile.hairType ? `Hair texture/style: ${modelProfile.hairType} — keep unchanged.` : "",
-    modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same shade in every image.` : "",
-    "Do NOT drift identity between shots.",
+    "IDENTITY LOCK — CRITICAL:",
+    "This is ONE woman photographed from multiple angles.",
+    "Every image in this set features the EXACT SAME person.",
+    `Identity: ${modelProfile.promptSeed || modelProfile.name || "Brazilian model"}`,
+    "Facial structure must be IDENTICAL across all angles:",
+    "same bone structure, same eye shape, same nose bridge,",
+    "same lips, same jawline. NO variation whatsoever.",
+    modelProfile.skinTone
+      ? `Skin tone: ${modelProfile.skinTone} — unchanged in every image.`
+      : "",
+    modelProfile.hairType
+      ? `Hair: ${modelProfile.hairType}, ${modelProfile.hairColor || ""} — same style, same length.`
+      : "",
+    isFront
+      ? "ESTABLISHING SHOT: capture the model's face clearly."
+      : hasFrontReference
+        ? "MATCH EXACTLY the face shown in the provided reference image."
+        : "Maintain absolute consistency with the front view.",
+    "HARD FAIL: generating a different woman's face → regenerate.",
   ].filter(Boolean).join("\n");
 }
 
@@ -446,6 +476,8 @@ function buildPrompt(params: {
   modelProfile?: ModelProfile | null;
   mannequin?: Record<string, unknown> | null;
   engine?: GenerationEngine;
+  accessories?: { footwear?: string } | null;
+  hasFrontReference?: boolean;
 }) {
   const {
     basePrompt,
@@ -456,6 +488,8 @@ function buildPrompt(params: {
     modelProfile,
     mannequin,
     engine,
+    accessories,
+    hasFrontReference,
   } = params;
 
   const isFal = engine === "fal";
@@ -485,15 +519,13 @@ Format: 9:16 portrait.`;
 
   const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garmentAnalysis?.type || "");
   const twoPieceBlock = isTwoPieceSet
-    ? `TWO-PIECE SET — CRITICAL STYLING RULE:
-This is a coordinated two-piece set (top + skirt) worn as a COMPLETE LOOK.
-The pieces are worn TOGETHER with NO visible skin between them.
-- The cropped top hem sits exactly at the skirt waistband — zero gap
-- The wide elastic waistband of the skirt meets the top hem flush
-- NO midriff visible. NO belly. NO skin between top and skirt. Ever.
-- The set reads as ONE unified outfit, not two separate pieces
-- The transition between top and skirt waistband must be seamless
-HARD FAIL: if any skin is visible between top and skirt — regenerate.`
+    ? `TWO-PIECE SET — WORN AS ONE COMPLETE OUTFIT:
+The top and skirt are a coordinated set worn together.
+The cropped top hem sits flush against the skirt waistband.
+ZERO skin visible between top and skirt. NO midriff. NO belly.
+The wide elastic waistband bridges top and skirt seamlessly.
+The outfit reads as ONE unified look from neckline to hem.
+HARD FAIL: any visible skin between top and skirt → regenerate.`
     : "";
 
   // Resolve mannequin with fallback to defaults
@@ -592,8 +624,12 @@ Avoid: plastic skin, porcelain finish, overly smooth airbrushed look, CGI appear
     skirtLengthBlock = `SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`;
   }
 
-  const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
-  const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
+  const faceAnchorBlock = angleType !== "video-product"
+    ? buildFaceAnchorPrompt(modelProfile, angleType, !!hasFrontReference)
+    : "";
+  const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType)
+    ? getFootwearBlock(accessories)
+    : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
 
   // RULE 1: Bottom garment safety for upper-body pieces
@@ -608,10 +644,17 @@ Avoid: plastic skin, porcelain finish, overly smooth airbrushed look, CGI appear
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
+  const globalNegative = `NEVER GENERATE:
+bare feet (unless sem_sapato selected), visible midriff between
+top and skirt, skin gap at waist, oversized buttons, shiny jewelry
+buttons, embroidered TR letters, Asian facial features, pale
+European skin, different face between angles, male model.`;
+
   return [
-    blockA, blockB, knitTextureBlock, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock,
-    bottomBlock, innerLayerBlock, NO_TAGS_BLOCK,
-    blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE,
+    blockA, blockB, knitTextureBlock, trBadgeBlock, genderBlock,
+    blockC, faceAnchorBlock, footwearBlock, bottomBlock,
+    innerLayerBlock, NO_TAGS_BLOCK, blockD, fullBodyBlock,
+    skirtLengthBlock, basePrompt || "", blockE, globalNegative,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -1196,6 +1239,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       launchId,
       seed,
       autoUpscale,
+      frontViewUrl,
     } = body;
 
     const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
@@ -1203,6 +1247,11 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
     const parsedEngine = (engine || "seedream") as GenerationEngine;
     const requestAttempt = Number(attemptNumber || 1);
+
+    const isFrontAngle = parsedAngle === "lookbook-front";
+    const resolvedFrontViewUrl: string | null = (frontViewUrl as string | null) || null;
+    const hasFrontReference = !isFrontAngle && !!resolvedFrontViewUrl;
+
     const promptUsed = basePrompt || manualPrompt || garmentAnalysis
       ? buildPrompt({
           basePrompt: basePrompt || prompt,
@@ -1213,6 +1262,8 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
           modelProfile,
           mannequin,
           engine: parsedEngine,
+          accessories: body.accessories || null,
+          hasFrontReference,
         })
       : (prompt || "");
 
@@ -1231,14 +1282,24 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       };
     }
 
+    // Hanger photos = original reference images uploaded for the product.
+    const hangerPhotos: string[] = Array.isArray(referenceImages)
+      ? referenceImages.slice(0, 2)
+      : (firstReferenceImage ? [firstReferenceImage] : []);
+
+    // Front view goes FIRST as the identity/garment anchor for secondary angles.
+    const seedreamImageUrls = isFrontAngle
+      ? hangerPhotos
+      : resolvedFrontViewUrl
+        ? [resolvedFrontViewUrl, ...hangerPhotos]
+        : hangerPhotos;
+
     let result: { imageUrl: string; modelUsed: string };
     try {
       result = parsedEngine === "seedream"
         ? await callSeedreamEngine({
             promptUsed,
-            imageUrls: falReferenceImage
-              ? [falReferenceImage, ...(Array.isArray(referenceImages) ? referenceImages.slice(0, 2) : [])]
-              : (Array.isArray(referenceImages) ? referenceImages.slice(0, 3) : []),
+            imageUrls: seedreamImageUrls,
             angleType: parsedAngle,
             trBadgeUrl: (body as any)?.trBadgeUrl || null,
           })

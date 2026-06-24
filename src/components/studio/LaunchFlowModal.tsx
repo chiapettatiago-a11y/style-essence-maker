@@ -98,7 +98,19 @@ interface LaunchFlowModalProps {
   onFolderSelected?: (folderId: string | null) => void;
   /** Pre-fills the folder selection in step 3 when the modal is opened from a folder slot. */
   initialFolderId?: string | null;
+  /** Footwear selection (controlled by parent so it can be injected into the generation request). */
+  selectedFootwear?: string;
+  onSelectedFootwearChange?: (footwear: string) => void;
 }
+
+const FOOTWEAR_CHOICES: Array<{ id: string; label: string; emoji: string }> = [
+  { id: "scarpin_nude", label: "Scarpin nude", emoji: "👠" },
+  { id: "scarpin_preto", label: "Scarpin preto", emoji: "🖤" },
+  { id: "sandalia_tira", label: "Sandália tira", emoji: "👡" },
+  { id: "mule_dourado", label: "Mule dourado", emoji: "✨" },
+  { id: "bota_ankle", label: "Bota ankle", emoji: "🥾" },
+  { id: "sem_sapato", label: "Sem sapato", emoji: "🦶" },
+];
 
 const Dot: React.FC<{ index: number; state: StepDot }> = ({ index, state }) => (
   <div className="flex items-center gap-2 text-xs">
@@ -149,6 +161,8 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   productId,
   onFolderSelected,
   initialFolderId,
+  selectedFootwear = "scarpin_nude",
+  onSelectedFootwearChange,
 }) => {
   const { user } = useAuth();
   const [step, setStep] = useState(startStep);
@@ -370,6 +384,30 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
                         <div className="text-2xl mb-1">{bg.emoji}</div>
                         <p className="text-xs font-medium">{bg.label}</p>
                         <p className="text-[10px] text-muted-foreground">{bg.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footwear selector */}
+              <div className="space-y-2">
+                <Label className="text-xs">Calçado</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {FOOTWEAR_CHOICES.map((f) => {
+                    const isSelected = selectedFootwear === f.id;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => onSelectedFootwearChange?.(f.id)}
+                        className={cn(
+                          "rounded-xl border p-3 text-left transition-all bg-card",
+                          isSelected ? "border-foreground border-2 shadow-sm" : "border-border hover:border-foreground/40",
+                        )}
+                      >
+                        <div className="text-xl mb-1">{f.emoji}</div>
+                        <p className="text-xs font-medium">{f.label}</p>
                       </button>
                     );
                   })}
