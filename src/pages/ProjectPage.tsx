@@ -230,6 +230,16 @@ const ProductPage = () => {
   const [isDownloadingHd, setIsDownloadingHd] = useState(false);
   const { isCoolingDown, remaining, startCooldown } = useCooldownTimer();
 
+  // Phase B state
+  const [pendingFolderId, setPendingFolderId] = useState<string | null>(null);
+  const [galleryLaunchId, setGalleryLaunchId] = useState<string | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "generating">("all");
+  const [inlineFolderOpen, setInlineFolderOpen] = useState(false);
+  const [inlineFolderName, setInlineFolderName] = useState("");
+  const [inlineFolderType, setInlineFolderType] = useState<FolderType>("week");
+  const [creatingFolder, setCreatingFolder] = useState(false);
+
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
     queryFn: async () => {
