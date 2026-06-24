@@ -725,7 +725,7 @@ const ProductPage = () => {
         garmentAnalysis: newActive?.garmentAnalysis || null,
         weeklyLaunches: s.weeklyLaunches.filter((w) => w.variantId !== variantId),
         activeWeek: launchesForActive[0]?.id || "",
-        selectedEngine: launchesForActive[0]?.engineUsed || "seedream",
+        selectedEngine: launchesForActive[0]?.engineUsed || "fal",
       };
     });
   };
