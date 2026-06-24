@@ -38,13 +38,17 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
 };
 
 const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: string }> = {
+  seedream: {
+    label: "Estimativa: ~$0.04/foto",
+    detail: "Seedream 5.0 Lite via fal.ai. Bom custo/qualidade para lookbooks completos.",
+  },
   gemini: {
     label: "Estimativa: consumo baixo",
-    detail: "Lovable não expõe crédito exato por geração; Gemini tende a consumir menos IA.",
+    detail: "Engine legado — uso ocasional para regenerar imagens antigas.",
   },
   fal: {
     label: "Estimativa: consumo alto",
-    detail: "Lovable não expõe crédito exato por geração; fal.ai tende a consumir mais IA.",
+    detail: "Fallback premium quando precisar de Flux Kontext.",
   },
 };
 
@@ -129,7 +133,9 @@ const ensureGenerationResult = (data: any) => {
 
 const matchesLockedEngine = (modelUsed: string | undefined, engine: GenerationEngine) => {
   const model = (modelUsed || "").toLowerCase();
-  return engine === "gemini" ? model.includes("gemini") : model.includes("fal");
+  if (engine === "seedream") return model.includes("seedream") || model.includes("bytedance");
+  if (engine === "fal") return model.includes("fal") || model.includes("flux");
+  return model.includes("gemini");
 };
 
 const ProductPage = () => {
@@ -148,7 +154,7 @@ const ProductPage = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
-    selectedEngine: "gemini",
+    selectedEngine: "seedream",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [],
