@@ -207,9 +207,17 @@ BUTTON ANATOMY (replicate precisely from Figure 1 reference):
 - Thread: 4 visible thread holes at cardinal points (N, S, E, W edges), with white or cream thread visible passing through
 - No border rim engraving — the edge is a clean flat circle
 
+BUTTON SCALE — CRITICAL:
+The TR button is VERY SMALL — approximately 1.5cm diameter in real life.
+On the wrist/cuff it appears as a TINY DISCRETE DETAIL, not a prominent element. It should occupy no more than 8-10% of the total image area.
+The fabric and knit texture must be the dominant visual element.
+The button is a subtle brand signature, NOT a large medallion.
+Reference: imagine a shirt button — that is the correct scale.
+HARD FAIL: if the button appears larger than a shirt button relative to the fabric, regenerate.
+
 PHOTOGRAPHY SPECS:
 - Macro shot, 100mm lens equivalent, f/2.8
-- Button fills 40-60% of frame, centered
+- Button centered in frame
 - Fabric texture visible and in soft focus around button
 - Lighting: soft directional from upper-left, catching the matte metal surface without overexposure
 - The cut-through letters must show fabric texture through them
