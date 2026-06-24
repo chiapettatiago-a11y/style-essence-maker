@@ -148,6 +148,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onFeaturedPieceChange,
   productId,
   onFolderSelected,
+  initialFolderId,
 }) => {
   const { user } = useAuth();
   const [step, setStep] = useState(startStep);
