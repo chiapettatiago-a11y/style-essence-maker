@@ -69,12 +69,14 @@ const EngineSelector: React.FC<EngineSelectorProps> = ({ value, onChange, locked
             <button
               key={id}
               type="button"
-              onClick={() => onChange(id)}
+              onClick={() => !locked && onChange(id)}
+              disabled={locked && !selected}
               className={cn(
                 "relative rounded-2xl border p-4 text-left transition-all bg-card",
                 selected
                   ? "border-accent bg-accent/10 shadow-sm ring-1 ring-accent/30"
-                  : "border-border hover:border-accent/40 hover:bg-muted/40"
+                  : "border-border hover:border-accent/40 hover:bg-muted/40",
+                locked && !selected && "opacity-40 cursor-not-allowed hover:border-border hover:bg-card"
               )}
             >
               <div className="flex items-start justify-between gap-3">
