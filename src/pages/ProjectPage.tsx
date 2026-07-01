@@ -1768,6 +1768,19 @@ const ProductPage = () => {
                                 >
                                   <ZoomIn className="h-4 w-4 text-foreground" />
                                 </button>
+                                {productSeed != null && img.seedUsed != null && (
+                                  <div className="absolute top-1 left-1 flex items-center gap-1">
+                                    {img.seedUsed === productSeed ? (
+                                      <Badge className="h-5 px-1.5 text-[9px] gap-1 bg-green-600 hover:bg-green-600 text-white border-0" title={`Seed ${img.seedUsed} — consistente com o produto`}>
+                                        <Check className="h-2.5 w-2.5" /> seed
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="h-5 px-1.5 text-[9px] gap-1 bg-yellow-500/90 text-white border-0" title={`Seed ${img.seedUsed} difere do produto (${productSeed})`}>
+                                        <AlertTriangle className="h-2.5 w-2.5" /> seed?
+                                      </Badge>
+                                    )}
+                                  </div>
+                                )}
                               </>
                             )}
                             {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
