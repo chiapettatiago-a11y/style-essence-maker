@@ -60,8 +60,11 @@ const UploadSection: React.FC<UploadSectionProps> = ({
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const MAX_IMAGES = 6;
   const handleFiles = useCallback((files: FileList) => {
-    const selectedFiles = Array.from(files);
+    const remaining = MAX_IMAGES - uploadedImages.length;
+    if (remaining <= 0) return;
+    const selectedFiles = Array.from(files).slice(0, remaining);
     Promise.all(
       selectedFiles.map(async (file) => {
         const [compressed, thumb] = await Promise.all([
@@ -81,7 +84,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({
           const newThumbs: Record<string, string> = {};
           validResults.forEach((r) => { newThumbs[r.fullUrl] = r.thumbUrl; });
           setThumbnails((prev) => ({ ...prev, ...newThumbs }));
-          onImagesChange([...uploadedImages, ...validResults.map((r) => r.fullUrl)]);
+          onImagesChange([...uploadedImages, ...validResults.map((r) => r.fullUrl)].slice(0, MAX_IMAGES));
         }
       })
       .catch(() => {});
@@ -203,16 +206,16 @@ const UploadSection: React.FC<UploadSectionProps> = ({
           </div>
           <h3 className="text-base font-semibold mb-1">Arraste as fotos da peça aqui</h3>
           <p className="text-sm text-muted-foreground">ou clique para selecionar • PNG, JPG, WEBP</p>
-          <p className="text-xs text-muted-foreground/60 mt-2">Envie quantas fotos quiser — frente, costas, detalhes, etiqueta</p>
+          <p className="text-xs text-muted-foreground/60 mt-2">Até 6 fotos — frente, costas, detalhes, etiqueta</p>
         </div>
       ) : (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold">Fotos de referência</h3>
-              <p className="text-xs text-muted-foreground">{uploadedImages.length} foto{uploadedImages.length !== 1 ? "s" : ""} adicionada{uploadedImages.length !== 1 ? "s" : ""}</p>
+              <p className="text-xs text-muted-foreground">{uploadedImages.length} de 6 foto{uploadedImages.length !== 1 ? "s" : ""}</p>
             </div>
-            <Button variant="outline" size="sm" onClick={openFilePicker} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={openFilePicker} disabled={uploadedImages.length >= 6} className="gap-1.5">
               <Plus className="h-3.5 w-3.5" /> Adicionar mais
             </Button>
           </div>
@@ -242,13 +245,15 @@ const UploadSection: React.FC<UploadSectionProps> = ({
               </div>
             ))}
 
-            <button
-              onClick={openFilePicker}
-              className="aspect-[3/4] rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-primary transition-colors bg-muted/20"
-            >
-              <Plus className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Adicionar</span>
-            </button>
+            {uploadedImages.length < 6 && (
+              <button
+                onClick={openFilePicker}
+                className="aspect-[3/4] rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-primary transition-colors bg-muted/20"
+              >
+                <Plus className="h-5 w-5" />
+                <span className="text-[10px] font-medium">Adicionar</span>
+              </button>
+            )}
           </div>
         </div>
       )}
