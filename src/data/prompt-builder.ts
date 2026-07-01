@@ -399,14 +399,12 @@ export function generateAllRequests(
   accessories?: AccessorySelection | null,
 ): GenerationRequest[] {
   const types: { type: GenerationRequest["type"]; label: string }[] = [
-    { type: "lookbook-front", label: "Lookbook — Frente" },
-    { type: "lookbook-back", label: "Lookbook — Costas" },
-    { type: "lookbook-left", label: "Lookbook — Lateral Esquerda" },
-    { type: "lookbook-three-quarter", label: "Lookbook — Lateral Direita" },
-    { type: "close-tr-detail", label: "Close — Detalhe TR" },
-    { type: "movement-shot", label: "Movimento Editorial" },
-    { type: "video-product", label: "Vídeo 360° Produto (prompt)" },
-    { type: "video-model", label: "Vídeo 360° com Modelo (prompt)" },
+    { type: "lookbook-front", label: "Frente" },
+    { type: "lookbook-back", label: "Costas" },
+    { type: "lookbook-left", label: "Lateral esquerda" },
+    { type: "lookbook-three-quarter", label: "Lateral direita" },
+    { type: "close-tr-detail", label: "Close detalhe" },
+    { type: "movement-shot", label: "Movimento" },
   ];
 
   return types.map(t => ({

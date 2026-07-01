@@ -1519,6 +1519,14 @@ const ProductPage = () => {
         saveProductMeta({ featured_piece: v || null });
       }}
       engineLocked={!!productLockedEngine}
+      currentGeneratingLabel={
+        variantWeeklyLaunches
+          .flatMap((w) => w.images)
+          .find((img) => img.status === "generating")?.label || null
+      }
+      approvedCount={approvedCount}
+      donePhotoCount={donePhotoCount}
+      frontApproved={hasApprovedFrontal}
     />
   );
 

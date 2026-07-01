@@ -4,9 +4,8 @@ import { Sparkles, PenLine, ChevronRight, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { LAYER1_BASE } from "@/data/prompt-layers";
-import { assembleLayer2, generateAllRequests, buildPromptPreviewPT, buildFullPrompt } from "@/data/prompt-builder";
+import { assembleLayer2, generateAllRequests, buildPromptPreviewPT } from "@/data/prompt-builder";
 
 interface GenerateSectionProps {
   manualPrompt: string;
@@ -21,10 +20,6 @@ interface GenerateSectionProps {
   accessories?: AccessorySelection;
 }
 
-const ENGINE_LABELS: Record<GenerationEngine, string> = {
-  gemini: "Google Gemini",
-  fal: "fal.ai — Flux Kontext",
-};
 
 const GenerateSection: React.FC<GenerateSectionProps> = ({
   manualPrompt,
@@ -49,45 +44,31 @@ const GenerateSection: React.FC<GenerateSectionProps> = ({
     accessories
   );
 
-  const imageRequests = requests.filter(r => r.type !== "video-product" && r.type !== "video-model");
-  const videoRequests = requests.filter(r => r.type === "video-product" || r.type === "video-model");
+  const imageRequests = requests;
 
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-sm font-semibold">Ajuste Final e Geração</h3>
+        <h3 className="text-sm font-semibold">Ajuste final e geração</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Adicione instruções extras em português e gere o pacote
+          Instruções extras em português (opcional)
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-        <span>Motor selecionado:</span>
-        <Badge variant="secondary">{ENGINE_LABELS[selectedEngine]}</Badge>
-      </div>
-
       <div className="space-y-1.5">
-        <Label className="text-xs flex items-center gap-1.5">
-          <PenLine className="h-3 w-3 text-accent" />
-          Ajuste Manual (português)
+        <Label className="text-xs flex items-center gap-1.5 text-muted-foreground">
+          <PenLine className="h-3 w-3" />
+          Ajuste manual
         </Label>
         <Textarea
           value={manualPrompt}
           onChange={(e) => onManualPromptChange(e.target.value)}
-          placeholder="Ex: Vento suave no cabelo, foco no detalhe da gola, iluminação mais quente..."
+          placeholder="Ex: vento suave no cabelo, foco na gola, iluminação mais quente..."
           rows={3}
           className="text-xs"
         />
       </div>
 
-      <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 flex items-center gap-3">
-        <span>
-          <span className="font-medium text-foreground">{imageRequests.length} imagens</span>
-          {" + "}
-          <span className="font-medium text-foreground">{videoRequests.length} prompts de vídeo</span>
-          {" serão gerados"}
-        </span>
-      </div>
 
       <div className="flex flex-wrap gap-2">
         <Button
