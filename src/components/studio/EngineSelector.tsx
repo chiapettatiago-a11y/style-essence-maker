@@ -42,13 +42,22 @@ const ENGINES: Array<{
   },
 ];
 
-const EngineSelector: React.FC<EngineSelectorProps> = ({ value, onChange }) => {
+const EngineSelector: React.FC<EngineSelectorProps> = ({ value, onChange, locked = false }) => {
   return (
     <div className="space-y-3">
       <div>
-        <h3 className="text-sm font-semibold">Motor de geração</h3>
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          Motor de geração
+          {locked && (
+            <Badge variant="outline" className="text-[10px] gap-1">
+              <Lock className="h-2.5 w-2.5" /> travado neste produto
+            </Badge>
+          )}
+        </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Compare qualidade e custo no mesmo fluxo antes de decidir o padrão.
+          {locked
+            ? "O motor foi fixado após a primeira geração para garantir consistência da modelo."
+            : "Compare qualidade e custo no mesmo fluxo antes de decidir o padrão."}
         </p>
       </div>
 
