@@ -2220,47 +2220,20 @@ const ProductPage = () => {
         </main>
       </div>
 
-      <LaunchFlowModal
-        open={launchModalOpen}
-        onOpenChange={setLaunchModalOpen}
-        startStep={launchModalStep}
-        uploadedImages={activeVariant?.uploadedImages || []}
-        onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
-        isAnalyzing={isAnalyzing}
-        onAnalyze={handleAnalyze}
-        garmentAnalysis={activeVariant?.garmentAnalysis || null}
-        onAnalysisUpdate={(a) => updateActiveVariant({ garmentAnalysis: a })}
-        mannequin={mannequin}
-        onMannequinChange={setMannequin}
-        selectedProfile={state.selectedProfile}
-        onSelectModel={handleSelectModelById}
-        onProfileUpdate={(profile) => update("selectedProfile", profile)}
-        selectedPresets={state.selectedPresets}
-        onPresetsChange={(p) => update("selectedPresets", p)}
-        manualPrompt={state.manualPrompt}
-        onManualPromptChange={(v) => update("manualPrompt", v)}
-        selectedEngine={state.selectedEngine}
-        onSelectedEngineChange={handleEngineChange}
-        onGenerate={handleGenerate}
-        isGenerating={isGenerating}
-        proportionSummary={proportionSummary}
-        onProportionUpdate={updateActiveVariant}
-        garmentType={activeVariant?.garmentType || null}
-        onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
-        accessories={state.accessories}
-        onAccessoriesChange={(a) => update("accessories", a)}
-        isCombo={state.isCombo}
-        onIsComboChange={(v) => {
-          update("isCombo", v);
-          saveProductMeta({ is_combo: v });
-        }}
-        featuredPiece={state.featuredPiece}
-        onFeaturedPieceChange={(v) => {
-          update("featuredPiece", v || null);
-          saveProductMeta({ featured_piece: v || null });
-        }}
-        engineLocked={!!productLockedEngine}
-      />
+      {/* Desktop: painel de setup fixo à direita */}
+      <aside className="hidden xl:flex w-[380px] shrink-0 border-l border-border flex-col bg-card/30">
+        {setupPanelNode}
+      </aside>
+
+      {/* Mobile: sheet lateral */}
+      <Sheet open={setupMobileOpen} onOpenChange={setSetupMobileOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Setup do look</SheetTitle>
+          </SheetHeader>
+          {setupPanelNode}
+        </SheetContent>
+      </Sheet>
 
       {/* Lightbox Modal */}
       {lightboxImage && (
