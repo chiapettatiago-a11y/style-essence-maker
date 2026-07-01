@@ -1,12 +1,13 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Check, Sparkles, Layers3 } from "lucide-react";
+import { Check, Sparkles, Layers3, Lock } from "lucide-react";
 import { GenerationEngine } from "@/types/fashion";
 
 interface EngineSelectorProps {
   value: GenerationEngine;
   onChange: (value: GenerationEngine) => void;
+  locked?: boolean;
 }
 
 const ENGINES: Array<{
