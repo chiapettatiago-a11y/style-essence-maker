@@ -4,9 +4,8 @@ import { Sparkles, PenLine, ChevronRight, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { LAYER1_BASE } from "@/data/prompt-layers";
-import { assembleLayer2, generateAllRequests, buildPromptPreviewPT, buildFullPrompt } from "@/data/prompt-builder";
+import { assembleLayer2, generateAllRequests, buildPromptPreviewPT } from "@/data/prompt-builder";
 
 interface GenerateSectionProps {
   manualPrompt: string;
@@ -21,10 +20,6 @@ interface GenerateSectionProps {
   accessories?: AccessorySelection;
 }
 
-const ENGINE_LABELS: Record<GenerationEngine, string> = {
-  gemini: "Google Gemini",
-  fal: "fal.ai — Flux Kontext",
-};
 
 const GenerateSection: React.FC<GenerateSectionProps> = ({
   manualPrompt,
