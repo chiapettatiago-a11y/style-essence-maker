@@ -1573,22 +1573,17 @@ const ProductPage = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setLaunchModalStep(3);
-                setLaunchModalOpen(true);
-              }}
+              className="xl:hidden"
+              onClick={() => setSetupMobileOpen(true)}
             >
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> Re-analisar
             </Button>
             <Button
               size="sm"
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={() => {
-                setLaunchModalStep(1);
-                setLaunchModalOpen(true);
-              }}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 xl:hidden"
+              onClick={() => setSetupMobileOpen(true)}
             >
-              <Sparkles className="h-3.5 w-3.5 mr-1" /> Novo lançamento
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Setup
             </Button>
           </div>
         </header>
