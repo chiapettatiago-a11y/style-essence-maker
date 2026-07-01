@@ -77,7 +77,7 @@ export interface PromptLayers {
   layer3: string;
 }
 
-export type GenerationEngine = 'seedream' | 'fal' | 'gemini';
+export type GenerationEngine = 'gemini' | 'fal';
 
 export interface GenerationRequest {
   type:
@@ -122,7 +122,6 @@ export interface WeeklyLaunch {
   label: string;
   name?: string;
   variantId?: string;
-  folderId?: string | null;
   engineUsed?: GenerationEngine;
   images: GeneratedImage[];
   mannequinHeightCm?: number | null;

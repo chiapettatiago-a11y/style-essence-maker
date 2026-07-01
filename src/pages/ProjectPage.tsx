@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { Loader2, Home, ChevronDown, ChevronRight, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle, Trash2, Calendar, BookOpen, Megaphone, FolderPlus, Filter, FolderInput, Folder } from "lucide-react";
+import { Loader2, Home, ChevronDown, Plus, Download, FolderOpen, RefreshCw, Copy, Check, Settings, Sparkles, ArrowRight, ArrowLeft, X, ZoomIn, Languages, UserRound, Image as ImageIcon, Lock, Timer, Share2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
@@ -25,17 +25,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
 import PromptAndRefsEditor, { RegenScope } from "@/components/studio/PromptAndRefsEditor";
-import ResultsGalleryDialog from "@/components/studio/ResultsGalleryDialog";
-import { compressImage, blobToDataUrl } from "@/lib/image-compress";
-
-type FolderType = "week" | "editorial" | "campaign";
-type FolderRow = { id: string; name: string; folder_type: FolderType; product_id: string | null };
-
-const FOLDER_META: Record<FolderType, { label: string; icon: React.ComponentType<{ className?: string }>; tint: string; iconColor: string }> = {
-  week: { label: "Semana", icon: Calendar, tint: "bg-blue-500/10 border-blue-500/30", iconColor: "text-blue-600 dark:text-blue-400" },
-  editorial: { label: "Editorial", icon: BookOpen, tint: "bg-amber-500/10 border-amber-500/30", iconColor: "text-amber-600 dark:text-amber-400" },
-  campaign: { label: "Campanha", icon: Megaphone, tint: "bg-fuchsia-500/10 border-fuchsia-500/30", iconColor: "text-fuchsia-600 dark:text-fuchsia-400" },
-};
 
 const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
   "lookbook-front": "front_view",
@@ -49,21 +38,17 @@ const ANGLE_BY_TYPE: Record<GenerationRequest["type"], string> = {
 };
 
 const ENGINE_CREDIT_ESTIMATE: Record<GenerationEngine, { label: string; detail: string }> = {
-  seedream: {
-    label: "Estimativa: ~$0.04/foto",
-    detail: "Seedream 5.0 Lite via fal.ai. Bom custo/qualidade para lookbooks completos.",
-  },
   gemini: {
     label: "Estimativa: consumo baixo",
-    detail: "Engine legado — uso ocasional para regenerar imagens antigas.",
+    detail: "Lovable não expõe crédito exato por geração; Gemini tende a consumir menos IA.",
   },
   fal: {
     label: "Estimativa: consumo alto",
-    detail: "Fallback premium quando precisar de Flux Kontext.",
+    detail: "Lovable não expõe crédito exato por geração; fal.ai tende a consumir mais IA.",
   },
 };
 
-type MainTab = "analysis" | "photos";
+type MainTab = "photos" | "analysis" | "settings";
 
 type MannequinData = {
   mannequin_height_cm: number | null;
@@ -124,31 +109,6 @@ const getAnalysisErrorMessage = (error: unknown) => {
   return rawMessage;
 };
 
-const ensureGenerationResult = (data: any) => {
-  if (data?.code === "processing") {
-    return;
-  }
-
-  if (data?.code === "rate_limited") {
-    throw new Error(data.error || "Limite de geração atingido. Aguarde um pouco e tente novamente.");
-  }
-
-  if (data?.error) {
-    throw new Error(data.error);
-  }
-
-  if (!data?.imageUrl && !data?.originalUrl && !data?.previewUrl) {
-    throw new Error("A geração não retornou uma imagem. Tente novamente em instantes.");
-  }
-};
-
-const matchesLockedEngine = (modelUsed: string | undefined, engine: GenerationEngine) => {
-  const model = (modelUsed || "").toLowerCase();
-  if (engine === "seedream") return model.includes("seedream") || model.includes("bytedance");
-  if (engine === "fal") return model.includes("fal") || model.includes("flux");
-  return model.includes("gemini");
-};
-
 const ProductPage = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -165,7 +125,7 @@ const ProductPage = () => {
     garmentAnalysis: null,
     selectedProfile: null,
     selectedPresets: {},
-    selectedEngine: "fal",
+    selectedEngine: "gemini",
     manualPrompt: "",
     generatedImages: [],
     weeklyLaunches: [],
@@ -178,11 +138,10 @@ const ProductPage = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [selectedFootwear, setSelectedFootwear] = useState<string>("scarpin_nude");
   const [loaded, setLoaded] = useState(false);
   const [launchModalOpen, setLaunchModalOpen] = useState(false);
   const [launchModalStep, setLaunchModalStep] = useState(1);
-  const [activeTab, setActiveTab] = useState<MainTab>("analysis");
+  const [activeTab, setActiveTab] = useState<MainTab>("photos");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingVariantName, setEditingVariantName] = useState("");
   const [productName, setProductName] = useState("");
@@ -232,16 +191,6 @@ const ProductPage = () => {
   const [isDownloadingHd, setIsDownloadingHd] = useState(false);
   const { isCoolingDown, remaining, startCooldown } = useCooldownTimer();
 
-  // Phase B state
-  const [pendingFolderId, setPendingFolderId] = useState<string | null>(null);
-  const [galleryLaunchId, setGalleryLaunchId] = useState<string | null>(null);
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "generating">("all");
-  const [inlineFolderOpen, setInlineFolderOpen] = useState(false);
-  const [inlineFolderName, setInlineFolderName] = useState("");
-  const [inlineFolderType, setInlineFolderType] = useState<FolderType>("week");
-  const [creatingFolder, setCreatingFolder] = useState(false);
-
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", projectId],
     queryFn: async () => {
@@ -251,33 +200,6 @@ const ProductPage = () => {
     },
     enabled: !!user && !!projectId,
   });
-
-  const { data: folders } = useQuery({
-    queryKey: ["folders", projectId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("folders")
-        .select("id, name, folder_type, product_id")
-        .eq("product_id", projectId!)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []) as FolderRow[];
-    },
-    enabled: !!user && !!projectId,
-  });
-
-  const { data: allFolders } = useQuery({
-    queryKey: ["all-folders-for-sidebar"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("folders")
-        .select("id, product_id");
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user,
-  });
-
 
   const { data: products } = useQuery({
     queryKey: ["products"],
@@ -380,20 +302,6 @@ const ProductPage = () => {
     return productCountMap;
   }, [allWeeks, allImages]);
 
-  const sidebarMeta = useMemo(() => {
-    const launchByProduct = new Map<string, number>();
-    (allWeeks || []).forEach((w) => {
-      launchByProduct.set(w.product_id, (launchByProduct.get(w.product_id) || 0) + 1);
-    });
-    const folderByProduct = new Map<string, number>();
-    (allFolders || []).forEach((f) => {
-      if (!f.product_id) return;
-      folderByProduct.set(f.product_id, (folderByProduct.get(f.product_id) || 0) + 1);
-    });
-    return { launchByProduct, folderByProduct };
-  }, [allWeeks, allFolders]);
-
-
   useEffect(() => {
     setLoaded(false);
   }, [projectId]);
@@ -425,8 +333,7 @@ const ProductPage = () => {
       label: w.label,
       name: (w as any).name || w.label,
       variantId: w.variant_id || undefined,
-      folderId: (w as any).folder_id || null,
-      engineUsed: (() => { const e = w.engine_used as GenerationEngine | null; return !e || e === "gemini" || e === "seedream" ? "fal" : e; })(),
+      engineUsed: (w.engine_used as GenerationEngine | null) || "gemini",
       mannequinHeightCm: w.mannequin_height_cm,
       mannequinBustCm: w.mannequin_bust_cm,
       mannequinWaistCm: w.mannequin_waist_cm,
@@ -470,7 +377,7 @@ const ProductPage = () => {
       garmentAnalysis: hydratedActiveVariant?.garmentAnalysis || null,
       selectedProfile: product.model_profile as unknown as ModelProfile | null,
       selectedPresets: (product.selected_presets as Record<string, string>) || {},
-      selectedEngine: hydratedActiveWeek?.engineUsed || "fal",
+      selectedEngine: hydratedActiveWeek?.engineUsed || "gemini",
       manualPrompt: product.manual_prompt || "",
       generatedImages: [],
       weeklyLaunches,
@@ -690,7 +597,7 @@ const ProductPage = () => {
       uploadedImages: variant.uploadedImages,
       garmentAnalysis: variant.garmentAnalysis,
       activeWeek: nextActiveLaunch?.id || "",
-      selectedEngine: nextActiveLaunch?.engineUsed || "fal",
+      selectedEngine: nextActiveLaunch?.engineUsed || "gemini",
     }));
   };
 
@@ -705,7 +612,7 @@ const ProductPage = () => {
       uploadedImages: newVariant.uploadedImages,
       garmentAnalysis: newVariant.garmentAnalysis,
       activeWeek: "",
-      selectedEngine: "fal",
+      selectedEngine: "gemini",
     }));
   };
 
@@ -725,7 +632,7 @@ const ProductPage = () => {
         garmentAnalysis: newActive?.garmentAnalysis || null,
         weeklyLaunches: s.weeklyLaunches.filter((w) => w.variantId !== variantId),
         activeWeek: launchesForActive[0]?.id || "",
-        selectedEngine: launchesForActive[0]?.engineUsed || "fal",
+        selectedEngine: launchesForActive[0]?.engineUsed || "gemini",
       };
     });
   };
@@ -964,52 +871,13 @@ const ProductPage = () => {
     updateImageDb(id, updates);
   };
 
-  // Polling fallback: when the edge function returns processing,
-  // poll generated_images directly so we don't depend solely on realtime.
-  const startImageStatusPolling = (imageId: string) => {
-    let elapsed = 0;
-    const intervalMs = 5_000;
-    const maxMs = 180_000;
-    const pollInterval = setInterval(async () => {
-      elapsed += intervalMs;
-      const { data } = await supabase
-        .from("generated_images")
-        .select("status,image_url,original_url,preview_url,model_used,error")
-        .eq("id", imageId)
-        .single();
-      if (!data) {
-        if (elapsed >= maxMs) clearInterval(pollInterval);
-        return;
-      }
-      if (data.status === "done" || data.status === "error") {
-        clearInterval(pollInterval);
-        updateImageInState(imageId, {
-          status: data.status as GeneratedImage["status"],
-          imageUrl: data.preview_url || data.original_url || data.image_url || undefined,
-          originalUrl: data.original_url || data.image_url || undefined,
-          previewUrl: data.preview_url || data.image_url || undefined,
-          modelUsed: data.model_used || undefined,
-          error: data.error || undefined,
-        });
-      } else if (elapsed >= maxMs) {
-        clearInterval(pollInterval);
-      }
-    }, intervalMs);
-  };
-
-
-  const handleApproveImage = useCallback((id: string, explicit?: "approved" | "rejected") => {
+  const handleApproveImage = useCallback((id: string) => {
     let nextStatus: ApprovalStatus = "approved";
     let approvedFrontUrl: string | null = null;
     for (const w of state.weeklyLaunches) {
       const img = w.images.find((i) => i.id === id);
       if (img) {
-        if (explicit) {
-          // Toggle off if clicking the same state.
-          nextStatus = img.approvalStatus === explicit ? "pending" : explicit;
-        } else {
-          nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
-        }
+        nextStatus = img.approvalStatus === "approved" ? "pending" : "approved";
         if (nextStatus === "approved" && img.type === "lookbook-front") {
           approvedFrontUrl = img.originalUrl || img.imageUrl || null;
         }
@@ -1084,24 +952,8 @@ const ProductPage = () => {
     toast({ title: "Proporções atualizadas" });
   }, [activeVariant, toast]);
 
-  const handleMoveLaunchToFolder = useCallback(async (launchId: string, folderId: string | null) => {
-    setState((s) => ({
-      ...s,
-      weeklyLaunches: s.weeklyLaunches.map((w) => w.id === launchId ? { ...w, folderId } : w),
-    }));
-    const { error } = await supabase.from("weekly_launches").update({ folder_id: folderId } as any).eq("id", launchId);
-    if (error) {
-      toast({ title: "Não foi possível mover", description: error.message, variant: "destructive" });
-      return;
-    }
-    if (folderId) setExpandedFolders((m) => ({ ...m, [folderId]: true }));
-    toast({ title: folderId ? "Lançamento movido" : "Removido da pasta" });
-  }, [toast]);
-
   const productSeed = (product as any)?.generation_seed != null ? Number((product as any).generation_seed) : null;
-  const rawLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
-  // Force legacy "gemini"/"seedream" locks to "fal" — new default engine.
-  const productLockedEngine: GenerationEngine | null = (rawLockedEngine === "gemini" || rawLockedEngine === "seedream") ? "fal" : rawLockedEngine;
+  const productLockedEngine = ((product as any)?.locked_engine as GenerationEngine | null) || null;
   const productModelReferenceImage = ((product as any)?.model_reference_image as string | null) || null;
 
   const hasApprovedFrontal = useMemo(() => {
@@ -1131,11 +983,7 @@ const ProductPage = () => {
   }, [productLockedEngine, toast]);
 
   const handleGenerate = useCallback(async (requests: GenerationRequest[]) => {
-    console.log("[handleGenerate] fired", { requestCount: requests.length, engine: state.selectedEngine, pendingFolderId, projectId, activeVariantId: activeVariant?.id });
-    if (!activeVariant || !projectId) {
-      console.warn("[handleGenerate] aborted — missing activeVariant or projectId");
-      return;
-    }
+    if (!activeVariant || !projectId) return;
 
     setIsGenerating(true);
     const normalizedMannequin = normalizeMannequinData(mannequin);
@@ -1149,9 +997,9 @@ const ProductPage = () => {
       // keep flow running
     }
 
-    // Each "Novo lançamento" run always creates a new launch row (folder model).
-    let activeWeekId: string | undefined;
-    {
+    let activeWeekId = variantWeeklyLaunches.find((w) => w.variantId === state.activeVariantId)?.id;
+
+    if (!activeWeekId) {
       const { data, error } = await supabase
         .from("weekly_launches")
         .insert({
@@ -1160,7 +1008,6 @@ const ProductPage = () => {
           name: `Lançamento ${variantWeeklyLaunches.length + 1}`,
           variant_id: state.activeVariantId,
           engine_used: state.selectedEngine,
-          folder_id: pendingFolderId,
           mannequin_height_cm: normalizedMannequin.mannequin_height_cm,
           mannequin_bust_cm: normalizedMannequin.mannequin_bust_cm,
           mannequin_waist_cm: normalizedMannequin.mannequin_waist_cm,
@@ -1170,7 +1017,7 @@ const ProductPage = () => {
           reference_photos: activeVariant.uploadedImages,
           locked_proportion_json: (activeVariant.proportionJson || null) as any,
         })
-        .select("id,label,variant_id,engine_used,folder_id")
+        .select("id,label,variant_id,engine_used")
         .single();
 
       if (error || !data?.id) {
@@ -1182,27 +1029,17 @@ const ProductPage = () => {
       activeWeekId = data.id;
       setState((s) => ({
         ...s,
-        weeklyLaunches: [
-          ...s.weeklyLaunches,
-          {
-            id: activeWeekId!,
-            label: data.label,
-            variantId: data.variant_id || s.activeVariantId,
-            folderId: (data as any).folder_id || null,
-            engineUsed: (data.engine_used as GenerationEngine | null) || s.selectedEngine,
-            images: [],
-          },
-        ],
+        weeklyLaunches: [...s.weeklyLaunches, { id: activeWeekId!, label: data.label, variantId: data.variant_id || s.activeVariantId, engineUsed: (data.engine_used as GenerationEngine | null) || s.selectedEngine, images: [] }],
         activeWeek: activeWeekId!,
       }));
-      // Clear pending folder selection so it doesn't carry over.
-      setPendingFolderId(null);
-      // Make sure the freshly-created folder section is expanded.
-      if ((data as any).folder_id) {
-        setExpandedFolders((m) => ({ ...m, [(data as any).folder_id as string]: true }));
-      }
+    } else {
+      await supabase.from("weekly_launches").update({ engine_used: state.selectedEngine }).eq("id", activeWeekId);
+      setState((s) => ({
+        ...s,
+        weeklyLaunches: s.weeklyLaunches.map((w) => (w.id === activeWeekId ? { ...w, engineUsed: s.selectedEngine } : w)),
+        activeWeek: activeWeekId!,
+      }));
     }
-
 
     const initial: GeneratedImage[] = requests.map((r) => ({
       id: crypto.randomUUID(),
@@ -1241,20 +1078,9 @@ const ProductPage = () => {
 
       try {
           const isFront = img.type === "lookbook-front";
-
-          let refImages: string[];
-          if (isFront) {
-            // Front view: use hanger photos as garment reference
-            refImages = activeVariant.uploadedImages.slice(0, 3);
-          } else if (imageUrl) {
-            // Secondary angles: use ONLY the generated front view
-            // Do NOT mix in hanger photos — they contaminate with the mannequin
-            refImages = [imageUrl];
-          } else {
-            // Fallback if no front view yet
-            refImages = activeVariant.uploadedImages.slice(0, 1);
-          }
-
+          const refImages = !isFront && productModelReferenceImage
+            ? [productModelReferenceImage, ...activeVariant.uploadedImages.slice(0, 2)]
+            : activeVariant.uploadedImages.slice(0, 3);
           const { data, error } = await supabase.functions.invoke("generate-image", {
             body: {
               angleType: img.type,
@@ -1277,23 +1103,12 @@ const ProductPage = () => {
               },
               referenceImages: refImages,
               image_url: imageUrl,
-              frontViewUrl: isFront ? null : imageUrl,
-              accessories: { footwear: selectedFootwear },
-              imageId: img.id,
-              background: true,
               launchId: activeWeekId,
               seed: productGenSeed,
-              trBadgeUrl: (product as any)?.tr_badge_reference_url || null,
             },
           });
 
         if (error) throw error;
-        ensureGenerationResult(data);
-
-        if (data?.code === "processing") {
-          startImageStatusPolling(img.id);
-          return "";
-        }
 
         updateImageInState(img.id, {
           status: "done",
@@ -1320,49 +1135,11 @@ const ProductPage = () => {
     const imageItems = initial.filter((img) => img.type !== "video-product" && img.type !== "video-model");
     const frontImage = imageItems.find((img) => img.type === "lookbook-front");
 
-    if (!state.selectedProfile?.lora_url) {
-      console.warn("[generate] No model profile with LoRA selected.");
-    }
-    console.log("[generate] modelProfile being sent:", {
-      name: state.selectedProfile?.name,
-      hasLoraUrl: !!state.selectedProfile?.lora_url,
-      loraUrl: state.selectedProfile?.lora_url?.substring(0, 60),
-      guidanceScale: state.selectedProfile?.guidance_scale,
-    });
-
-    const isValidImageUrl = (url: string | undefined): boolean => {
-      if (!url) return false;
-      return url.startsWith("https://") &&
-        !url.includes(".html") &&
-        (url.includes(".jpg") || url.includes(".jpeg") ||
-         url.includes(".png") || url.includes(".webp") ||
-         url.includes("storage.googleapis") ||
-         url.includes("fal.media") ||
-         url.includes("supabase"));
-    };
-
-    // Generate front first to use as reference, then trigger every remaining angle in parallel.
-    let frontReferenceUrl: string | undefined;
+    // Only generate the front view initially — other angles stay pending for individual generation
+    let frontReferenceUrl = "";
     if (frontImage) {
-      const frontResult = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
-      frontReferenceUrl = isValidImageUrl(frontResult) ? frontResult : undefined;
-      if (!frontReferenceUrl) {
-        console.error("[generate] Front view failed — skipping secondary angles");
-        const remaining = imageItems.filter((img) => img.type !== "lookbook-front");
-        remaining.forEach((img) =>
-          updateImageInState(img.id, { status: "error", error: "Front view falhou — ângulos secundários ignorados" }),
-        );
-        return;
-      }
+      frontReferenceUrl = await runImageGeneration(frontImage, activeVariant.uploadedImages[0]);
     }
-
-    const remainingImages = imageItems.filter((img) => img.type !== "lookbook-front");
-    if (remainingImages.length > 0) {
-      await Promise.allSettled(
-        remainingImages.map((img) => runImageGeneration(img, frontReferenceUrl)),
-      );
-    }
-
 
     // Generate videos using front_view as starting frame
     const videoItems = initial.filter((img) => img.type === "video-product" || img.type === "video-model");
@@ -1382,14 +1159,10 @@ const ProductPage = () => {
               garmentAnalysis: activeVariant.garmentAnalysis,
               modelProfile: state.selectedProfile,
               image_url: frontReferenceUrl,
-              imageId: vid.id,
-              background: true,
               launchId: activeWeekId,
             },
           });
           if (error) throw error;
-          ensureGenerationResult(data);
-          if (data?.code === "processing") { startImageStatusPolling(vid.id); continue; }
           updateImageInState(vid.id, {
             status: "done",
             imageUrl: data.originalUrl || data.imageUrl,
@@ -1428,7 +1201,6 @@ const ProductPage = () => {
     state.selectedPresets,
     state.selectedProfile,
     variantWeeklyLaunches,
-    pendingFolderId,
   ]);
 
   const handleRegenerate = useCallback(async (id: string, overrideEngine?: GenerationEngine, modelOverride?: ModelProfile | null) => {
@@ -1496,22 +1268,12 @@ const ProductPage = () => {
           },
           referenceImages: refImages,
           image_url: referenceImageUrl,
-          imageId: id,
-          background: true,
           attemptNumber: nextAttempt,
           launchId: sourceLaunch?.id,
           seed: regenSeed,
-          trBadgeUrl: (product as any)?.tr_badge_reference_url || null,
         },
       });
       if (error) throw error;
-      ensureGenerationResult(data);
-
-      if (data?.code === "processing") {
-        startImageStatusPolling(id);
-        startCooldown();
-        return;
-      }
 
       updateImageInState(id, {
         status: "done",
@@ -1601,22 +1363,12 @@ const ProductPage = () => {
           },
           referenceImages: refImages,
           image_url: referenceImageUrl,
-          imageId: id,
-          background: true,
           attemptNumber: 1,
           launchId: sourceLaunch?.id,
           seed: singleSeed,
-          trBadgeUrl: (product as any)?.tr_badge_reference_url || null,
         },
       });
       if (error) throw error;
-      ensureGenerationResult(data);
-
-      if (data?.code === "processing") {
-        startImageStatusPolling(id);
-        startCooldown();
-        return;
-      }
 
       updateImageInState(id, {
         status: "done",
@@ -1638,11 +1390,8 @@ const ProductPage = () => {
     startCooldown();
   }, [activeVariant, mannequin, state.manualPrompt, state.selectedEngine, state.selectedPresets, state.selectedProfile, state.weeklyLaunches]);
 
-  const handleDownloadZip = async (scopeLaunchId?: string) => {
-    const sourceLaunches = scopeLaunchId
-      ? variantWeeklyLaunches.filter((w) => w.id === scopeLaunchId)
-      : variantWeeklyLaunches;
-    const approvedImages = sourceLaunches
+  const handleDownloadZip = async () => {
+    const approvedImages = variantWeeklyLaunches
       .flatMap((w) => w.images)
       .filter((img) => img.status === "done" && img.approvalStatus === "approved" && img.type !== "video-product" && img.type !== "video-model")
       .map((img) => ({ label: img.label, url: img.originalUrl || img.imageUrl }))
@@ -1755,65 +1504,37 @@ const ProductPage = () => {
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-2">Produtos</p>
           {(products || []).map((p) => {
             const active = p.id === projectId;
-            const folderCount = sidebarMeta.folderByProduct.get(p.id) || 0;
-            const launchCount = sidebarMeta.launchByProduct.get(p.id) || 0;
+            const count = sidebarPhotoCounts.get(p.id) || 0;
             const pIsCombo = (p as any).is_combo;
             const pFeatured = (p as any).featured_piece;
             return (
-              <div
+              <button
                 key={p.id}
+                onClick={() => navigate(`/project/${p.id}`)}
                 className={cn(
-                  "group/item w-full flex items-center gap-1 pr-1 rounded-md text-xs border transition-colors",
+                  "w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-md text-xs border transition-colors",
                   active ? "border-accent bg-accent/10 text-accent" : "border-transparent hover:bg-muted text-foreground"
                 )}
               >
-                <button
-                  onClick={() => navigate(`/project/${p.id}`)}
-                  className="flex-1 min-w-0 flex items-start gap-2 px-2.5 py-2 text-left"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 shrink-0 mt-0.5 opacity-80">
-                    <path d="M3 21h18" /><path d="M12 7v14" /><path d="M5 21V11l7-5 7 5v10" />
-                  </svg>
-                  <span className="flex-1 min-w-0">
-                    <span className="block truncate font-medium">{p.name}</span>
-                    <span className="block text-[10px] text-muted-foreground mt-0.5">
-                      {folderCount} pasta{folderCount === 1 ? "" : "s"} · {launchCount} lançamento{launchCount === 1 ? "" : "s"}
-                    </span>
-                  </span>
+                <span className="flex items-center gap-2 min-w-0">
+                  <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{p.name}</span>
+                </span>
+                <span className="flex items-center gap-1 shrink-0">
                   {pIsCombo && (
-                    <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
-                      {pFeatured === "bottom" ? "Baixo" : "Cima"}
+                    <Badge variant="outline" className="text-[9px] h-4 px-1">
+                      Conjunto · {pFeatured === "bottom" ? "Baixo" : "Cima"}
                     </Badge>
                   )}
-                </button>
-                <button
-                  type="button"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (!confirm(`Excluir produto "${p.name}"? Esta ação não pode ser desfeita.`)) return;
-                    const { error } = await supabase.from("products").delete().eq("id", p.id);
-                    if (error) {
-                      toast({ title: "Erro", description: error.message, variant: "destructive" });
-                      return;
-                    }
-                    queryClient.invalidateQueries({ queryKey: ["products"] });
-                    if (p.id === projectId) navigate("/");
-                  }}
-                  className="opacity-0 group-hover/item:opacity-100 transition-opacity p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  title="Excluir produto"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
-              </div>
+                  <Badge variant="secondary" className="text-[10px] h-5">{count}</Badge>
+                </span>
+              </button>
             );
           })}
         </div>
 
-        <div className="mt-auto p-3 border-t border-border space-y-2">
-          <Button variant="ghost" size="sm" className="w-full justify-start gap-2 h-8 text-xs" onClick={() => navigate("/")}>
-            <Settings className="h-3.5 w-3.5" /> Configurações
-          </Button>
-          <div className="text-[11px] text-muted-foreground truncate px-2">{user.email}</div>
+        <div className="mt-auto p-3 border-t border-border">
+          <div className="text-[11px] text-muted-foreground truncate">{user.email}</div>
         </div>
       </aside>
 
@@ -1847,7 +1568,7 @@ const ProductPage = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={() => handleDownloadZip()} disabled={isDownloadingHd}>
+            <Button variant="outline" size="sm" onClick={handleDownloadZip} disabled={isDownloadingHd}>
               {isDownloadingHd ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Download className="h-3.5 w-3.5 mr-1" />}
               {isDownloadingHd ? "Preparando HD..." : "Baixar ZIP"}
             </Button>
@@ -1865,7 +1586,6 @@ const ProductPage = () => {
               size="sm"
               className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
-                setPendingFolderId(null);
                 setLaunchModalStep(1);
                 setLaunchModalOpen(true);
               }}
@@ -1939,381 +1659,13 @@ const ProductPage = () => {
         <main className="flex-1 overflow-y-auto px-4 sm:px-6 py-5">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MainTab)}>
             <TabsList>
-              <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
               <TabsTrigger value="photos">Fotos</TabsTrigger>
+              <TabsTrigger value="analysis">Análise técnica</TabsTrigger>
+              <TabsTrigger value="settings">Configurações</TabsTrigger>
             </TabsList>
 
-
-            <TabsContent value="photos" className="mt-4 space-y-5">
-              {/* Stats row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Total de fotos</p>
-                    <p className="text-2xl font-semibold mt-1">{donePhotoCount}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Aprovadas</p>
-                    <p className="text-2xl font-semibold mt-1 flex items-center gap-2">
-                      {approvedCount}
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-4 pb-4">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Lançamentos</p>
-                    <p className="text-2xl font-semibold mt-1">{variantWeeklyLaunches.length}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 text-xs">
-                  <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                  {([
-                    ["all", "Todos"],
-                    ["approved", "Aprovados"],
-                    ["pending", "Pendentes"],
-                    ["generating", "Gerando"],
-                  ] as const).map(([val, label]) => (
-                    <button
-                      key={val}
-                      onClick={() => setStatusFilter(val)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-full border transition-colors",
-                        statusFilter === val
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-border text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => { setInlineFolderOpen((v) => !v); setInlineFolderName(""); setInlineFolderType("week"); }}
-                >
-                  <FolderPlus className="h-3.5 w-3.5" />
-                  Nova pasta
-                </Button>
-              </div>
-
-              {/* Inline new folder form */}
-              {inlineFolderOpen && (
-                <Card className="border-dashed">
-                  <CardContent className="pt-4 pb-4 space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Input
-                        autoFocus
-                        value={inlineFolderName}
-                        onChange={(e) => setInlineFolderName(e.target.value)}
-                        placeholder="Nome da pasta (ex: Semana 23/06)"
-                        className="h-8 text-xs flex-1 min-w-[200px]"
-                      />
-                      <div className="flex items-center gap-1">
-                        {(Object.keys(FOLDER_META) as FolderType[]).map((t) => {
-                          const Meta = FOLDER_META[t];
-                          const Icon = Meta.icon;
-                          return (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => setInlineFolderType(t)}
-                              className={cn(
-                                "px-2 py-1 rounded-md border text-[11px] flex items-center gap-1 transition-colors",
-                                inlineFolderType === t ? Meta.tint + " " + Meta.iconColor : "border-border text-muted-foreground hover:text-foreground",
-                              )}
-                            >
-                              <Icon className="h-3 w-3" /> {Meta.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        size="sm"
-                        className="h-8"
-                        disabled={!inlineFolderName.trim() || creatingFolder || !user}
-                        onClick={async () => {
-                          if (!user || !projectId) return;
-                          setCreatingFolder(true);
-                          const { error } = await supabase.from("folders").insert({
-                            product_id: projectId,
-                            user_id: user.id,
-                            name: inlineFolderName.trim(),
-                            folder_type: inlineFolderType,
-                          });
-                          setCreatingFolder(false);
-                          if (error) {
-                            toast({ title: "Erro", description: error.message, variant: "destructive" });
-                            return;
-                          }
-                          setInlineFolderName("");
-                          setInlineFolderOpen(false);
-                          queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
-                          queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
-                        }}
-                      >
-                        {creatingFolder && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
-                        Criar
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-8" onClick={() => setInlineFolderOpen(false)}>
-                        Cancelar
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {!hasApprovedFrontal && variantWeeklyLaunches.some((w) => w.images.length > 0) && (
-                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Gere e aprove o frontal antes de gerar laterais, costas ou close-ups (garante consistência da modelo).
-                </div>
-              )}
-
-              {/* Folder sections */}
-              {(() => {
-                // Decide which launches match the status filter.
-                const matchesFilter = (launch: WeeklyLaunch) => {
-                  if (statusFilter === "all") return true;
-                  const photos = launch.images.filter((i) => i.type !== "video-product" && i.type !== "video-model");
-                  if (statusFilter === "approved") return photos.some((p) => p.approvalStatus === "approved");
-                  if (statusFilter === "pending") return photos.some((p) => p.status === "done" && p.approvalStatus !== "approved" && p.approvalStatus !== "rejected");
-                  if (statusFilter === "generating") return photos.some((p) => p.status === "generating" || p.status === "pending");
-                  return true;
-                };
-
-                type Section = { id: string | null; name: string; type: FolderType | null; launches: WeeklyLaunch[] };
-                const sections: Section[] = [];
-                (folders || []).forEach((f) => {
-                  sections.push({
-                    id: f.id,
-                    name: f.name,
-                    type: f.folder_type,
-                    launches: variantWeeklyLaunches.filter((w) => w.folderId === f.id).filter(matchesFilter),
-                  });
-                });
-                const orphan = variantWeeklyLaunches.filter((w) => !w.folderId).filter(matchesFilter);
-                if (orphan.length > 0 || sections.length === 0) {
-                  sections.push({ id: null, name: "Sem organização", type: null, launches: orphan });
-                }
-
-                if (sections.every((s) => s.launches.length === 0) && variantWeeklyLaunches.length === 0) {
-                  return (
-                    <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-                      <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
-                        <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                          <Sparkles className="h-6 w-6 text-accent" />
-                        </div>
-                        <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
-                        </p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                const PHOTO_ANGLES: GenerationRequest["type"][] = ["lookbook-front", "lookbook-back", "lookbook-left", "lookbook-three-quarter", "close-tr-detail", "movement-shot"];
-
-                return sections.map((section) => {
-                  const isOrphan = section.id === null;
-                  const Meta = section.type ? FOLDER_META[section.type] : null;
-                  const Icon = Meta?.icon || (isOrphan ? Folder : FolderOpen);
-                  const sectionKey = section.id || "__orphan";
-                  // Orphan section is collapsed by default; folders open by default.
-                  const isExpanded = isOrphan
-                    ? expandedFolders[sectionKey] === true
-                    : expandedFolders[sectionKey] !== false;
-                  const totalPhotos = section.launches.reduce((acc, l) => acc + l.images.filter((i) => i.status === "done" && i.type !== "video-product" && i.type !== "video-model").length, 0);
-                  const totalApproved = section.launches.reduce((acc, l) => acc + l.images.filter((i) => i.approvalStatus === "approved" && i.type !== "video-product" && i.type !== "video-model").length, 0);
-                  const realFolders = (folders || []).filter((f) => f.id !== section.id);
-
-                  return (
-                    <div key={sectionKey} className={cn(
-                      "rounded-xl border",
-                      isOrphan ? "border-dashed border-border bg-muted/20" : (Meta?.tint || "border-border bg-card"),
-                    )}>
-                      <button
-                        type="button"
-                        onClick={() => setExpandedFolders((m) => ({ ...m, [sectionKey]: !isExpanded }))}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-                          <Icon className={cn("h-4 w-4 shrink-0", Meta?.iconColor || "text-muted-foreground")} />
-                          <span className={cn("font-medium text-sm truncate", isOrphan && "text-muted-foreground")}>{section.name}</span>
-                          {Meta && (
-                            <Badge variant="outline" className={cn("text-[9px] h-4", Meta.iconColor)}>{Meta.label}</Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-[11px] text-muted-foreground shrink-0">
-                          <span>{section.launches.length} lançamento{section.launches.length === 1 ? "" : "s"}</span>
-                          <span>·</span>
-                          <span>{totalApproved}/{totalPhotos} aprovadas</span>
-                        </div>
-                      </button>
-
-                      {isExpanded && (
-                        <div className="px-4 pb-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {[...section.launches].reverse().map((launch) => {
-                              const photos = launch.images.filter((i) => i.type !== "video-product" && i.type !== "video-model");
-                              const cover = photos.find((p) => p.status === "done" && p.imageUrl);
-                              const approvedHere = photos.filter((p) => p.approvalStatus === "approved").length;
-                              const generatingHere = photos.filter((p) => p.status === "generating" || p.status === "pending").length;
-                              const totalSlots = Math.max(photos.length, PHOTO_ANGLES.length);
-                              const doneCount = photos.filter((p) => p.status === "done").length;
-                              const isGeneratingCard = generatingHere > 0;
-                              const isComplete = !isGeneratingCard && doneCount >= PHOTO_ANGLES.length;
-                              // Per-angle dot state
-                              const angleDots = PHOTO_ANGLES.map((t) => {
-                                const img = photos.find((p) => p.type === t);
-                                if (!img) return "missing" as const;
-                                if (img.status === "done") return "done" as const;
-                                if (img.status === "generating" || img.status === "pending") return "loading" as const;
-                                return "missing" as const;
-                              });
-                              return (
-                                <div
-                                  key={launch.id}
-                                  className={cn(
-                                    "rounded-xl border bg-background hover:border-accent transition-colors overflow-hidden group relative",
-                                    isGeneratingCard ? "border-emerald-500/40 animate-launch-pulse" : "border-border",
-                                  )}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => setGalleryLaunchId(launch.id)}
-                                    className="text-left w-full"
-                                  >
-                                    <div className="aspect-[4/3] bg-muted relative">
-                                      {cover ? (
-                                        <img src={cover.imageUrl} alt={launch.name || launch.label} className="w-full h-full object-cover" loading="lazy" />
-                                      ) : (
-                                        <div className="w-full h-full flex items-center justify-center">
-                                          {isGeneratingCard ? <Loader2 className="h-5 w-5 animate-spin text-emerald-600" /> : <ImageIcon className="h-8 w-8 text-muted-foreground/40" />}
-                                        </div>
-                                      )}
-                                      <div className="absolute top-2 right-2 flex items-center gap-1">
-                                        {isComplete && (
-                                          <Badge className="bg-green-600 hover:bg-green-700 text-white text-[10px] h-5 gap-1">
-                                            <CheckCircle2 className="h-2.5 w-2.5" /> {doneCount} de {PHOTO_ANGLES.length}
-                                          </Badge>
-                                        )}
-                                        {approvedHere > 0 && !isComplete && (
-                                          <Badge className="bg-green-600 hover:bg-green-700 text-white text-[10px] h-5 gap-1">
-                                            <Check className="h-2.5 w-2.5" /> {approvedHere}
-                                          </Badge>
-                                        )}
-                                        {isGeneratingCard && (
-                                          <Badge variant="secondary" className="text-[10px] h-5 gap-1">
-                                            <Loader2 className="h-2.5 w-2.5 animate-spin" /> {generatingHere}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="px-3 py-2.5 space-y-1.5">
-                                      <p className="text-sm font-medium truncate">{launch.name || launch.label}</p>
-                                      {isGeneratingCard ? (
-                                        <p className="text-[10px] text-emerald-600 font-medium">
-                                          Gerando {doneCount} de {PHOTO_ANGLES.length} fotos…
-                                        </p>
-                                      ) : isComplete ? (
-                                        <p className="text-[10px] text-emerald-600 font-medium">
-                                          {PHOTO_ANGLES.length} de {PHOTO_ANGLES.length} · Ver fotos
-                                        </p>
-                                      ) : (
-                                        <p className="text-[10px] text-muted-foreground">
-                                          {photos.length} ângulo{photos.length === 1 ? "" : "s"} · {launch.engineUsed || "fal"}
-                                        </p>
-                                      )}
-                                      {/* Per-angle progress dots */}
-                                      {(isGeneratingCard || (!isComplete && doneCount > 0)) && (
-                                        <div className="flex items-center gap-1 pt-0.5">
-                                          {angleDots.map((s, i) => (
-                                            <span
-                                              key={i}
-                                              className={cn(
-                                                "h-1.5 w-1.5 rounded-full transition-colors",
-                                                s === "done" && "bg-emerald-500",
-                                                s === "loading" && "bg-amber-400 animate-pulse",
-                                                s === "missing" && "bg-muted-foreground/20",
-                                              )}
-                                            />
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </button>
-
-                                  {/* Move-to-folder for orphan section */}
-                                  {isOrphan && realFolders.length > 0 && (
-                                    <div className="px-3 pb-2.5">
-                                      <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-6 w-full text-[10px] gap-1"
-                                            onClick={(e) => e.stopPropagation()}
-                                          >
-                                            <FolderInput className="h-3 w-3" /> Mover para pasta
-                                          </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
-                                          {realFolders.map((f) => (
-                                            <DropdownMenuItem
-                                              key={f.id}
-                                              onClick={(e) => { e.stopPropagation(); handleMoveLaunchToFolder(launch.id, f.id); }}
-                                              className="text-xs gap-2"
-                                            >
-                                              <FolderOpen className="h-3 w-3" /> {f.name}
-                                            </DropdownMenuItem>
-                                          ))}
-                                        </DropdownMenuContent>
-                                      </DropdownMenu>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-
-                            {/* Empty "Novo lançamento" slot */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setPendingFolderId(section.id);
-                                setLaunchModalStep(1);
-                                setLaunchModalOpen(true);
-                              }}
-                              className="rounded-xl border-2 border-dashed border-border hover:border-accent hover:bg-accent/5 transition-colors flex flex-col items-center justify-center gap-2 min-h-[220px] text-muted-foreground hover:text-accent"
-                            >
-                              <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                                <Plus className="h-5 w-5" />
-                              </div>
-                              <span className="text-xs font-medium">Novo lançamento</span>
-                              {!isOrphan && (
-                                <span className="text-[10px] text-muted-foreground">em {section.name}</span>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                });
-              })()}
-
-              {/* Prompt editor for regenerating across launches */}
-              {activeVariant && variantWeeklyLaunches.some((w) => w.images.length > 0) && (
+            <TabsContent value="photos" className="mt-4 space-y-4">
+              {activeVariant && (
                 <PromptAndRefsEditor
                   prompt={state.manualPrompt}
                   onPromptChange={(v) => update("manualPrompt", v)}
@@ -2337,125 +1689,228 @@ const ProductPage = () => {
                   }}
                 />
               )}
+              {!hasApprovedFrontal && (
+                <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-400 flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Gere e aprove o frontal antes de gerar laterais, costas ou close-ups (garante consistência da modelo).
+                </div>
+              )}
+              {[...variantWeeklyLaunches].reverse().map((launch) => {
+                const photos = launch.images.filter((img) => img.type !== "video-product" && img.type !== "video-model");
+                if (photos.length === 0) return null;
+                return (
+                  <div key={launch.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      {editingLaunchId === launch.id ? (
+                        <Input
+                          value={editingLaunchName}
+                          onChange={(e) => setEditingLaunchName(e.target.value)}
+                          onBlur={() => handleSaveLaunchName(launch.id, editingLaunchName)}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleSaveLaunchName(launch.id, editingLaunchName); if (e.key === "Escape") setEditingLaunchId(null); }}
+                          className="h-7 text-sm w-48"
+                          autoFocus
+                        />
+                      ) : (
+                        <h3
+                          className="text-sm font-semibold cursor-pointer hover:text-accent transition-colors"
+                          onClick={() => { setEditingLaunchId(launch.id); setEditingLaunchName(launch.name || launch.label); }}
+                        >
+                          {launch.name || launch.label}
+                        </h3>
+                      )}
+                      <div className="flex items-center gap-2">
+                        {launch.lockedProportionJson && (
+                          <Badge variant="outline" className="text-[9px] gap-1">
+                            <Lock className="h-2.5 w-2.5" /> Proporções travadas
+                          </Badge>
+                        )}
+                        <Badge variant="outline">{launch.engineUsed || "gemini"}</Badge>
+                        <Badge variant="secondary">{photos.length} ângulos</Badge>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {photos.map((img) => (
+                        <div key={img.id} className={cn("group rounded-xl border bg-card overflow-hidden", img.approvalStatus === "approved" ? "border-green-500" : "border-border")}>
+                          <div className="aspect-[9/16] bg-muted relative flex items-center justify-center">
+                            {img.status === "done" && img.imageUrl && (
+                              <>
+                                <img
+                                  src={img.imageUrl}
+                                  alt={img.label}
+                                  className="w-full h-full object-cover cursor-pointer"
+                                  loading="lazy"
+                                  onClick={async () => {
+                                    try {
+                                      const resp = await fetch(img.originalUrl || img.imageUrl!);
+                                      const blob = await resp.blob();
+                                      const url = URL.createObjectURL(blob);
+                                      const a = document.createElement("a");
+                                      a.href = url;
+                                      a.download = `${img.label}.png`;
+                                      a.click();
+                                      URL.revokeObjectURL(url);
+                                    } catch {
+                                      window.open(img.originalUrl || img.imageUrl!, "_blank");
+                                    }
+                                  }}
+                                  onError={(e) => {
+                                    const target = e.currentTarget;
+                                    const fallback = img.originalUrl || img.previewUrl;
+                                    if (fallback && target.src !== fallback) {
+                                      target.src = fallback;
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setLightboxImage(img); }}
+                                  className="absolute top-1 right-1 bg-background/80 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-background"
+                                  title="Ampliar"
+                                >
+                                  <ZoomIn className="h-4 w-4 text-foreground" />
+                                </button>
+                              </>
+                            )}
+                            {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
+                            {img.status === "pending" && (
+                              <div className="flex flex-col items-center gap-2 p-3">
+                                <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                                <span className="text-[10px] text-muted-foreground">Aguardando</span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" className="h-7 text-[10px] gap-1">
+                                      <Sparkles className="h-3 w-3" /> Gerar
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="center" className="w-52">
+                                    <DropdownMenuItem className="text-[10px] text-muted-foreground font-medium" disabled>Escolha o cenário</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-branco")} className="gap-2 text-xs">
+                                      <span>⬜</span> Estúdio Branco Puro
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-neutro-bege")} className="gap-2 text-xs">
+                                      <span>🟫</span> Estúdio Neutro Bege
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "urbano-contemporaneo")} className="gap-2 text-xs">
+                                      <span>🏙️</span> Urbano Contemporâneo
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "natureza-suave")} className="gap-2 text-xs">
+                                      <span>🌿</span> Natureza Suave
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
+                            {img.status === "error" && (
+                              <div className="text-center p-2">
+                                <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="outline" className="h-7 mt-2 text-xs">
+                                      <RefreshCw className="h-3 w-3 mr-1" /> Regenerar
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
+                                      <Sparkles className="h-3.5 w-3.5" /> Gemini
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
+                                      <ArrowRight className="h-3.5 w-3.5" /> fal.ai Flux
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
+                          </div>
+                          <div className="px-2.5 py-2 flex items-center justify-between">
+                            <div className="flex items-center gap-1 min-w-0">
+                              {img.approvalStatus === "approved" && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
+                              <span className="text-xs font-medium truncate">{img.label}</span>
+                            </div>
+                            {img.status === "done" && (
+                              <div className="flex items-center gap-0.5">
+                                <Button
+                                  variant={img.approvalStatus === "approved" ? "default" : "outline"}
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  title={img.approvalStatus === "approved" ? "Aprovada" : "Aprovar"}
+                                  onClick={(e) => { e.stopPropagation(); handleApproveImage(img.id); }}
+                                >
+                                  <Check className="h-3 w-3" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" title="Trocar modelo">
+                                      <UserRound className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48">
+                                    {MODEL_GALLERY.map((m) => (
+                                      <DropdownMenuItem key={m.id} onClick={() => handleRegenerate(img.id, undefined, m)} className="gap-2 text-xs">
+                                        <img src={m.faceImage} alt={m.name} className="h-5 w-5 rounded-full object-cover" />
+                                        {m.name}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "gemini")} className="gap-2 text-xs">
+                                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleRegenerate(img.id, "fal")} className="gap-2 text-xs">
+                                      <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Generate more button */}
+              {variantWeeklyLaunches.some((w) => w.images.some((img) => img.status === "done")) && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => { setLaunchModalStep(3); setLaunchModalOpen(true); }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Gerar mais fotos
+                  </Button>
+                </div>
+              )}
+              {variantWeeklyLaunches.every((w) => w.images.filter((img) => img.type !== "video-product" && img.type !== "video-model").length === 0) && (
+                <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="rounded-2xl bg-muted/60 p-6 max-w-md space-y-3">
+                    <div className="mx-auto w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-accent" />
+                    </div>
+                    <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
+                    </p>
+                  </div>
+                </div>
+              )}
             </TabsContent>
 
 
 
 
-
-            <TabsContent value="analysis" className="mt-4 space-y-4">
-              {/* Imagens enviadas para análise */}
-              <Card>
-                <CardContent className="pt-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Imagens enviadas para análise</h3>
-                    <Badge variant="secondary" className="text-[10px]">
-                      {(activeVariant?.uploadedImages?.length || 0)}/3
-                    </Badge>
-                  </div>
-                  {activeVariant && activeVariant.uploadedImages.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {activeVariant.uploadedImages.map((src, idx) => (
-                        <img
-                          key={idx}
-                          src={src}
-                          alt={`peça-${idx + 1}`}
-                          className="h-28 w-28 object-cover rounded-md border border-border"
-                        />
-                      ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-28 w-28 flex flex-col gap-1 text-[10px]"
-                        onClick={() => { setLaunchModalStep(1); setLaunchModalOpen(true); }}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                        Trocar / Re-analisar
-                      </Button>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      Nenhuma imagem enviada. Use "Novo lançamento" para fazer o upload e a análise da peça.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* TR badge reference uploader (per product, optional) */}
-              <Card>
-                <CardContent className="pt-4 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-sm font-semibold">Foto do botão TR (opcional)</h3>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Enviada uma vez por produto. Usada em todos os close-ups.
-                      </p>
-                    </div>
-                    {(product as any)?.tr_badge_reference_url && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[11px] text-destructive hover:text-destructive"
-                        onClick={async () => {
-                          await supabase.from("products").update({ tr_badge_reference_url: null } as any).eq("id", projectId!);
-                          queryClient.invalidateQueries({ queryKey: ["product", projectId] });
-                        }}
-                      >
-                        Remover
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {(product as any)?.tr_badge_reference_url ? (
-                      <img
-                        src={(product as any).tr_badge_reference_url}
-                        alt="Botão TR de referência"
-                        className="h-24 w-24 object-cover rounded-md border border-border"
-                      />
-                    ) : (
-                      <div className="h-24 w-24 rounded-md border border-dashed border-border flex items-center justify-center text-[10px] text-muted-foreground">
-                        Sem foto
-                      </div>
-                    )}
-                    <label className="inline-flex">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file || !projectId) return;
-                          try {
-                            const blob = await compressImage(file);
-                            const dataUrl = await blobToDataUrl(blob);
-                            const { error } = await supabase
-                              .from("products")
-                              .update({ tr_badge_reference_url: dataUrl } as any)
-                              .eq("id", projectId);
-                            if (error) throw error;
-                            queryClient.invalidateQueries({ queryKey: ["product", projectId] });
-                            toast({ title: "Botão TR salvo", description: "Será usado em todos os close-ups." });
-                          } catch (err: unknown) {
-                            const msg = err instanceof Error ? err.message : "Falha no upload";
-                            toast({ title: "Erro", description: msg, variant: "destructive" });
-                          } finally {
-                            e.target.value = "";
-                          }
-                        }}
-                      />
-                      <span className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-border bg-background hover:bg-accent/10 text-xs cursor-pointer">
-                        <ImageIcon className="h-3.5 w-3.5" />
-                        {(product as any)?.tr_badge_reference_url ? "Substituir foto" : "Enviar foto"}
-                      </span>
-                    </label>
-                  </div>
-                </CardContent>
-              </Card>
-
+            <TabsContent value="analysis" className="mt-4">
               {activeVariant?.garmentAnalysis ? (
                 <div className="space-y-3">
                   <div className="flex items-center justify-end">
-
                     <Button
                       variant="outline"
                       size="sm"
@@ -2685,11 +2140,11 @@ const ProductPage = () => {
               ) : (
                 <div className="py-16 text-center text-muted-foreground text-sm">Faça a análise da peça para visualizar os campos técnicos.</div>
               )}
+            </TabsContent>
 
-              {/* Produto: nome, manequim e exclusão */}
+            <TabsContent value="settings" className="mt-4 space-y-4">
               <Card>
                 <CardContent className="pt-4 space-y-4">
-                  <h3 className="text-sm font-semibold">Produto e manequim</h3>
                   <div className="space-y-1.5">
                     <Label className="text-xs">Nome do produto</Label>
                     <Input value={productName} onChange={(e) => setProductName(e.target.value)} />
@@ -2722,10 +2177,10 @@ const ProductPage = () => {
 
                   <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" onClick={saveMannequin}>
-                      <Settings className="h-3.5 w-3.5 mr-1" /> Salvar
+                      <Settings className="h-3.5 w-3.5 mr-1" /> Salvar configurações
                     </Button>
                     <Button size="sm" variant="destructive" onClick={handleDeleteProduct}>
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir produto
+                      Excluir produto
                     </Button>
                   </div>
                 </CardContent>
@@ -2734,9 +2189,9 @@ const ProductPage = () => {
               {/* Reference Photos */}
               <Card>
                 <CardContent className="pt-4 space-y-4">
-                  <h3 className="text-sm font-semibold">Fotos de referência adicionais</h3>
+                  <h3 className="text-sm font-semibold">Fotos de referência</h3>
                   <p className="text-[10px] text-muted-foreground">
-                    Fotos extras usadas como referência de estilo/modelo. Máximo 3 fotos.
+                    Fotos usadas como referência para análise e geração. Máximo 3 fotos.
                   </p>
                   <ReferencePhotosSection
                     photos={(product as any)?.reference_photos || []}
@@ -2757,7 +2212,6 @@ const ProductPage = () => {
       <LaunchFlowModal
         open={launchModalOpen}
         onOpenChange={setLaunchModalOpen}
-        productId={projectId}
         startStep={launchModalStep}
         uploadedImages={activeVariant?.uploadedImages || []}
         onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
@@ -2794,27 +2248,6 @@ const ProductPage = () => {
           update("featuredPiece", v || null);
           saveProductMeta({ featured_piece: v || null });
         }}
-        onFolderSelected={(folderId) => {
-          setPendingFolderId(folderId);
-          queryClient.invalidateQueries({ queryKey: ["folders", projectId] });
-          queryClient.invalidateQueries({ queryKey: ["all-folders-for-sidebar"] });
-        }}
-        initialFolderId={pendingFolderId}
-        selectedFootwear={selectedFootwear}
-        onSelectedFootwearChange={setSelectedFootwear}
-      />
-
-      <ResultsGalleryDialog
-        open={!!galleryLaunchId}
-        onOpenChange={(o) => { if (!o) setGalleryLaunchId(null); }}
-        launch={variantWeeklyLaunches.find((w) => w.id === galleryLaunchId) || null}
-        hasApprovedFrontal={hasApprovedFrontal}
-        isDownloadingHd={isDownloadingHd}
-        onApprove={(id, value) => handleApproveImage(id, value)}
-        onRegenerate={(id, engine, model) => handleRegenerate(id, engine, model)}
-        onGenerateSingle={(id, scene) => handleGenerateSingle(id, scene)}
-        onDownloadHd={(launchId) => handleDownloadZip(launchId)}
-        onZoom={(img) => setLightboxImage(img)}
       />
 
       {/* Lightbox Modal */}
@@ -2856,8 +2289,8 @@ const ProductPage = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "seedream"); setLightboxImage(null); }} className="gap-2 text-xs">
-                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Seedream
+                    <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "gemini"); setLightboxImage(null); }} className="gap-2 text-xs">
+                      <Sparkles className="h-3.5 w-3.5" /> Regenerar com Gemini
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => { handleRegenerate(lightboxImage.id, "fal"); setLightboxImage(null); }} className="gap-2 text-xs">
                       <ArrowRight className="h-3.5 w-3.5" /> Regenerar com fal.ai

@@ -8,94 +8,7 @@ const corsHeaders = {
 };
 
 type AngleType = "lookbook-front" | "lookbook-back" | "lookbook-left" | "lookbook-three-quarter" | "close-tr-detail" | "movement-shot" | "video-product" | "video-model";
-type GenerationEngine = "seedream" | "fal" | "gemini";
-
-class GenerationRateLimitError extends Error {
-  retryAfterMs: number;
-
-  constructor(message: string, retryAfterMs = 60_000) {
-    super(message);
-    this.name = "GenerationRateLimitError";
-    this.retryAfterMs = retryAfterMs;
-  }
-}
-
-function isRateLimitError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error || "");
-  return error instanceof GenerationRateLimitError || /429|rate.?limit|too many requests|excedido|quota exceeded/i.test(message);
-}
-
-function parseRetryAfterMs(response: Response) {
-  const retryAfter = response.headers.get("retry-after");
-  if (!retryAfter) return null;
-  const numeric = Number(retryAfter);
-  if (Number.isFinite(numeric)) return Math.max(1000, numeric * 1000);
-  const timestamp = Date.parse(retryAfter);
-  return Number.isFinite(timestamp) ? Math.max(1000, timestamp - Date.now()) : null;
-}
-
-function jsonResponse(payload: Record<string, unknown>, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
-
-function getAdminClient() {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") || Deno.env.get("VITE_SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !serviceRoleKey) return null;
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-async function updateGeneratedImageRow(imageId: string | undefined, updates: Record<string, unknown>) {
-  if (!imageId) return;
-  const admin = getAdminClient();
-  if (!admin) return;
-
-  const { error } = await admin.from("generated_images").update(updates).eq("id", imageId);
-  if (error) console.error(`[generate-image] Failed to update generated_images ${imageId}: ${error.message}`);
-}
-
-function waitUntilBackground(task: Promise<unknown>) {
-  const edgeRuntime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?: (promise: Promise<unknown>) => void } }).EdgeRuntime;
-  if (edgeRuntime?.waitUntil) {
-    edgeRuntime.waitUntil(task);
-    return;
-  }
-
-  task.catch((error) => console.error("[generate-image] Background task failed:", error));
-}
-
-async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => {
-      console.warn(`[generate-image] ${label} timed out after ${ms}ms; continuing without it.`);
-      resolve(null);
-    }, ms);
-  });
-
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-async function fetchWithTimeout(url: string, init: RequestInit, ms: number) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), ms);
-  try {
-    return await fetch(url, { ...init, signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+type GenerationEngine = "gemini" | "fal";
 
 type GarmentAnalysis = {
   type?: string;
@@ -154,23 +67,11 @@ const FULL_BODY_ANGLE_TYPES = new Set<AngleType>([
   "movement-shot",
 ]);
 
-const FOOTWEAR_OPTIONS: Record<string, string> = {
-  scarpin_nude: "nude-colored pointed-toe stiletto pumps, skin-tone matching, elegant heel 8-10cm, fully visible",
-  scarpin_preto: "black pointed-toe stiletto pumps, polished leather, classic, heel 8-10cm, fully visible",
-  sandalia_tira: "strappy heeled sandals, delicate thin straps, nude or metallic, heel 7-9cm, fully visible",
-  mule_dourado: "gold metallic open-toe mule heels, fashion-forward, heel 6-8cm, fully visible",
-  bota_ankle: "black ankle boots, pointed toe, block heel 5-7cm, clean leather finish, fully visible",
-  sem_sapato: "barefoot, natural, pedicured feet with neutral nail color",
-};
-
-function getFootwearBlock(accessories?: { footwear?: string } | null): string {
-  const key = (accessories?.footwear as string) || "scarpin_nude";
-  const desc = FOOTWEAR_OPTIONS[key] || FOOTWEAR_OPTIONS.scarpin_nude;
-  return `FOOTWEAR — MANDATORY:
-The model MUST wear: ${desc}
-Shoes must be elegant, fashion-appropriate, fully visible in all full-body shots.
-${key === "sem_sapato" ? "" : "NEVER barefoot. NEVER without footwear."}`;
-}
+ const FOOTWEAR_BLOCK = `FOOTWEAR — CRITICAL:
+ The model MUST be wearing shoes. NEVER barefoot, NEVER without footwear.
+ Default: nude-colored pointed-toe stiletto pumps matching skin tone.
+ Shoes must be elegant, fashion-appropriate, and fully visible in full-body shots.
+ Do NOT show bare feet under any circumstances.`;
  
  const GENDER_BLOCK = `GENDER — CRITICAL:
  The model is FEMALE. This is a WOMEN'S garment.
@@ -209,31 +110,23 @@ FORBIDDEN in all generated images — zero tolerance:
 If ANY tag or label appears in the generated image, the image is REJECTED.`;
 
 // ─── RULE 4: TR CLOSE-UP QUALITY ───
-const TR_CLOSEUP_QUALITY_BLOCK = `TR BADGE CLOSE-UP — BRAND DETAIL SHOT:
+const TR_CLOSEUP_QUALITY_BLOCK = `TR MONOGRAM CLOSE-UP — MANDATORY QUALITY STANDARDS:
+This is a critical brand deliverable. Apply strict quality control:
 
-WHAT TO SHOW: A macro photograph of the garment cuff area.
-The TR button appears as a TINY DETAIL on the sleeve — like a shirt button.
+MANDATORY — every element must pass:
+- TR golden metallic button MUST be tack-sharp, center frame, in perfect focus
+- Monogram engraving clearly legible: "TR" interlocking letters, each stroke distinguishable
+- Button surface: polished warm gold (#D4AF37 to #FFD700), realistic specular highlights, NO overexposure
+- Fabric surrounding the button: perfectly pressed, zero wrinkles, zero creases
+- Depth of field: button razor-sharp, fabric softly blurred behind — professional macro photography feel
+- Lighting: soft directional light catching the gold surface, warm tone
 
-BUTTON SPECIFICATIONS (exact):
-- Shape: flat circular metal disc
-- Size: VERY SMALL — no larger than a shirt button, ~1.5cm real diameter
-- In the image it should occupy maximum 10% of frame area — it is a SUBTLE detail
-- Material: matte antique gold metal, NOT shiny, NOT embroidered, NOT stitched
-- The letters T and R are DIE-CUT through the metal — fabric shows through the gaps
-- Letter style: classic serif, T slightly larger overlapping R
-- 4 small thread holes visible at edges with white thread
-
-COMPOSITION:
-- Show 60-70% fabric texture, 30-40% button area
-- Button positioned in lower portion of frame
-- Fabric in soft focus, button in sharp focus
-- Macro lens feel, shallow depth of field
-
-ABSOLUTE PROHIBITIONS:
-- Do NOT make letters embroidered or stitched on fabric
-- Do NOT make the button large or dominant in frame
-- Do NOT make the metal shiny/polished — matte antique gold only
-- Do NOT make letters raised/embossed — they are cut-through openings`;
+HARD FAIL — regenerate immediately if:
+- TR lettering is blurry, distorted, illegible, or abstracted
+- Button appears silver, dark, matte, brass, or any color other than polished gold
+- Button is off-center or partially cropped out of frame
+- Any wrinkle, crease, or fold appears near the button/cuff area
+- Button scale is wrong (too large or microscopic)`;
 
  const TR_BADGE_DETAILED_BLOCK_FN = (signatureDetails?: string) => {
    const positionNotVisible = !signatureDetails || /not clearly visible/i.test(signatureDetails);
@@ -288,13 +181,7 @@ NOT beige. NOT cream. NOT warm. NOT gray. NOT gradient.
 NO texture. NO shadow on background. NO vignette.
 Lighting: soft even studio light, same temperature in all photos.`;
 
-const FULL_BODY_CRITICAL_BLOCK_FAL = `SCENE ANCHOR — OVERRIDE EVERYTHING:
-Background: pure seamless white #FFFFFF studio cyclorama.
-NOT bege. NOT cream. NOT gray. NOT warm white.
-This overrides the reference image background.
-If background is not pure white — regenerate.
-
-FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
+const FULL_BODY_CRITICAL_BLOCK_FAL = `FRAMING — CRITICAL (E-COMMERCE PRODUCT PHOTOGRAPHY):
 Full body shot from head to toe. E-commerce product catalog photo.
 Model centered in frame, occupying 70-75% of frame height.
 Minimum 10% empty space above head, minimum 15% below feet.
@@ -372,36 +259,18 @@ function isOpenFrontGarment(garmentAnalysis?: GarmentAnalysis | null): boolean {
   return /(jacket|jaqueta|blazer|cardigan|coat|casaco|vest|colete|open.?front|kimono)/.test(text);
 }
 
-function buildFaceAnchorPrompt(
-  modelProfile?: ModelProfile | null,
-  angleType?: AngleType,
-  hasFrontReference?: boolean,
-): string {
+function buildFaceAnchorPrompt(modelProfile?: ModelProfile | null) {
   if (!modelProfile) return "";
-  if (angleType === "close-tr-detail") return "";
-
-  const isFront = angleType === "lookbook-front";
 
   return [
-    "IDENTITY LOCK — CRITICAL:",
-    "This is ONE woman photographed from multiple angles.",
-    "Every image in this set features the EXACT SAME person.",
-    `Identity: ${modelProfile.promptSeed || modelProfile.name || "Brazilian model"}`,
-    "Facial structure must be IDENTICAL across all angles:",
-    "same bone structure, same eye shape, same nose bridge,",
-    "same lips, same jawline. NO variation whatsoever.",
-    modelProfile.skinTone
-      ? `Skin tone: ${modelProfile.skinTone} — unchanged in every image.`
-      : "",
-    modelProfile.hairType
-      ? `Hair: ${modelProfile.hairType}, ${modelProfile.hairColor || ""} — same style, same length.`
-      : "",
-    isFront
-      ? "ESTABLISHING SHOT: capture the model's face clearly."
-      : hasFrontReference
-        ? "MATCH EXACTLY the face shown in the provided reference image."
-        : "Maintain absolute consistency with the front view.",
-    "HARD FAIL: generating a different woman's face → regenerate.",
+    "FACE ANCHOR — CRITICAL:",
+    `Identity anchor: ${modelProfile.promptSeed || modelProfile.name || "Brazilian model"}`,
+    "Use the exact same woman across all images.",
+    "Maintain identical facial structure, eye spacing, nose, lips, jawline and bone structure in every angle.",
+    modelProfile.skinTone ? `Skin tone: ${modelProfile.skinTone} — keep unchanged.` : "",
+    modelProfile.hairType ? `Hair texture/style: ${modelProfile.hairType} — keep unchanged.` : "",
+    modelProfile.hairColor ? `Hair color: ${modelProfile.hairColor} — EXACT same shade in every image.` : "",
+    "Do NOT drift identity between shots.",
   ].filter(Boolean).join("\n");
 }
 
@@ -482,8 +351,6 @@ function buildPrompt(params: {
   modelProfile?: ModelProfile | null;
   mannequin?: Record<string, unknown> | null;
   engine?: GenerationEngine;
-  accessories?: { footwear?: string } | null;
-  hasFrontReference?: boolean;
 }) {
   const {
     basePrompt,
@@ -494,12 +361,9 @@ function buildPrompt(params: {
     modelProfile,
     mannequin,
     engine,
-    accessories,
-    hasFrontReference,
   } = params;
 
   const isFal = engine === "fal";
-  const isSeedream = engine === "seedream";
   const isCloseDetail = angleType === "close-tr-detail";
 
   const blockA = isFal
@@ -509,14 +373,6 @@ Lighting: soft diffused studio lighting, high-key, color-accurate.
 Clean white studio cyclorama background. Centered model. Symmetrical framing.
 Format: portrait orientation, high resolution, JPG 300 DPI sRGB.
 Style: clean e-commerce catalog photo like ZARA, NET-A-PORTER, Farfetch.`
-    : isSeedream
-    ? `Cinematic fashion editorial photography for a Brazilian womenswear brand.
-Studio DSLR quality, 85mm lens, f/5.6, soft diffused studio lighting.
-Pure white seamless cyclorama background #FFFFFF, no exceptions.
-Portrait orientation 3:4, high resolution, photorealistic quality.
-The model is a Brazilian latina woman. ${modelProfile?.promptSeed || 'warm morena skin tone, dark hair, defined Brazilian features'}.
-NOT Asian features. NOT pale European skin. Brazilian biotipo mandatory.
-Photo-realistic skin with natural pores and texture. Real person, not CGI.`
     : `Professional fashion photography, editorial quality.
 Camera: Sony A7R V equivalent, 85mm f/1.8.
 Lighting: natural key light + soft fill, no harsh shadows.
@@ -525,13 +381,13 @@ Format: 9:16 portrait.`;
 
   const isTwoPieceSet = /two-piece|two piece|conjunto/i.test(garmentAnalysis?.type || "");
   const twoPieceBlock = isTwoPieceSet
-    ? `TWO-PIECE SET — WORN AS ONE COMPLETE OUTFIT:
-The top and skirt are a coordinated set worn together.
-The cropped top hem sits flush against the skirt waistband.
-ZERO skin visible between top and skirt. NO midriff. NO belly.
-The wide elastic waistband bridges top and skirt seamlessly.
-The outfit reads as ONE unified look from neckline to hem.
-HARD FAIL: any visible skin between top and skirt → regenerate.`
+    ? `TWO-PIECE SET RULE — CRITICAL:
+This garment is a TWO-PIECE SET (top + bottom sold together).
+- Show BOTH pieces worn together in all body shots.
+- Blouse/top hem sits at natural waist, skirt/bottom waistband meets top hem.
+- Do NOT merge into a single dress silhouette.
+- Maintain visible separation line between top and bottom at waist.
+- Each piece must maintain its own construction and proportions.`
     : "";
 
   // Resolve mannequin with fallback to defaults
@@ -577,21 +433,6 @@ Construction details: ${garmentAnalysis?.details || "N/A"}${proportionsBlock}`;
   }
 
   // TR badge block removed from prompt — badge will be added in post-production
-  const hasTexturedKnit = /waffle|ridged|raised|dimensional|knit|textured knit|point|relevo|canelado/i.test(
-    [garmentAnalysis?.fabricTexture, garmentAnalysis?.fabric, garmentAnalysis?.details?.toString()].join(' ')
-  );
-
-  const knitTextureBlock = hasTexturedKnit
-    ? `FABRIC TEXTURE — MANDATORY REPLICATION:
-The knit fabric has a PRONOUNCED 3D SURFACE TEXTURE — raised ridged waffle-stitch pattern. Each stitch is individually visible and creates dimensional relief on the surface. This is NOT a smooth jersey or flat knit.
-- Texture depth: the ridges cast visible micro-shadows
-- Surface feel: chunky, dimensional, tactile — like a waffle weave
-- Light behavior: the raised stitches catch light on top, shadow in valleys
-- The texture must be visible and consistent across the entire garment
-- Do NOT render as smooth, flat, shiny, or jersey-like fabric
-HARD FAIL: if fabric appears smooth, silky, or flat — regenerate.`
-    : "";
-
   const trBadgeBlock = "";
 
   const modelIdentityBlock = modelProfile?.promptSeed
@@ -630,12 +471,8 @@ Avoid: plastic skin, porcelain finish, overly smooth airbrushed look, CGI appear
     skirtLengthBlock = `SKIRT LENGTH CRITICAL: ${detectedLength} length. ${lengthDesc}.\nThe full skirt must be visible — do NOT crop the hem.`;
   }
 
-  const faceAnchorBlock = angleType !== "video-product"
-    ? buildFaceAnchorPrompt(modelProfile, angleType, !!hasFrontReference)
-    : "";
-  const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType)
-    ? getFootwearBlock(accessories)
-    : "";
+  const faceAnchorBlock = angleType !== "video-product" ? buildFaceAnchorPrompt(modelProfile) : "";
+  const footwearBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? FOOTWEAR_BLOCK : "";
   const genderBlock = FULL_BODY_ANGLE_TYPES.has(angleType) ? GENDER_BLOCK : "";
 
   // RULE 1: Bottom garment safety for upper-body pieces
@@ -650,17 +487,10 @@ Avoid: plastic skin, porcelain finish, overly smooth airbrushed look, CGI appear
 Apply this while maintaining all garment fidelity rules.`
     : "";
 
-  const globalNegative = `NEVER GENERATE:
-bare feet (unless sem_sapato selected), visible midriff between
-top and skirt, skin gap at waist, oversized buttons, shiny jewelry
-buttons, embroidered TR letters, Asian facial features, pale
-European skin, different face between angles, male model.`;
-
   return [
-    blockA, blockB, knitTextureBlock, trBadgeBlock, genderBlock,
-    blockC, faceAnchorBlock, footwearBlock, bottomBlock,
-    innerLayerBlock, NO_TAGS_BLOCK, blockD, fullBodyBlock,
-    skirtLengthBlock, basePrompt || "", blockE, globalNegative,
+    blockA, blockB, trBadgeBlock, genderBlock, blockC, faceAnchorBlock, footwearBlock,
+    bottomBlock, innerLayerBlock, NO_TAGS_BLOCK,
+    blockD, fullBodyBlock, skirtLengthBlock, basePrompt || "", blockE,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -707,7 +537,7 @@ const extractFalImageUrl = (payload: any): string => {
   return payload?.image?.url || payload?.image_url || payload?.data?.image?.url || "";
 };
 
-async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 1) {
+async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model: string, seed?: number, retries = 2) {
   const GOOGLE_API_KEY = Deno.env.get("GOOGLE_API_KEY");
   if (!GOOGLE_API_KEY) throw new Error("GOOGLE_API_KEY is not configured");
 
@@ -731,33 +561,29 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
 
   for (let attempt = 0; attempt < retries; attempt++) {
     if (attempt > 0) {
-      // Keep retries short and return a retryable response instead of risking the 150s idle timeout.
-      const delayMs = Math.min(5000 * Math.pow(2, attempt - 1), 10_000) + Math.random() * 1000;
+      const delayMs = Math.min(3000 * Math.pow(2, attempt - 1), 30000) + Math.random() * 2000;
       console.log(`[generate-image] Rate limited, waiting ${Math.round(delayMs)}ms before retry ${attempt + 1}/${retries}...`);
       await new Promise(r => setTimeout(r, delayMs));
     }
-
 
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${googleModel}:generateContent?key=${GOOGLE_API_KEY}`;
     const generationConfig: Record<string, unknown> = { responseModalities: ["IMAGE", "TEXT"] };
     if (typeof seed === "number" && Number.isFinite(seed)) {
       generationConfig.seed = Math.floor(seed);
     }
-    const response = await fetchWithTimeout(endpoint, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts }],
         generationConfig,
       }),
-    }, 70_000);
+    });
 
-    if (response.status === 429 || response.status === 503) {
+    if (response.status === 429) {
       if (attempt < retries - 1) continue;
-      const retryAfterMs = parseRetryAfterMs(response) ?? 90_000;
-      throw new GenerationRateLimitError("Google API rate limit excedido. Aguarde alguns segundos e tente novamente.", retryAfterMs);
+      throw new Error("Google API rate limit excedido. Aguarde alguns segundos e tente novamente.");
     }
-
 
     if (!response.ok) {
       const errText = await response.text();
@@ -839,8 +665,9 @@ async function ensurePublicUrl(imageUrl: string): Promise<string> {
       throw new Error("Cannot convert base64 to public URL: missing Supabase credentials");
     }
 
-    const admin = getAdminClient();
-    if (!admin) throw new Error("Cannot convert base64 to public URL: missing Supabase credentials");
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     const match = imageUrl.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
     if (!match) throw new Error("Invalid base64 image format");
@@ -905,7 +732,7 @@ async function callFalEngine(params: {
 
   const imageSize = getImageSize(params.angleType);
   const loraScale = params.loraScale ?? 1.0;
-  const guidanceScale = params.guidanceScale ?? 9.0;
+  const guidanceScale = params.guidanceScale ?? 3.5;
 
   const usingLoraEndpoint = endpoint === "fal-ai/flux-lora";
   const finalPrompt = usingLoraEndpoint && params.loraTriggerWord
@@ -920,15 +747,7 @@ async function callFalEngine(params: {
     output_format: "jpeg",
   };
 
-  if (isCloseUp) {
-    // flux-2-pro: text-to-image only, no reference images, no loras
-    input.image_size = { width: 2048, height: 2048 };
-    input.num_inference_steps = 28;
-    input.guidance_scale = 3.5;
-    input.output_quality = 95;
-    delete (input as any).image_url;
-    delete (input as any).loras;
-  } else if (usingLoraEndpoint) {
+  if (usingLoraEndpoint) {
     input.loras = [{ path: params.loraUrl!, scale: loraScale }];
     input.num_inference_steps = 28;
     input.guidance_scale = guidanceScale;
@@ -975,82 +794,6 @@ async function callFalEngine(params: {
     console.error(`[fal] Error detail:`, JSON.stringify(errDetail || {}).substring(0, 1000));
     console.error(`[fal] Input sent:`, JSON.stringify(input).substring(0, 1000));
     throw new Error(`fal.ai ${endpoint} failed: ${errMsg}`);
-  }
-}
-
-async function callSeedreamEngine(params: {
-  promptUsed: string;
-  imageUrls?: string[];
-  angleType: AngleType;
-  trBadgeUrl?: string | null;
-}) {
-  console.log("[callSeedreamEngine] invoked", { angleType: params.angleType, refImages: params.imageUrls?.length || 0, promptLen: params.promptUsed?.length || 0, hasTrBadge: !!params.trBadgeUrl });
-  const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
-  if (!FAL_API_KEY) throw new Error("FAL_API_KEY is not configured");
-
-  fal.config({ credentials: FAL_API_KEY });
-
-  const isCloseUp = params.angleType === "close-tr-detail";
-  const isFrontView = params.angleType === "lookbook-front";
-  const hasRefs = params.imageUrls && params.imageUrls.length > 0;
-
-  // For close-up: force edit mode whenever any reference (badge or garment) is available
-  const useEdit = isCloseUp
-    ? (!!params.trBadgeUrl || hasRefs)
-    : (hasRefs && !isFrontView);
-
-  const endpoint = useEdit
-    ? "fal-ai/bytedance/seedream/v5/lite/edit"
-    : "fal-ai/bytedance/seedream/v5/lite/text-to-image";
-
-  const imageSize = isCloseUp ? "square_hd" : "portrait_4_3";
-
-  // For close-up with badge reference, prepend instruction so the model treats Figure 1 as the canonical TR button
-  let finalPrompt = params.promptUsed;
-  if (isCloseUp && params.trBadgeUrl) {
-    finalPrompt =
-      "Figure 1 is the EXACT TR monogram button that must appear in this image. " +
-      "Replicate it with maximum fidelity — same cut-through letters, same matte gold finish, same thread holes, same proportions. " +
-      "Figure 2 shows the garment fabric context.\n\n" +
-      params.promptUsed;
-  }
-
-  const input: Record<string, unknown> = {
-    prompt: finalPrompt,
-    image_size: imageSize,
-    num_images: 1,
-    enable_safety_checker: false,
-  };
-
-  if (useEdit) {
-    let sourceUrls: string[] = [];
-    if (isCloseUp && params.trBadgeUrl) {
-      // Badge first, then up to 2 garment context images
-      sourceUrls = [params.trBadgeUrl, ...((params.imageUrls || []).slice(0, 2))];
-    } else if (params.imageUrls) {
-      sourceUrls = params.imageUrls.slice(0, 10);
-    }
-    const publicUrls: string[] = [];
-    for (const url of sourceUrls) {
-      if (!url) continue;
-      publicUrls.push(url.startsWith("data:") ? await ensurePublicUrl(url) : url);
-    }
-    if (publicUrls.length > 0) {
-      input.image_urls = publicUrls;
-    }
-  }
-
-  console.log(`[seedream5] endpoint=${endpoint}, angle=${params.angleType}, refs=${(input.image_urls as string[] | undefined)?.length ?? 0}, badgeFirst=${isCloseUp && !!params.trBadgeUrl}`);
-
-  try {
-    const result = await fal.subscribe(endpoint, { input });
-    const imageUrl = extractFalImageUrl(result);
-    if (!imageUrl) throw new Error("No image in Seedream 5.0 response");
-    return { imageUrl, modelUsed: endpoint };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[seedream5] ERROR angle=${params.angleType}:`, msg);
-    throw new Error(`Seedream 5.0 ${endpoint} failed: ${msg}`);
   }
 }
 
@@ -1235,7 +978,12 @@ async function uploadGeneratedVideo(params: {
   return { originalUrl, imageUrl: originalUrl };
 }
 
-async function runGenerationPipeline(body: Record<string, any>): Promise<Record<string, any>> {
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
     const {
       angleType,
       angle,
@@ -1252,20 +1000,13 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       attemptNumber,
       launchId,
       seed,
-      autoUpscale,
-      frontViewUrl,
-    } = body;
+    } = await req.json();
 
     const numericSeed = typeof seed === "number" && Number.isFinite(seed) ? Math.floor(seed) : undefined;
 
     const parsedAngle = (angleType || angle || "lookbook-front") as AngleType;
-    const parsedEngine = (engine || "fal") as GenerationEngine;
+    const parsedEngine = (engine || "gemini") as GenerationEngine;
     const requestAttempt = Number(attemptNumber || 1);
-
-    const isFrontAngle = parsedAngle === "lookbook-front";
-    const resolvedFrontViewUrl: string | null = (frontViewUrl as string | null) || null;
-    const hasFrontReference = !isFrontAngle && !!resolvedFrontViewUrl;
-
     const promptUsed = basePrompt || manualPrompt || garmentAnalysis
       ? buildPrompt({
           basePrompt: basePrompt || prompt,
@@ -1276,46 +1017,30 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
           modelProfile,
           mannequin,
           engine: parsedEngine,
-          accessories: body.accessories || null,
-          hasFrontReference,
         })
       : (prompt || "");
 
-    const hangerPhoto = image_url || referenceImages?.[0] || undefined;
-    // Front view uses hanger photo as reference.
-    // Secondary angles use the generated front view as reference for image-to-image anchoring.
-    const falReferenceImage = isFrontAngle
-      ? hangerPhoto
-      : (resolvedFrontViewUrl || hangerPhoto);
-    const firstReferenceImage = hangerPhoto;
+    const firstReferenceImage = image_url || referenceImages?.[0] || undefined;
+    const falReferenceImage = shouldUseFalReferenceImage(parsedAngle) ? firstReferenceImage : undefined;
 
     const isVideoRequest = parsedAngle === "video-model" || parsedAngle === "video-product";
 
     if (isVideoRequest) {
       // Video generation is temporarily disabled
-      return {
+      return new Response(JSON.stringify({
         error: "Geração de vídeo temporariamente desativada. Apenas prompts de texto são gerados.",
         code: "video_disabled",
         promptUsed,
         attemptNumber: requestAttempt,
-      };
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
-    // Hanger photos = original reference images uploaded for the product.
-    const hangerPhotos: string[] = Array.isArray(referenceImages)
-      ? referenceImages.slice(0, 2)
-      : (firstReferenceImage ? [firstReferenceImage] : []);
-
-    // Front view goes FIRST as the identity/garment anchor for secondary angles.
-    const seedreamImageUrls = isFrontAngle
-      ? hangerPhotos
-      : resolvedFrontViewUrl
-        ? [resolvedFrontViewUrl, ...hangerPhotos]
-        : hangerPhotos;
 
     let result: { imageUrl: string; modelUsed: string };
     try {
-      result = (parsedEngine === "fal" || parsedEngine === "seedream")
+      result = parsedEngine === "fal"
         ? await callFalEngine({
             promptUsed,
             imageUrl: falReferenceImage,
@@ -1323,36 +1048,34 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
             loraUrl: modelProfile?.lora_url,
             loraTriggerWord: modelProfile?.lora_trigger_word,
             loraScale: modelProfile?.lora_scale ?? 1.0,
-            guidanceScale: modelProfile?.guidance_scale ?? 9.0,
+            guidanceScale: modelProfile?.guidance_scale ?? 3.5,
           })
         : await callGeminiGateway({
             promptUsed,
-            referenceImages: Array.isArray(referenceImages)
-              ? referenceImages
-              : firstReferenceImage ? [firstReferenceImage] : [],
+            referenceImages: Array.isArray(referenceImages) ? referenceImages : firstReferenceImage ? [firstReferenceImage] : [],
             attemptNumber: requestAttempt,
             seed: numericSeed,
           });
     } catch (engineErr: unknown) {
       const errMsg = engineErr instanceof Error ? engineErr.message : String(engineErr);
       console.error(`[generate-image] Engine error for angle=${parsedAngle}, engine=${parsedEngine}: ${errMsg}`);
-      if (isRateLimitError(engineErr)) {
-        const retryAfterMs = engineErr instanceof GenerationRateLimitError ? engineErr.retryAfterMs : 90_000;
-        return {
-          error: `Generation delayed for ${parsedAngle} (${parsedEngine}): ${errMsg}`,
-          code: "rate_limited",
-          retryable: true,
-          retryAfterMs,
-          promptUsed,
-          attemptNumber: requestAttempt,
-          engineUsed: parsedEngine,
-          seedUsed: numericSeed ?? null,
-        };
-      }
       throw new Error(`Generation failed for ${parsedAngle} (${parsedEngine}): ${errMsg}`);
     }
 
-    // Face swap removed — Seedream/fal handle identity via prompt + references.
+    // Face swap pipeline — only for front-facing angles to preserve natural skin texture
+    const FACE_SWAP_ANGLES = new Set<AngleType>(["lookbook-front", "lookbook-three-quarter"]);
+    const faceImageUrl = modelProfile?.face_image_url;
+    const shouldFaceSwap = !!faceImageUrl && FACE_SWAP_ANGLES.has(parsedAngle);
+
+    if (shouldFaceSwap) {
+      console.log(`[generate-image] Applying face swap for angle=${parsedAngle}, model=${modelProfile?.name || "unknown"}`);
+      const swappedUrl = await callFaceSwap({
+        generatedImageUrl: result.imageUrl,
+        faceReferenceUrl: faceImageUrl!,
+      });
+      result.imageUrl = swappedUrl;
+      result.modelUsed = `${result.modelUsed} + face-swap`;
+    }
 
     // Save raw (pre-upscale) image to storage as JPG
     const rawAsset = await uploadGeneratedAsset({
@@ -1363,19 +1086,17 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
     });
     const rawUrl = rawAsset.originalUrl;
 
-    // Auto-upscale can push the request beyond the 150s idle limit. Keep HD upscale on-demand at download time.
+    // UPSCALE with clarity-upscaler (2x)
     let upscaled = false;
     let finalImageUrl = result.imageUrl;
-    if (autoUpscale === true) {
-      try {
-        const upscaledUrl = await withTimeout(callUpscaler(result.imageUrl), 25_000, "upscale");
-        if (upscaledUrl && upscaledUrl !== result.imageUrl) {
-          finalImageUrl = upscaledUrl;
-          upscaled = true;
-        }
-      } catch (upErr) {
-        console.error(`[generate-image] Upscale failed, using original:`, upErr);
+    try {
+      const upscaledUrl = await callUpscaler(result.imageUrl);
+      if (upscaledUrl !== result.imageUrl) {
+        finalImageUrl = upscaledUrl;
+        upscaled = true;
       }
+    } catch (upErr) {
+      console.error(`[generate-image] Upscale failed, using original:`, upErr);
     }
 
     // Upload upscaled (or original if upscale failed) as the main HD asset — JPG
@@ -1392,7 +1113,7 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       storedAsset = rawAsset;
     }
 
-    return {
+    return new Response(JSON.stringify({
       imageUrl: storedAsset.imageUrl,
       originalUrl: storedAsset.originalUrl,
       previewUrl: storedAsset.previewUrl,
@@ -1403,71 +1124,14 @@ async function runGenerationPipeline(body: Record<string, any>): Promise<Record<
       attemptNumber: requestAttempt,
       engineUsed: parsedEngine,
       seedUsed: numericSeed ?? null,
-    };
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const body = await req.json();
-    const imageId = typeof body?.imageId === "string" ? body.imageId : undefined;
-    const runInBackground = body?.background === true && !!imageId;
-
-    if (runInBackground) {
-      await updateGeneratedImageRow(imageId, { status: "generating", error: null });
-      waitUntilBackground(
-        runGenerationPipeline(body)
-          .then(async (payload) => {
-            if (payload?.code || payload?.error) {
-              await updateGeneratedImageRow(imageId, {
-                status: "error",
-                error: payload.error || "A geração não retornou imagem.",
-                prompt_used: payload.promptUsed || body.prompt || body.basePrompt || null,
-                attempt_number: payload.attemptNumber || body.attemptNumber || 1,
-                model_used: payload.engineUsed || body.engine || null,
-                seed_used: payload.seedUsed ?? body.seed ?? null,
-              });
-              return;
-            }
-
-            await updateGeneratedImageRow(imageId, {
-              status: "done",
-              error: null,
-              image_url: payload.imageUrl || null,
-              original_url: payload.originalUrl || payload.imageUrl || null,
-              preview_url: payload.previewUrl || payload.imageUrl || null,
-              raw_url: payload.rawUrl || null,
-              upscaled: payload.upscaled || false,
-              model_used: payload.modelUsed || null,
-              attempt_number: payload.attemptNumber || body.attemptNumber || 1,
-              prompt_used: payload.promptUsed || body.prompt || body.basePrompt || null,
-              seed_used: payload.seedUsed ?? body.seed ?? null,
-            });
-          })
-          .catch(async (error: unknown) => {
-            const msg = error instanceof Error ? error.message : "Unknown error";
-            console.error(`[generate-image] Background generation failed for ${imageId}: ${msg}`);
-            await updateGeneratedImageRow(imageId, {
-              status: "error",
-              error: msg,
-              attempt_number: body.attemptNumber || 1,
-              prompt_used: body.prompt || body.basePrompt || null,
-              seed_used: body.seed ?? null,
-            });
-          }),
-      );
-
-      return jsonResponse({ code: "processing", status: "generating", imageId }, 202);
-    }
-
-    const payload = await runGenerationPipeline(body);
-    return jsonResponse(payload);
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Unknown error";
-    const status = isRateLimitError(error) ? 200 : 500;
-    return jsonResponse({ error: msg }, status);
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

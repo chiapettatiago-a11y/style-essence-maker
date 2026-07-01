@@ -22,9 +22,8 @@ interface GenerateSectionProps {
 }
 
 const ENGINE_LABELS: Record<GenerationEngine, string> = {
-  fal: "fal.ai Flux + LoRA",
-  seedream: "Seedream 5.0",
-  gemini: "Gemini (legado)",
+  gemini: "Google Gemini",
+  fal: "fal.ai — Flux Kontext",
 };
 
 const GenerateSection: React.FC<GenerateSectionProps> = ({
