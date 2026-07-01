@@ -585,6 +585,14 @@ async function callGeminiGatewayOnce(prompt: string, imageUrlParts: any[], model
       throw new Error("Google API rate limit excedido. Aguarde alguns segundos e tente novamente.");
     }
 
+    // Retry on transient upstream errors (500 INTERNAL, 502, 503, 504)
+    if (response.status >= 500 && response.status < 600) {
+      const errText = await response.text().catch(() => "");
+      console.warn(`[generate-image] Google API ${response.status} (attempt ${attempt + 1}/${retries}): ${errText.substring(0, 200)}`);
+      if (attempt < retries - 1) continue;
+      throw new Error(`Google API image generation failed [${response.status}] após ${retries} tentativas: ${errText}`);
+    }
+
     if (!response.ok) {
       const errText = await response.text();
       if (response.status === 402 || response.status === 403) {
