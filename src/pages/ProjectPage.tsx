@@ -1893,7 +1893,7 @@ const ProductPage = () => {
                     variant="outline"
                     size="sm"
                     className="gap-1.5"
-                    onClick={() => { setLaunchModalStep(3); setLaunchModalOpen(true); }}
+                    onClick={() => setSetupMobileOpen(true)}
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Gerar mais fotos
