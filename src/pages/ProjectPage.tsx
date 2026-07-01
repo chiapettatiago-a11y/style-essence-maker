@@ -1784,34 +1784,39 @@ const ProductPage = () => {
                               </>
                             )}
                             {img.status === "generating" && <Loader2 className="h-5 w-5 animate-spin text-accent" />}
-                            {img.status === "pending" && (
-                              <div className="flex flex-col items-center gap-2 p-3">
-                                <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
-                                <span className="text-[10px] text-muted-foreground">Aguardando</span>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button size="sm" className="h-7 text-[10px] gap-1">
-                                      <Sparkles className="h-3 w-3" /> Gerar
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="center" className="w-52">
-                                    <DropdownMenuItem className="text-[10px] text-muted-foreground font-medium" disabled>Escolha o cenário</DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-branco")} className="gap-2 text-xs">
-                                      <span>⬜</span> Estúdio Branco Puro
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-neutro-bege")} className="gap-2 text-xs">
-                                      <span>🟫</span> Estúdio Neutro Bege
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "urbano-contemporaneo")} className="gap-2 text-xs">
-                                      <span>🏙️</span> Urbano Contemporâneo
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "natureza-suave")} className="gap-2 text-xs">
-                                      <span>🌿</span> Natureza Suave
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            )}
+                            {img.status === "pending" && (() => {
+                              const requiresFrontal = img.type !== "lookbook-front" && !hasApprovedFrontal;
+                              return (
+                                <div className="flex flex-col items-center gap-2 p-3">
+                                  <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                                  <span className="text-[10px] text-muted-foreground">
+                                    {requiresFrontal ? "Aprove o frontal" : "Aguardando"}
+                                  </span>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button size="sm" className="h-7 text-[10px] gap-1" disabled={requiresFrontal}>
+                                        <Sparkles className="h-3 w-3" /> Gerar
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="center" className="w-52">
+                                      <DropdownMenuItem className="text-[10px] text-muted-foreground font-medium" disabled>Escolha o cenário</DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-branco")} className="gap-2 text-xs">
+                                        <span>⬜</span> Estúdio Branco Puro
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "estudio-neutro-bege")} className="gap-2 text-xs">
+                                        <span>🟫</span> Estúdio Neutro Bege
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "urbano-contemporaneo")} className="gap-2 text-xs">
+                                        <span>🏙️</span> Urbano Contemporâneo
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleGenerateSingle(img.id, "natureza-suave")} className="gap-2 text-xs">
+                                        <span>🌿</span> Natureza Suave
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              );
+                            })()}
                             {img.status === "error" && (
                               <div className="text-center p-2">
                                 <p className="text-[11px] text-destructive">{img.error || "Erro"}</p>
