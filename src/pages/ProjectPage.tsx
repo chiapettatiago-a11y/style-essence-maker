@@ -1483,8 +1483,48 @@ const ProductPage = () => {
 
   if (!user) return <Navigate to="/auth" replace />;
 
+  const setupPanelNode = (
+    <SetupPanel
+      uploadedImages={activeVariant?.uploadedImages || []}
+      onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
+      isAnalyzing={isAnalyzing}
+      onAnalyze={handleAnalyze}
+      garmentAnalysis={activeVariant?.garmentAnalysis || null}
+      onAnalysisUpdate={(a) => updateActiveVariant({ garmentAnalysis: a })}
+      selectedProfile={state.selectedProfile}
+      onSelectModel={handleSelectModelById}
+      selectedPresets={state.selectedPresets}
+      onPresetsChange={(p) => update("selectedPresets", p)}
+      manualPrompt={state.manualPrompt}
+      onManualPromptChange={(v) => update("manualPrompt", v)}
+      selectedEngine={state.selectedEngine}
+      onSelectedEngineChange={handleEngineChange}
+      onGenerate={(reqs) => {
+        handleGenerate(reqs);
+        setSetupMobileOpen(false);
+      }}
+      isGenerating={isGenerating}
+      garmentType={activeVariant?.garmentType || null}
+      onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
+      accessories={state.accessories}
+      onAccessoriesChange={(a) => update("accessories", a)}
+      isCombo={state.isCombo}
+      onIsComboChange={(v) => {
+        update("isCombo", v);
+        saveProductMeta({ is_combo: v });
+      }}
+      featuredPiece={state.featuredPiece}
+      onFeaturedPieceChange={(v) => {
+        update("featuredPiece", v || null);
+        saveProductMeta({ featured_piece: v || null });
+      }}
+      engineLocked={!!productLockedEngine}
+    />
+  );
+
   return (
     <div className="min-h-screen bg-background flex">
+
       <aside className="w-[220px] shrink-0 border-r border-border hidden md:flex md:flex-col">
         <div className="px-4 py-4 border-b border-border flex items-center justify-between">
           <img src={monograma} alt="Monograma" className="h-5 brightness-0 invert cursor-pointer" onClick={() => navigate("/")} />
