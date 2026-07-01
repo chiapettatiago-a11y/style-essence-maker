@@ -2248,6 +2248,7 @@ const ProductPage = () => {
           update("featuredPiece", v || null);
           saveProductMeta({ featured_piece: v || null });
         }}
+        engineLocked={!!productLockedEngine}
       />
 
       {/* Lightbox Modal */}
