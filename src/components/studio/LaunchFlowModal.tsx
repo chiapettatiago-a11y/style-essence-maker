@@ -353,7 +353,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
 
               <AccessoriesSelector value={accessories} onChange={onAccessoriesChange} />
 
-              <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} />
+              <EngineSelector value={selectedEngine} onChange={onSelectedEngineChange} locked={engineLocked} />
 
               <div>
                 <h3 className="text-sm font-semibold">Estilos e geração</h3>
