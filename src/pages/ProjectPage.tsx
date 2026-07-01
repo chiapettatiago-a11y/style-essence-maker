@@ -1949,7 +1949,7 @@ const ProductPage = () => {
                     </div>
                     <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
+                      Use o painel de <strong>Setup</strong> à direita (ou o botão "Setup" no topo em telas menores) para configurar a peça e gerar.
                     </p>
                   </div>
                 </div>
