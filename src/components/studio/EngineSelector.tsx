@@ -1,12 +1,13 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Check, Sparkles, Layers3 } from "lucide-react";
+import { Check, Sparkles, Layers3, Lock } from "lucide-react";
 import { GenerationEngine } from "@/types/fashion";
 
 interface EngineSelectorProps {
   value: GenerationEngine;
   onChange: (value: GenerationEngine) => void;
+  locked?: boolean;
 }
 
 const ENGINES: Array<{
@@ -41,13 +42,22 @@ const ENGINES: Array<{
   },
 ];
 
-const EngineSelector: React.FC<EngineSelectorProps> = ({ value, onChange }) => {
+const EngineSelector: React.FC<EngineSelectorProps> = ({ value, onChange, locked = false }) => {
   return (
     <div className="space-y-3">
       <div>
-        <h3 className="text-sm font-semibold">Motor de geração</h3>
+        <h3 className="text-sm font-semibold flex items-center gap-2">
+          Motor de geração
+          {locked && (
+            <Badge variant="outline" className="text-[10px] gap-1">
+              <Lock className="h-2.5 w-2.5" /> travado neste produto
+            </Badge>
+          )}
+        </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Compare qualidade e custo no mesmo fluxo antes de decidir o padrão.
+          {locked
+            ? "O motor foi fixado após a primeira geração para garantir consistência da modelo."
+            : "Compare qualidade e custo no mesmo fluxo antes de decidir o padrão."}
         </p>
       </div>
 
@@ -59,12 +69,14 @@ const EngineSelector: React.FC<EngineSelectorProps> = ({ value, onChange }) => {
             <button
               key={id}
               type="button"
-              onClick={() => onChange(id)}
+              onClick={() => !locked && onChange(id)}
+              disabled={locked && !selected}
               className={cn(
                 "relative rounded-2xl border p-4 text-left transition-all bg-card",
                 selected
                   ? "border-accent bg-accent/10 shadow-sm ring-1 ring-accent/30"
-                  : "border-border hover:border-accent/40 hover:bg-muted/40"
+                  : "border-border hover:border-accent/40 hover:bg-muted/40",
+                locked && !selected && "opacity-40 cursor-not-allowed hover:border-border hover:bg-card"
               )}
             >
               <div className="flex items-start justify-between gap-3">
