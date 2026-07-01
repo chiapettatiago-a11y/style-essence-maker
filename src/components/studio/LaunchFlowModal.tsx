@@ -114,6 +114,7 @@ const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
   onIsComboChange,
   featuredPiece,
   onFeaturedPieceChange,
+  engineLocked = false,
 }) => {
   const [step, setStep] = useState(startStep);
 
