@@ -139,8 +139,7 @@ const ProductPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [launchModalOpen, setLaunchModalOpen] = useState(false);
-  const [launchModalStep, setLaunchModalStep] = useState(1);
+  const [setupMobileOpen, setSetupMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>("photos");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingVariantName, setEditingVariantName] = useState("");
