@@ -20,7 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
-import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
+import SetupPanel from "@/components/studio/SetupPanel";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
@@ -139,8 +140,7 @@ const ProductPage = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [launchModalOpen, setLaunchModalOpen] = useState(false);
-  const [launchModalStep, setLaunchModalStep] = useState(1);
+  const [setupMobileOpen, setSetupMobileOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<MainTab>("photos");
   const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [editingVariantName, setEditingVariantName] = useState("");
@@ -402,8 +402,7 @@ const ProductPage = () => {
     // Auto-open launch flow for newly created products
     const isNew = searchParams.get("new") === "1";
     if (isNew) {
-      setLaunchModalStep(1);
-      setLaunchModalOpen(true);
+      setSetupMobileOpen(true);
       setSearchParams({}, { replace: true });
     }
   }, [product, weeks, dbImages, dbVariants, loaded, imagesLoading, projectId, variantsLoading, weeksLoading]);
@@ -1484,8 +1483,48 @@ const ProductPage = () => {
 
   if (!user) return <Navigate to="/auth" replace />;
 
+  const setupPanelNode = (
+    <SetupPanel
+      uploadedImages={activeVariant?.uploadedImages || []}
+      onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
+      isAnalyzing={isAnalyzing}
+      onAnalyze={handleAnalyze}
+      garmentAnalysis={activeVariant?.garmentAnalysis || null}
+      onAnalysisUpdate={(a) => updateActiveVariant({ garmentAnalysis: a })}
+      selectedProfile={state.selectedProfile}
+      onSelectModel={handleSelectModelById}
+      selectedPresets={state.selectedPresets}
+      onPresetsChange={(p) => update("selectedPresets", p)}
+      manualPrompt={state.manualPrompt}
+      onManualPromptChange={(v) => update("manualPrompt", v)}
+      selectedEngine={state.selectedEngine}
+      onSelectedEngineChange={handleEngineChange}
+      onGenerate={(reqs) => {
+        handleGenerate(reqs);
+        setSetupMobileOpen(false);
+      }}
+      isGenerating={isGenerating}
+      garmentType={activeVariant?.garmentType || null}
+      onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
+      accessories={state.accessories}
+      onAccessoriesChange={(a) => update("accessories", a)}
+      isCombo={state.isCombo}
+      onIsComboChange={(v) => {
+        update("isCombo", v);
+        saveProductMeta({ is_combo: v });
+      }}
+      featuredPiece={state.featuredPiece}
+      onFeaturedPieceChange={(v) => {
+        update("featuredPiece", v || null);
+        saveProductMeta({ featured_piece: v || null });
+      }}
+      engineLocked={!!productLockedEngine}
+    />
+  );
+
   return (
     <div className="min-h-screen bg-background flex">
+
       <aside className="w-[220px] shrink-0 border-r border-border hidden md:flex md:flex-col">
         <div className="px-4 py-4 border-b border-border flex items-center justify-between">
           <img src={monograma} alt="Monograma" className="h-5 brightness-0 invert cursor-pointer" onClick={() => navigate("/")} />
@@ -1575,22 +1614,17 @@ const ProductPage = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setLaunchModalStep(3);
-                setLaunchModalOpen(true);
-              }}
+              className="xl:hidden"
+              onClick={() => setSetupMobileOpen(true)}
             >
               <RefreshCw className="h-3.5 w-3.5 mr-1" /> Re-analisar
             </Button>
             <Button
               size="sm"
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={() => {
-                setLaunchModalStep(1);
-                setLaunchModalOpen(true);
-              }}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 xl:hidden"
+              onClick={() => setSetupMobileOpen(true)}
             >
-              <Sparkles className="h-3.5 w-3.5 mr-1" /> Novo lançamento
+              <Sparkles className="h-3.5 w-3.5 mr-1" /> Setup
             </Button>
           </div>
         </header>
@@ -1900,7 +1934,7 @@ const ProductPage = () => {
                     variant="outline"
                     size="sm"
                     className="gap-1.5"
-                    onClick={() => { setLaunchModalStep(3); setLaunchModalOpen(true); }}
+                    onClick={() => setSetupMobileOpen(true)}
                   >
                     <Plus className="h-3.5 w-3.5" />
                     Gerar mais fotos
@@ -1915,7 +1949,7 @@ const ProductPage = () => {
                     </div>
                     <h3 className="text-sm font-semibold">Nenhuma foto gerada ainda</h3>
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      Use o botão <strong>"Novo lançamento"</strong> no topo para iniciar o fluxo de geração.
+                      Use o painel de <strong>Setup</strong> à direita (ou o botão "Setup" no topo em telas menores) para configurar a peça e gerar.
                     </p>
                   </div>
                 </div>
@@ -2227,47 +2261,20 @@ const ProductPage = () => {
         </main>
       </div>
 
-      <LaunchFlowModal
-        open={launchModalOpen}
-        onOpenChange={setLaunchModalOpen}
-        startStep={launchModalStep}
-        uploadedImages={activeVariant?.uploadedImages || []}
-        onImagesChange={(imgs) => updateActiveVariant({ uploadedImages: imgs })}
-        isAnalyzing={isAnalyzing}
-        onAnalyze={handleAnalyze}
-        garmentAnalysis={activeVariant?.garmentAnalysis || null}
-        onAnalysisUpdate={(a) => updateActiveVariant({ garmentAnalysis: a })}
-        mannequin={mannequin}
-        onMannequinChange={setMannequin}
-        selectedProfile={state.selectedProfile}
-        onSelectModel={handleSelectModelById}
-        onProfileUpdate={(profile) => update("selectedProfile", profile)}
-        selectedPresets={state.selectedPresets}
-        onPresetsChange={(p) => update("selectedPresets", p)}
-        manualPrompt={state.manualPrompt}
-        onManualPromptChange={(v) => update("manualPrompt", v)}
-        selectedEngine={state.selectedEngine}
-        onSelectedEngineChange={handleEngineChange}
-        onGenerate={handleGenerate}
-        isGenerating={isGenerating}
-        proportionSummary={proportionSummary}
-        onProportionUpdate={updateActiveVariant}
-        garmentType={activeVariant?.garmentType || null}
-        onGarmentTypeChange={(type) => updateActiveVariant({ garmentType: type })}
-        accessories={state.accessories}
-        onAccessoriesChange={(a) => update("accessories", a)}
-        isCombo={state.isCombo}
-        onIsComboChange={(v) => {
-          update("isCombo", v);
-          saveProductMeta({ is_combo: v });
-        }}
-        featuredPiece={state.featuredPiece}
-        onFeaturedPieceChange={(v) => {
-          update("featuredPiece", v || null);
-          saveProductMeta({ featured_piece: v || null });
-        }}
-        engineLocked={!!productLockedEngine}
-      />
+      {/* Desktop: painel de setup fixo à direita */}
+      <aside className="hidden xl:flex w-[380px] shrink-0 border-l border-border flex-col bg-card/30">
+        {setupPanelNode}
+      </aside>
+
+      {/* Mobile: sheet lateral */}
+      <Sheet open={setupMobileOpen} onOpenChange={setSetupMobileOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Setup do look</SheetTitle>
+          </SheetHeader>
+          {setupPanelNode}
+        </SheetContent>
+      </Sheet>
 
       {/* Lightbox Modal */}
       {lightboxImage && (

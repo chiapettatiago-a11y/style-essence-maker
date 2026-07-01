@@ -1,86 +1,74 @@
-# Plano: Consistência de Modelo + Fluxo Simplificado
+# Painel lateral de setup — substituindo o modal
 
-Duas frentes de trabalho que tocam banco, edge function de geração e UI da página do produto.
+## Objetivo
+Eliminar o modal de 3 steps e transformar o setup da peça em um painel lateral direito sempre visível dentro do ProjectPage. Reduzir de ~12 cliques para ~5 num fluxo típico, sem mudar a lógica de geração (botões por ângulo mantidos, análise manual mantida).
 
----
+## Layout novo do ProjectPage
 
-## Parte A — Consistência de modelo entre shots
-
-### A1. Seed fixo por produto
-- **Migration**: adicionar `generation_seed bigint` em `products` (nullable).
-- Ao iniciar a geração do **primeiro shot** de um produto, se `generation_seed` for null, gerar um inteiro aleatório (`Math.floor(Math.random()*2_000_000_000)`) e persistir.
-- Frontend envia `seed` no payload de `generate-image`. Edge function repassa para o Gemini (`generationConfig.seed`) e demais engines que suportarem.
-
-### A2. Engine travada por sessão
-- **Migration**: adicionar `locked_engine text` em `products`.
-- Ao gerar o frontal, gravar a engine escolhida em `locked_engine`. Próximos shots usam essa engine; o seletor no UI fica desabilitado com badge "🔒 Travada para consistência".
-- No edge function, remover o auto-fallback por timeout/crédito. Só faz fallback em erro 5xx/auth real.
-
-### A3. Frontal obrigatório antes dos demais
-- **Migration**: adicionar `model_reference_image text` em `products`.
-- Tipo `GeneratedImage.approval_status` já existe ('pending'|'approved'|'rejected'). Botões de gerar lateral/costas/close ficam `disabled` enquanto não houver pelo menos um shot frontal com `approval_status='approved'`. Tooltip + texto inline: "Gere e aprove o frontal antes de continuar."
-
-### A4. Referência de modelo via imagem
-- Ao aprovar (✓) um shot frontal, atualizar `products.model_reference_image` com a `image_url` desse shot.
-- Frontend inclui essa URL em `referenceImages` no payload dos shots não-frontais (em primeiro lugar do array). Edge function já aceita `referenceImages[]`.
-
-### A5. Indicador visual de consistência
-- Em `PhotoViewer`/`ResultsGrid`, cada shot mostra um badge:
-  - ✅ verde "Consistente" quando `model_used == locked_engine` **e** `seed_used == generation_seed`.
-  - ⚠️ amarelo "Reger. recomendada" caso contrário, com tooltip mostrando a divergência.
-- **Migration**: adicionar `seed_used bigint` em `generated_images` (já tem `model_used`).
-
----
-
-## Parte B — Simplificação do fluxo
-
-### B1. Remover aba Vídeos
-- Excluir `src/components/studio/VeoVideoSection.tsx`.
-- Remover import e tab "Vídeos" de `ProjectPage.tsx`.
-- Manter: Fotos, Análise técnica, Configurações.
-- **Não** removo a edge function `generate-video` nesse passo (apenas UI). Posso remover depois se confirmado.
-
-### B2. Etapa única — sem wizard bloqueado
-- Na aba **Fotos** o prompt e as imagens de referência ficam sempre acessíveis, independente de já ter gerado ou não.
-- Eliminar qualquer guard que esconda o prompt/imagens após a primeira geração.
-
-### B3 + B4. Layout da edição (colapsáveis no topo da aba Fotos)
-- Adicionar 2 `<Collapsible>` acima do grid de fotos:
-  1. **📝 Prompt** — `Textarea` com prompt atual + botão "Salvar e Regenerar".
-  2. **🖼️ Imagens de referência** — thumbs com botão remover + uploader + botão "Salvar e Regenerar".
-- Edição persiste no banco (`products.manual_prompt` e `products.uploaded_images`/`product_variants.uploaded_images`).
-
-### B5. Proteção de shots aprovados
-- Ao clicar "Salvar e Regenerar", abre `AlertDialog`:
-  - "Regerar **todos** os shots" 
-  - "Regerar **apenas os não aprovados**" (default)
-- Shots com `approval_status='approved'` só são regerados na opção 1.
-
----
-
-## Detalhes técnicos
-
-**Migrations SQL**
-```sql
-ALTER TABLE products
-  ADD COLUMN generation_seed bigint,
-  ADD COLUMN locked_engine text,
-  ADD COLUMN model_reference_image text;
-
-ALTER TABLE generated_images
-  ADD COLUMN seed_used bigint;
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Header do projeto (breadcrumb, nome, ações)                 │
+├──────────────┬──────────────────────────────┬───────────────┤
+│              │                              │               │
+│  Sidebar     │   Grid de imagens geradas    │  Painel de    │
+│  (produtos)  │   (5 ângulos + histórico)    │  Setup        │
+│              │                              │  (fixo)       │
+│              │                              │               │
+│              │                              │  ↕ scrollável │
+└──────────────┴──────────────────────────────┴───────────────┘
 ```
 
-**Arquivos tocados**
-- `supabase/functions/generate-image/index.ts` — aceitar `seed`, repassar a Gemini, remover auto-fallback.
-- `src/pages/ProjectPage.tsx` — remover tab Vídeos, orquestrar lock de engine, seed, model_reference, fluxo de aprovação do frontal.
-- `src/components/studio/GenerateSection.tsx` (ou equivalente da aba Fotos) — colapsáveis Prompt + Referências, botão Salvar e Regenerar com diálogo de confirmação, disable de ângulos não-frontais.
-- `src/components/studio/PhotoViewer.tsx` + `ResultsGrid.tsx` — badge de consistência.
-- `src/components/studio/EngineSelector.tsx` — estado disabled + badge "Travada".
-- Deletar `src/components/studio/VeoVideoSection.tsx`.
+Painel de setup (direita, ~380px, sticky):
+- **Seção 1 — Peça** (sempre expandida)
+  - Upload thumbnail + botão "Analisar" (manual, como pediu)
+  - Chips resumo: tipo · tecido · cor (do resultado do Claude)
+  - Link "Editar análise" → abre accordion com todos os campos
+- **Seção 2 — Modelo** (accordion, recolhida após 1ª escolha)
+  - Avatar do modelo selecionado + nome
+  - Botão "Trocar" abre o `ModelGallery` inline
+- **Seção 3 — Estilo & cenário** (accordion)
+  - Chips de acessórios + preset de cenário
+- **Seção 4 — Motor** (compacto, mostra badge "travado" quando fixado)
+- **Seção 5 — Gerar** (sticky no rodapé do painel)
+  - 5 botões por ângulo (frontal, lateral, costas, detalhe, movimento) — mantidos como estão
+  - Ângulos não-frontais desabilitados até aprovar frontal (regra atual mantida)
+  - Prompt manual como textarea colapsável abaixo
 
-**Fora de escopo**
-- Não vou alterar o `generate-video` nem outros wizards (`Index.tsx`).
-- Não vou mexer em billing/credits além do que já é gravado.
+## Mudanças de código
 
-Confirme para eu seguir — começo pelas migrations.
+**Novo:** `src/components/studio/SetupPanel.tsx`
+- Recebe todas as props que hoje vão pro `LaunchFlowModal`
+- Renderiza as 5 seções usando `Collapsible` do shadcn
+- Reusa componentes existentes: `UploadSection` (versão compacta), `ModelGallery`, `AccessoriesSelector`, `EngineSelector`, `GenerateSection`
+
+**Editado:** `src/pages/ProjectPage.tsx`
+- Remover import e uso de `LaunchFlowModal`
+- Adicionar `<SetupPanel>` como coluna direita fixa no layout principal
+- Remover state `launchFlowOpen` / `launchStartStep`
+- Botão "Novo lançamento" no header vira "Nova peça" e apenas limpa o state do painel (não abre modal)
+
+**Deletado:** `src/components/studio/LaunchFlowModal.tsx`
+
+**Não muda:**
+- `GenerateSection.tsx` (5 botões por ângulo permanecem)
+- `UploadSection.tsx` (botão "Analisar" manual permanece)
+- Toda a lógica de seed lock, engine lock, aprovação de frontal, edge functions
+- `PromptAndRefsEditor` continua funcionando por imagem gerada
+
+## Responsivo
+- ≥1280px: 3 colunas (sidebar · grid · painel)
+- 1024-1279px: painel vira drawer lateral acionável por botão "Setup"
+- <1024px: painel vira sheet bottom (reusa `Sheet` do shadcn)
+
+## Ganho de cliques
+| Ação | Antes | Depois |
+|---|---|---|
+| Abrir setup | 1 (botão modal) | 0 (sempre visível) |
+| Navegar steps | 2 (Próximo × 2) | 0 |
+| Fechar modal pra ver grid | 1 | 0 |
+| Reabrir pra trocar modelo | 3 | 1 |
+
+## Fora de escopo
+- Auto-análise no upload (você quis manter manual)
+- Botão "gerar lookbook completo" (você quis manter separado por ângulo)
+- Mudanças em edge functions ou schema
