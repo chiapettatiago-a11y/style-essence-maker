@@ -78,6 +78,7 @@ interface LaunchFlowModalProps {
   onIsComboChange: (v: boolean) => void;
   featuredPiece: string | null;
   onFeaturedPieceChange: (v: string) => void;
+  engineLocked?: boolean;
 }
 
 const LaunchFlowModal: React.FC<LaunchFlowModalProps> = ({
