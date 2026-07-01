@@ -20,7 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import JSZip from "jszip";
 import monograma from "@/assets/monograma.png";
 import { GalleryModel, MODEL_GALLERY } from "@/data/model-gallery";
-import LaunchFlowModal from "@/components/studio/LaunchFlowModal";
+import SetupPanel from "@/components/studio/SetupPanel";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useCooldownTimer } from "@/hooks/useCooldownTimer";
 import PhotoViewer from "@/components/studio/PhotoViewer";
